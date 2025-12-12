@@ -1,0 +1,12 @@
+{
+	"name": "vcpkg-obs-kaito-tokyo-apiauth",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"jose": "^6.1.3"
+	},
+	"devDependencies": {
+		"uuid": "^13.0.0",
+		"wrangler": "^4.54.0"
+	}
+}

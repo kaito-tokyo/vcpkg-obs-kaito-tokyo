@@ -1,0 +1,11 @@
+{
+	"name": "vcpkg-obs-kaito-tokyo-cloudflare",
+	"private": true,
+	"workspaces": [
+		"apiauth",
+		"readwrite"
+	],
+	"devDependencies": {
+		"prettier": "^3.7.4"
+	}
+}

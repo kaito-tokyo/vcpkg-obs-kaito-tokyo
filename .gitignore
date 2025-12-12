@@ -1,0 +1,5 @@
+.dev.*
+.DS_Store
+.wrangler/
+node_modules/
+vcpkg_installed/

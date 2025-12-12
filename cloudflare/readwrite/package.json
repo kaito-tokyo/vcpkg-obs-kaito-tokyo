@@ -1,0 +1,7 @@
+{
+	"name": "vcpkg-obs-kaito-tokyo-readwrite",
+	"private": true,
+	"devDependencies": {
+		"wrangler": "^4.54.0"
+	}
+}
