@@ -48,11 +48,14 @@ export async function handleServiceToken(
 			const jwt = await new SignJWT({
 				[TYPE_CLAIM]: "service-master",
 				[SCOPE_CLAIM]: "accesstoken",
+				client_id: "apiauth",
+				ver: "1.0",
 			})
 				.setProtectedHeader({ alg, kid, typ: "JWT" })
 				.setIssuer(ISSUER)
 				.setSubject(sub)
 				.setIssuedAt()
+				.setNotBefore("5s")
 				.setExpirationTime("1y")
 				.setJti(`${kid}_${uuidv7()}`)
 				.setAudience(AUDIENCE)
