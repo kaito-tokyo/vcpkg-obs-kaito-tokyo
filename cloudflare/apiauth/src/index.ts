@@ -5,16 +5,35 @@
 // See LICENSE for more information.
 
 import { SignJWT, JWK } from "jose";
-import * as crypto from "node:crypto";
 
-export async function handleNewServiceToken(
+export function decodeHexString(hexString: string): Uint8Array {
+	const length = hexString.length;
+	const uint8Array = new Uint8Array(length / 2);
+	for (let i = 0, j = 0; i < length; i += 2, j++) {
+		const hexByte = hexString.substring(i, i + 2);
+		uint8Array[j] = parseInt(hexByte, 16);
+	}
+	return uint8Array;
+}
+
+export function loadPrivateKey(privateKeyHex: string): crypto.KeyObject {
+	decodeHexString(privateKeyHex);
+}
+
+export async function handleServiceToken(
 	request: Request,
 	env: Env,
 	url: URL,
 ): Promise<Response> {
 	switch (request.method) {
 		case "POST": {
-			return new Response("Not Implemented", { status: 501 });
+			const payload = {};
+
+			const jwt = await new SignJWT(payload)
+				.setProtectedHeader({ alg: "EdDSA", typ: "JWT" })
+				.setIssuedAt()
+				.setExpirationTime(0)
+				.sign(privateKey);
 		}
 		default: {
 			return new Response("Method Not Allowed", {
@@ -25,14 +44,6 @@ export async function handleNewServiceToken(
 	}
 }
 
-export async function handleToken(
-	request: Request,
-	env: Env,
-	url: URL,
-): Promise<Response> {
-	return new Response("Not Implemented", { status: 501 });
-}
-
 export default {
 	async fetch(
 		request: Request,
@@ -41,11 +52,8 @@ export default {
 	): Promise<Response> {
 		const url = new URL(request.url);
 		switch (url.pathname) {
-			case "/token": {
-				return handleToken(request, env, url);
-			}
 			case "/service-token": {
-				return handleNewServiceToken(request, env, url);
+				return handleServiceToken(request, env, url);
 			}
 			default: {
 				return new Response("Not Found", { status: 404 });
