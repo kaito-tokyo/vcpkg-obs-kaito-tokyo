@@ -4,36 +4,64 @@
 //
 // See LICENSE for more information.
 
-import { SignJWT, JWK } from "jose";
+import { SignJWT } from "jose";
+import { v7 as uuidv7 } from "uuid";
 
-export function decodeHexString(hexString: string): Uint8Array {
-	const length = hexString.length;
-	const uint8Array = new Uint8Array(length / 2);
-	for (let i = 0, j = 0; i < length; i += 2, j++) {
-		const hexByte = hexString.substring(i, i + 2);
-		uint8Array[j] = parseInt(hexByte, 16);
-	}
-	return uint8Array;
+interface PrivateJwk extends JsonWebKey {
+	kid?: string;
 }
 
-export function loadPrivateKey(privateKeyHex: string): crypto.KeyObject {
-	decodeHexString(privateKeyHex);
-}
+const ISSUER = "https://apiauth.vcpkg-obs.kaito.tokyo";
+const TYPE_CLAIM = `${ISSUER}/type`;
+const SCOPE_CLAIM = `${ISSUER}/scope`;
+const AUDIENCE = "https://readwrite.vcpkg-obs.kaito.tokyo";
 
 export async function handleServiceToken(
 	request: Request,
 	env: Env,
-	url: URL,
 ): Promise<Response> {
 	switch (request.method) {
 		case "POST": {
-			const payload = {};
+			const privateJwk: PrivateJwk = JSON.parse(env.PRIVATE_KEY_JSON);
+			const { alg, kid } = privateJwk;
+			if (!alg || alg !== "EdDSA") {
+				throw new Error("Invalid alg in private key");
+			}
+			if (!kid || typeof kid !== "string") {
+				throw new Error("Invalid kid in private key");
+			}
 
-			const jwt = await new SignJWT(payload)
-				.setProtectedHeader({ alg: "EdDSA", typ: "JWT" })
+			const formData = await request.formData();
+			const sub = formData.get("sub");
+			if (typeof sub !== "string" || !sub) {
+				return new Response("Bad Request", { status: 400 });
+			}
+
+			const privateKey = await crypto.subtle.importKey(
+				"jwk",
+				privateJwk,
+				{ name: "Ed25519" },
+				false,
+				["sign"],
+			);
+
+			const jwt = await new SignJWT({
+				[TYPE_CLAIM]: "service-master",
+				[SCOPE_CLAIM]: "accesstoken",
+			})
+				.setProtectedHeader({ alg, kid, typ: "JWT" })
+				.setIssuer(ISSUER)
+				.setSubject(sub)
 				.setIssuedAt()
-				.setExpirationTime(0)
+				.setExpirationTime("1y")
+				.setJti(`${kid}_${uuidv7()}`)
+				.setAudience(AUDIENCE)
 				.sign(privateKey);
+
+			return new Response(`Service master token:\n${jwt}`, {
+				status: 200,
+				headers: { "Content-Type": "text/plain" },
+			});
 		}
 		default: {
 			return new Response("Method Not Allowed", {
@@ -52,8 +80,8 @@ export default {
 	): Promise<Response> {
 		const url = new URL(request.url);
 		switch (url.pathname) {
-			case "/service-token": {
-				return handleServiceToken(request, env, url);
+			case "/secured/service-master-token": {
+				return handleServiceToken(request, env);
 			}
 			default: {
 				return new Response("Not Found", { status: 404 });

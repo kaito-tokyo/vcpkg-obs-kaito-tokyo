@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>New service token</title>
+	</head>
+	<body>
+		<form action="/secured/service-master-token" method="POST">
+			<label>
+				Subject:
+				<input
+					type="text"
+					name="sub"
+					value="repo:kaito-tokyo/vcpkg-obs-kaito-tokyo:environment:production"
+				/>
+			</label>
+			<input type="submit" value="Generate" />
+		</form>
+	</body>
+</html>

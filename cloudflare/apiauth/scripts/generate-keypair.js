@@ -2,7 +2,7 @@ import * as crypto from "node:crypto";
 
 import { exportJWK } from "jose";
 
-const keytype = "ci-master";
+const keytype = "service-master";
 const keyname = process.argv[2];
 if (!keyname) {
 	throw new Error("Key name argument is required");
@@ -16,7 +16,7 @@ const privateKeyJwk = Object.fromEntries(
 	[
 		...Object.entries(await exportJWK(privateKey)),
 		["alg", "EdDSA"],
-		["key_ops", "sign"],
+		["key_ops", ["sign"]],
 		["kid", kid],
 		["use", "sig"],
 	].sort(([a], [b]) => a.localeCompare(b)),
@@ -26,7 +26,7 @@ const publicKeyJwk = Object.fromEntries(
 	[
 		...Object.entries(await exportJWK(publicKey)),
 		["alg", "EdDSA"],
-		["key_ops", "verify"],
+		["key_ops", ["verify"]],
 		["kid", kid],
 		["use", "sig"],
 	].sort(([a], [b]) => a.localeCompare(b)),
