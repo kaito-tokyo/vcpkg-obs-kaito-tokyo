@@ -1,5 +1,3 @@
-import * as crypto from "node:crypto";
-
 import { exportJWK } from "jose";
 
 const keytype = "service-master";
@@ -10,7 +8,7 @@ if (!keyname) {
 
 const kid = `${keytype}_${keyname}`;
 
-const { privateKey, publicKey } = crypto.generateKeyPairSync("ed25519");
+const { privateKey, publicKey } = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
 
 const privateKeyJwk = Object.fromEntries(
 	[
