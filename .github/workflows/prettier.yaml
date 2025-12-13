@@ -30,4 +30,4 @@ jobs:
 
       - name: Run Prettier
         working-directory: ${{ github.workspace }}/cloudflare
-        run: prettier --check
+        run: npx prettier --check
