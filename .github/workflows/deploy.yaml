@@ -13,7 +13,6 @@ defaults:
     shell: bash
 
 env:
-  VCPKG_BINARY_SOURCES: clear;http,https://vcpkg-obs.kaito.tokyo/binarycache/{name}/{version}/{sha}
   VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
 permissions:
@@ -122,7 +121,7 @@ jobs:
         run: .\bootstrap-vcpkg.bat
 
       - name: Build
-        run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs --debug
 
   BuildOnUbuntu:
     runs-on: ubuntu-24.04
