@@ -17,6 +17,10 @@ This registry provides the following packages:
 - **vosk** - Offline speech recognition API
 - **wolfssl** - Embedded SSL/TLS library
 
+## Binary Cache for OBS
+
+The binary caches available in this repository are optimized for modern OBS (Open Broadcaster Software). Developers can easily link libraries from this registry to their OBS plugins, streamlining the plugin development process with pre-built, compatible binaries.
+
 ## Usage
 
 To use this registry in your project, add the following to your `vcpkg-configuration.json`:
