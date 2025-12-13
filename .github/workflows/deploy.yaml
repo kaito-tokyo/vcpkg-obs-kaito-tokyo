@@ -14,7 +14,7 @@ defaults:
     shell: bash
 
 env:
-  VCPKG_BINARY_SOURCES: clear;http,https://localhost:8080/{name}/{version}/{sha},readwrite
+  VCPKG_BINARY_SOURCES: clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite
   VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
 permissions:
