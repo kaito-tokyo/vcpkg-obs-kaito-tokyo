@@ -138,7 +138,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(accessToken)
 
 	server := CIProxyServer{accessToken: accessToken}
 
