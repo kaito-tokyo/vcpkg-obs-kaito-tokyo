@@ -54,7 +54,7 @@ jobs:
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs
 
-  BuildOnMacOSX64:
+  DeployOnMacOSX64:
     runs-on: macos-15
 
     timeout-minutes: 180
@@ -88,7 +88,7 @@ jobs:
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs
 
-  BuildOnWindows:
+  DeployOnWindows:
     runs-on: windows-2022
 
     timeout-minutes: 180
@@ -124,7 +124,7 @@ jobs:
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs
 
-  BuildOnUbuntu:
+  DeployOnUbuntu:
     runs-on: ubuntu-24.04
 
     timeout-minutes: 60
