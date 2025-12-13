@@ -10,6 +10,13 @@ import { createLocalJWKSet } from "jose/jwks/local";
 import type { JWTPayload } from "jose";
 import { v7 as uuidv7 } from "uuid";
 
+import {
+	S3Client,
+	GetObjectCommand,
+	PutObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
 import keys from "../keys.json";
 
 const BINARYCACHE_PREFIX = "/binarycache/";
@@ -19,6 +26,10 @@ const TYPE_CLAIM = `${ISSUER}/type`;
 const SCOPE_CLAIM = `${ISSUER}/scope`;
 const AUDIENCE = "https://readwrite.vcpkg-obs.kaito.tokyo";
 const ACCESS_TOKEN_LIFE = "4h";
+
+const R2_ENDPOINT =
+	"https://1169b990c0885e4cfa603c38eef1a9b3.r2.cloudflarestorage.com";
+const R2_BUCKET_NAME = "vcpkg-obs-kaito-tokyo";
 
 interface SecretJwk extends JsonWebKey {
 	kid?: string;
@@ -39,7 +50,10 @@ export async function handleToken(
 
 			const masterTokenPayload = await verifyMasterToken(masterToken);
 			if (masterTokenPayload && masterTokenPayload.sub) {
-				const accessToken = await generateAccessToken(JSON.parse(env.SECRET_KEY_JSON), masterTokenPayload.sub);
+				const accessToken = await generateAccessToken(
+					JSON.parse(env.SECRET_KEY_JSON),
+					masterTokenPayload.sub,
+				);
 				return new Response(`${accessToken}\n`, {
 					headers: { "Content-Type": "application/jwt" },
 				});
@@ -56,46 +70,51 @@ export async function handleToken(
 	}
 }
 
-export async function verifyMasterToken(token: string): Promise<JWTPayload | undefined> {
-    try {
+export async function verifyMasterToken(
+	token: string,
+): Promise<JWTPayload | undefined> {
+	try {
 		const JWKS = createLocalJWKSet(keys);
 
-        const { payload } = await jwtVerify(token, JWKS, {
-			algorithms: ['EdDSA'],
-            issuer: ISSUER,
-            audience: AUDIENCE,
+		const { payload } = await jwtVerify(token, JWKS, {
+			algorithms: ["EdDSA"],
+			issuer: ISSUER,
+			audience: AUDIENCE,
 			clockTolerance: 5,
-            requiredClaims: ['sub', TYPE_CLAIM, SCOPE_CLAIM],
-			typ: "JWT"
-        });
+			requiredClaims: ["sub", TYPE_CLAIM, SCOPE_CLAIM],
+			typ: "JWT",
+		});
 
-		if (payload.ver !== '1.0') {
+		if (payload.ver !== "1.0") {
 			console.error("ver claim mismatch");
 			return;
 		}
 
-		if (payload[TYPE_CLAIM] !== 'master') {
+		if (payload[TYPE_CLAIM] !== "master") {
 			console.error("type claim mismatch");
 			return;
 		}
 
-		if (payload[SCOPE_CLAIM] !== 'accesstoken') {
+		if (payload[SCOPE_CLAIM] !== "accesstoken") {
 			console.error("scope claim mismatch");
 			return;
 		}
 
-        return payload;
-    } catch (e) {
+		return payload;
+	} catch (e) {
 		console.error("JWT verification failed:", e);
-        return;
-    }
+		return;
+	}
 }
 
-export async function generateAccessToken(secretJwk: SecretJwk, sub: string): Promise<string> {
+export async function generateAccessToken(
+	secretJwk: SecretJwk,
+	sub: string,
+): Promise<string> {
 	const { alg, kid, kty } = secretJwk;
-    if (kty !== "oct" || alg !== "HS256") {
-        throw new Error("Invalid key type or algorithm for HMAC access token.");
-    }
+	if (kty !== "oct" || alg !== "HS256") {
+		throw new Error("Invalid key type or algorithm for HMAC access token.");
+	}
 
 	const secretKey = await crypto.subtle.importKey(
 		"jwk",
@@ -105,25 +124,28 @@ export async function generateAccessToken(secretJwk: SecretJwk, sub: string): Pr
 		["sign"],
 	);
 
-    const jwt = await new SignJWT({
-        [TYPE_CLAIM]: "access",
-        [SCOPE_CLAIM]: "binarycache",
+	const jwt = await new SignJWT({
+		[TYPE_CLAIM]: "access",
+		[SCOPE_CLAIM]: "binarycache",
 		client_id: "readwrite",
 		ver: "1.0",
-    })
-        .setProtectedHeader({ alg, kid, typ: "JWT" })
-        .setIssuer(ISSUER)
-        .setSubject(sub)
-        .setIssuedAt()
-        .setExpirationTime(ACCESS_TOKEN_LIFE)
-        .setAudience(AUDIENCE)
-        .setJti(`${kid}_${uuidv7()}`)
-        .sign(secretKey);
+	})
+		.setProtectedHeader({ alg, kid, typ: "JWT" })
+		.setIssuer(ISSUER)
+		.setSubject(sub)
+		.setIssuedAt()
+		.setExpirationTime(ACCESS_TOKEN_LIFE)
+		.setAudience(AUDIENCE)
+		.setJti(`${kid}_${uuidv7()}`)
+		.sign(secretKey);
 
-    return jwt;
+	return jwt;
 }
 
-export async function verifyAccessToken(secretJwk: SecretJwk, token: string): Promise<JWTPayload | undefined> {
+export async function verifyAccessToken(
+	secretJwk: SecretJwk,
+	token: string,
+): Promise<JWTPayload | undefined> {
 	const secretKey = await crypto.subtle.importKey(
 		"jwk",
 		secretJwk,
@@ -133,35 +155,43 @@ export async function verifyAccessToken(secretJwk: SecretJwk, token: string): Pr
 	);
 
 	try {
-        const { payload } = await jwtVerify(token, secretKey, {
-			algorithms: ['HS256'],
+		const { payload } = await jwtVerify(token, secretKey, {
+			algorithms: ["HS256"],
 			clockTolerance: 5,
 			typ: "JWT",
-            audience: AUDIENCE,
-            issuer: ISSUER,
-            requiredClaims: ['sub', TYPE_CLAIM, SCOPE_CLAIM]
-        });
+			audience: AUDIENCE,
+			issuer: ISSUER,
+			requiredClaims: ["sub", TYPE_CLAIM, SCOPE_CLAIM],
+		});
 
-		if (payload.ver !== '1.0') {
+		if (payload.ver !== "1.0") {
 			console.error("ver claim mismatch");
 			return;
 		}
 
-		if (payload[TYPE_CLAIM] !== 'access') {
+		if (payload[TYPE_CLAIM] !== "access") {
 			console.error("type claim mismatch");
 			return;
 		}
 
-		if (payload[SCOPE_CLAIM] !== 'binarycache') {
+		if (payload[SCOPE_CLAIM] !== "binarycache") {
 			console.error("scope claim mismatch");
 			return;
 		}
 
 		return payload;
-    } catch (e) {
+	} catch (e) {
 		console.error("JWT verification failed:", e);
 		return;
-    }
+	}
+}
+
+async function generatePresignedUrl(
+	s3client: S3Client,
+	command: GetObjectCommand | PutObjectCommand,
+	expiresIn: number,
+): Promise<string> {
+	return getSignedUrl(s3client, command, { expiresIn });
 }
 
 export async function handleBinaryCache(
@@ -175,8 +205,10 @@ export async function handleBinaryCache(
 	}
 	const accessToken = authorization.slice("Bearer ".length);
 
-	const jwtPayload = await verifyAccessToken(JSON.parse(env.SECRET_KEY_JSON), accessToken);
-	console.log(jwtPayload);
+	const jwtPayload = await verifyAccessToken(
+		JSON.parse(env.SECRET_KEY_JSON),
+		accessToken,
+	);
 	if (!jwtPayload) {
 		console.error("Access token verification failed");
 		return new Response("Unauthorized", { status: 401 });
@@ -191,63 +223,38 @@ export async function handleBinaryCache(
 	switch (request.method) {
 		case "HEAD":
 		case "GET": {
-			const object = await env.R2_BUCKET.get(key, {
-				onlyIf: request.headers,
-				range: request.headers,
+			return new Response(null, {
+				status: 308,
+				headers: {
+					Location: `https://vcpkg-obs.kaito.tokyo/${key}`,
+				},
 			});
-
-			if (object === null) {
-				return new Response("Not Found", { status: 404 });
-			}
-
-			const headers = new Headers();
-			object.writeHttpMetadata(headers);
-			headers.set("etag", object.httpEtag);
-
-			if ("body" in object) {
-				if (request.method === "HEAD") {
-					return new Response(null, { status: 200, headers });
-				} else {
-					return new Response(object.body, {
-						status: request.headers.get("range") === null ? 200 : 206,
-						headers,
-					});
-				}
-			} else {
-				if (
-					request.headers.has("if-match") ||
-					request.headers.has("if-unmodified-since")
-				) {
-					return new Response(null, { status: 412, headers });
-				} else {
-					return new Response(null, { status: 304, headers });
-				}
-			}
 		}
 
 		case "PUT": {
-			const existingObject = await env.R2_BUCKET.head(key);
-
-			const result = await env.R2_BUCKET.put(key, request.body, {
-				onlyIf: request.headers,
-				httpMetadata: {
-					contentType: request.headers.get("content-type") || undefined,
-					cacheControl: "public, max-age=31536000, immutable"
+			const s3client = new S3Client({
+				region: "auto",
+				endpoint: R2_ENDPOINT,
+				credentials: {
+					accessKeyId: env.R2_ACCESS_KEY_ID,
+					secretAccessKey: env.R2_SECRET_ACCESS_KEY,
 				},
 			});
 
-			if (result === null) {
-				return new Response("Precondition Failed", { status: 412 });
-			} else {
-				if (existingObject === null) {
-					return new Response("Created", {
-						status: 201,
-						headers: { Location: url.href },
-					});
-				} else {
-					return new Response("OK", { status: 200 });
-				}
-			}
+			const presignedUrl = await getSignedUrl(
+				s3client,
+				new PutObjectCommand({
+					Bucket: R2_BUCKET_NAME,
+					Key: key,
+					CacheControl: "public, max-age=31536000, immutable",
+				}),
+				{ expiresIn: 3600 },
+			);
+
+			return new Response(null, {
+				status: 307,
+				headers: { Location: presignedUrl },
+			});
 		}
 
 		default: {
@@ -268,7 +275,7 @@ export default {
 		const url = new URL(request.url);
 
 		if (url.pathname.startsWith(BINARYCACHE_PREFIX)) {
-			return handleBinaryCache(request, env, url)
+			return handleBinaryCache(request, env, url);
 		}
 
 		switch (url.pathname) {

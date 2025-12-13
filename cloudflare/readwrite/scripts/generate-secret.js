@@ -14,10 +14,14 @@ if (!keyname) {
 
 const kid = `${keytype}_${keyname}`;
 
-const secretKey = await crypto.subtle.generateKey({
-	name: "HMAC",
-	hash: "SHA-256",
-}, true, ["sign", "verify"]);
+const secretKey = await crypto.subtle.generateKey(
+	{
+		name: "HMAC",
+		hash: "SHA-256",
+	},
+	true,
+	["sign", "verify"],
+);
 
 const secretJwk = Object.fromEntries(
 	[
