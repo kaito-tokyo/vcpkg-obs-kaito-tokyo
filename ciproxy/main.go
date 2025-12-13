@@ -122,6 +122,23 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	io.Copy(w, resp.Body)
 }
 
+func (s CIProxyServer) handleRedirect(w http.ResponseWriter, r *http.Request) {
+	binarycacheURL := "https://readwrite.vcpkg-obs.kaito.tokyo/binarycache"
+	http.Redirect(w, r, binarycacheURL+r.URL.Path, http.StatusTemporaryRedirect)
+}
+
+func (s CIProxyServer) handle(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodHead, http.MethodGet:
+		s.handleRedirect(w, r)
+	case http.MethodPut:
+		s.handleFileUpload(w, r)
+	default:
+		w.Header().Set("Allow", "GET, HEAD, PUT")
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func main() {
 	envMasterToken := os.Getenv("MASTER_TOKEN")
 	if envMasterToken == "" {
@@ -141,7 +158,7 @@ func main() {
 
 	server := CIProxyServer{accessToken: accessToken}
 
-	http.HandleFunc("/", server.handleFileUpload)
+	http.HandleFunc("/", server.handle)
 
 	fmt.Printf("Starting CI Proxy Server on port %s...\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
