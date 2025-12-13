@@ -4,13 +4,10 @@
 //
 // See LICENSE for more information.
 
-import {
-	jwtVerify,
-	SignJWT,
-	createLocalJWKSet,
-	JWTPayload
-} from "jose";
-
+import { SignJWT } from "jose/jwt/sign";
+import { jwtVerify } from "jose/jwt/verify";
+import { createLocalJWKSet } from "jose/jwks/local";
+import type { JWTPayload } from "jose";
 import { v7 as uuidv7 } from "uuid";
 
 import keys from "../keys.json";
