@@ -8,7 +8,7 @@
   "registries": [
     {
       "kind": "git",
-      "baseline": "b91f9a04a68755f6a43a66a1b78d391292765495",
+      "baseline": "901fdb51caca7b97a3fb37810642dc28631ece49",
       "repository": "https://github.com/kaito-tokyo/vcpkg-obs-kaito-tokyo",
       "packages": [
         "kaldi",
