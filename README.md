@@ -21,6 +21,18 @@ This registry provides the following packages:
 
 The binary caches available in this repository are optimized for modern OBS (Open Broadcaster Software). Developers can easily link libraries from this registry to their OBS plugins, streamlining the plugin development process with pre-built, compatible binaries.
 
+### Using the Binary Cache
+
+To use the binary cache from this repository in **GitHub Actions**, set the `VCPKG_BINARY_SOURCES` environment variable:
+
+```bash
+export VCPKG_BINARY_SOURCES="clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}"
+```
+
+This will configure vcpkg to download pre-built binaries from our cache, significantly speeding up your build process.
+
+**Note:** This binary cache is only accessible within GitHub Actions workflows.
+
 ## Usage
 
 To use this registry in your project, add the following to your `vcpkg-configuration.json`:
