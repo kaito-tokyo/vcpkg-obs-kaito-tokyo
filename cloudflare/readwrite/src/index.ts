@@ -27,6 +27,38 @@ interface SecretJwk extends JsonWebKey {
 	kid?: string;
 }
 
+export async function handleToken(
+	request: Request,
+	env: Env,
+): Promise<Response> {
+	switch (request.method) {
+		case "POST": {
+			const formData = await request.formData();
+
+			const masterToken = formData.get("master_token");
+			if (typeof masterToken !== "string" || !masterToken) {
+				return new Response("Bad Request", { status: 400 });
+			}
+
+			const masterTokenPayload = await verifyMasterToken(masterToken);
+			if (masterTokenPayload && masterTokenPayload.sub) {
+				const accessToken = await generateAccessToken(JSON.parse(env.SECRET_KEY_JSON), masterTokenPayload.sub);
+				return new Response(`${accessToken}\n`, {
+					headers: { "Content-Type": "application/jwt" },
+				});
+			} else {
+				return new Response("Unauthorized", { status: 401 });
+			}
+		}
+		default: {
+			return new Response("Method Not Allowed", {
+				status: 405,
+				headers: { Allow: "POST" },
+			});
+		}
+	}
+}
+
 export async function verifyMasterToken(token: string): Promise<JWTPayload | undefined> {
     try {
 		const JWKS = createLocalJWKSet(keys);
@@ -140,6 +172,19 @@ export async function handleBinaryCache(
 	env: Env,
 	url: URL,
 ): Promise<Response> {
+	const authorization = request.headers.get("authorization");
+	if (!authorization || !authorization.startsWith("Bearer ")) {
+		return new Response("Unauthorized", { status: 401 });
+	}
+	const accessToken = authorization.slice("Bearer ".length);
+
+	const jwtPayload = await verifyAccessToken(JSON.parse(env.SECRET_KEY_JSON), accessToken);
+	console.log(jwtPayload);
+	if (!jwtPayload) {
+		console.error("Access token verification failed");
+		return new Response("Unauthorized", { status: 401 });
+	}
+
 	const key = url.pathname.slice(BINARYCACHE_PREFIX.length);
 
 	if (key === "") {
@@ -184,16 +229,6 @@ export async function handleBinaryCache(
 		}
 
 		case "PUT": {
-			const authorization = request.headers.get("authorization");
-			if (!authorization || !authorization.startsWith("Bearer ")) {
-				return new Response("Unauthorized", { status: 401 });
-			}
-			const accessToken = authorization.slice("Bearer ".length);
-
-			if (!(await verifyAccessToken(JSON.parse(env.SECRET_KEY_JSON), accessToken))) {
-				return new Response("Unauthorized", { status: 401 });
-			}
-
 			const existingObject = await env.R2_BUCKET.head(key);
 
 			const result = await env.R2_BUCKET.put(key, request.body, {
@@ -226,38 +261,6 @@ export async function handleBinaryCache(
 	}
 }
 
-export async function handleToken(
-	request: Request,
-	env: Env,
-): Promise<Response> {
-	switch (request.method) {
-		case "POST": {
-			const formData = await request.formData();
-
-			const masterToken = formData.get("master_token");
-			if (typeof masterToken !== "string" || !masterToken) {
-				return new Response("Bad Request", { status: 400 });
-			}
-
-			const masterTokenPayload = await verifyMasterToken(masterToken);
-			if (masterTokenPayload && masterTokenPayload.sub) {
-				const accessToken = await generateAccessToken(JSON.parse(env.SECRET_KEY_JSON), masterTokenPayload.sub);
-				return new Response(`${accessToken}\n`, {
-					headers: { "Content-Type": "application/jwt" },
-				});
-			} else {
-				return new Response("Unauthorized", { status: 401 });
-			}
-		}
-		default: {
-			return new Response("Method Not Allowed", {
-				status: 405,
-				headers: { Allow: "POST" },
-			});
-		}
-	}
-}
-
 export default {
 	async fetch(
 		request: Request,
@@ -267,7 +270,7 @@ export default {
 		const url = new URL(request.url);
 
 		if (url.pathname.startsWith(BINARYCACHE_PREFIX)) {
-			handleBinaryCache(request, env, url)
+			return handleBinaryCache(request, env, url)
 		}
 
 		switch (url.pathname) {
