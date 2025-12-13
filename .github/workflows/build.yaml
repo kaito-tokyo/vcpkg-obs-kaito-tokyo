@@ -1,0 +1,110 @@
+name: "Build"
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  VCPKG_BINARY_SOURCES: clear;http,https://vcpkg-obs.kaito.tokyo/binarycache/{name}/{version}/{sha}
+  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+permissions:
+  contents: read
+
+jobs:
+  BuildOnMacOSArm64:
+    runs-on: macos-15
+
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Checkout vcpkg repository
+        uses: actions/checkout@v5
+        with:
+          repository: microsoft/vcpkg
+          path: ${{ env.VCPKG_ROOT }}
+
+      - name: Bootstrap vcpkg
+        working-directory: ${{ env.VCPKG_ROOT }}
+        run: ./bootstrap-vcpkg.sh
+
+      - name: Build
+        run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs
+
+  BuildOnMacOSX64:
+    runs-on: macos-15
+
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Checkout vcpkg repository
+        uses: actions/checkout@v5
+        with:
+          repository: microsoft/vcpkg
+          path: ${{ env.VCPKG_ROOT }}
+
+      - name: Bootstrap vcpkg
+        working-directory: ${{ env.VCPKG_ROOT }}
+        run: ./bootstrap-vcpkg.sh
+
+      - name: Build
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs
+
+  BuildOnWindows:
+    runs-on: windows-2022
+
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Checkout vcpkg repository
+        uses: actions/checkout@v5
+        with:
+          repository: microsoft/vcpkg
+          path: ${{ env.VCPKG_ROOT }}
+
+      - name: Bootstrap vcpkg
+        working-directory: ${{ env.VCPKG_ROOT }}
+        shell: pwsh
+        run: .\bootstrap-vcpkg.bat
+
+      - name: Build
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs
+
+  BuildOnUbuntu:
+    runs-on: ubuntu-24.04
+
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Checkout vcpkg repository
+        uses: actions/checkout@v5
+        with:
+          repository: microsoft/vcpkg
+          path: ${{ env.VCPKG_ROOT }}
+
+      - name: Bootstrap vcpkg
+        working-directory: ${{ env.VCPKG_ROOT }}
+        run: ./bootstrap-vcpkg.sh
+
+      - name: Build
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs
