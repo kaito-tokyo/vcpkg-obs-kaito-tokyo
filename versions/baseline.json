@@ -1,0 +1,32 @@
+{
+  "default": {
+    "kaldi": {
+      "baseline": "master",
+      "port-version": 0
+    },
+    "libpng": {
+      "baseline": "1.6.50",
+      "port-version": 0
+    },
+    "ncnn": {
+      "baseline": "20250916",
+      "port-version": 0
+    },
+    "openfst": {
+      "baseline": "1.8.0",
+      "port-version": 0
+    },
+    "tesseract": {
+      "baseline": "5.5.1",
+      "port-version": 0
+    },
+    "vosk": {
+      "baseline": "0.3.51-rc.0",
+      "port-version": 0
+    },
+    "wolfssl": {
+      "baseline": "5.8.2",
+      "port-version": 0
+    }
+  }
+}
