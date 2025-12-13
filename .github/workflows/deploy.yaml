@@ -20,12 +20,24 @@ permissions:
   contents: read
 
 jobs:
-  BuildOnMacOSArm64:
+  DeployOnMacOSArm64:
     runs-on: macos-15
 
     timeout-minutes: 180
 
+    environment: production
+
     steps:
+      - name: Get access token
+        run: |
+          ACCESS_TOKEN=$(curl -fsSL -X POST -d "master_token=${{ secrets.MASTER_TOKEN }}")
+          if [[ -z "$ACCESS_TOKEN" ]]; then
+            echo "Failed to get access token"
+            exit 1
+          fi
+          printf 'VCPKG_BINARY_SOURCES="clear;http,https://vcpkg-obs.kaito.tokyo/binarycache/{name}/{version}/{sha},Authorization: Bearer %s"\n' "$ACCESS_TOKEN" >> "$GITHUB_ENV"
+          echo "::add-mask::$ACCESS_TOKEN"
+
       - name: Checkout
         uses: actions/checkout@v5
 
@@ -48,6 +60,16 @@ jobs:
     timeout-minutes: 180
 
     steps:
+      - name: Get access token
+        run: |
+          ACCESS_TOKEN=$(curl -fsSL -X POST -d "master_token=${{ secrets.MASTER_TOKEN }}")
+          if [[ -z "$ACCESS_TOKEN" ]]; then
+            echo "Failed to get access token"
+            exit 1
+          fi
+          printf 'VCPKG_BINARY_SOURCES="clear;http,https://vcpkg-obs.kaito.tokyo/binarycache/{name}/{version}/{sha},Authorization: Bearer %s"\n' "$ACCESS_TOKEN" >> "$GITHUB_ENV"
+          echo "::add-mask::$ACCESS_TOKEN"
+
       - name: Checkout
         uses: actions/checkout@v5
 
@@ -70,6 +92,17 @@ jobs:
     timeout-minutes: 180
 
     steps:
+      - name: Get access token
+        shell: bash
+        run: |
+          ACCESS_TOKEN=$(curl -fsSL -X POST -d "master_token=${{ secrets.MASTER_TOKEN }}")
+          if [[ -z "$ACCESS_TOKEN" ]]; then
+            echo "Failed to get access token"
+            exit 1
+          fi
+          printf 'VCPKG_BINARY_SOURCES="clear;http,https://vcpkg-obs.kaito.tokyo/binarycache/{name}/{version}/{sha},Authorization: Bearer %s"\n' "$ACCESS_TOKEN" >> "$GITHUB_ENV"
+          echo "::add-mask::$ACCESS_TOKEN"
+
       - name: Checkout
         uses: actions/checkout@v5
 
