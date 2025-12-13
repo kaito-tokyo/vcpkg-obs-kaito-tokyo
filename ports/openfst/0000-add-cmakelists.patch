@@ -1,0 +1,1332 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..e8ac18f
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,51 @@
++# Minimum required CMake version
++cmake_minimum_required(VERSION 3.16)
++
++# Project name and language
++project(openfst LANGUAGES CXX)
++
++# Set C++ standard
++set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++
++# Add MSVC-specific compile options and definitions
++if(MSVC)
++    add_compile_options(/bigobj)
++    add_compile_definitions(NOMINMAX FST_NO_DYNAMIC_LINKING)
++endif()
++
++# OpenFst versioning
++set(OPENFST_VERSION 23.0.0)
++set(OPENFST_SOVERSION 23)
++
++# ------------------------------------------------------------------
++# Options
++# ------------------------------------------------------------------
++
++# Enable Abseil support (similar to Bazel 'config_setting' and 'select')
++option(OPENFST_HAS_ABSL "Enable Abseil support" OFF)
++
++# Build shared libraries if ON, otherwise build static libraries (default: OFF)
++option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
++
++# Build executable binaries in bin/ (default: ON)
++option(OPENFST_BUILD_BIN "Build executable binaries" ON)
++
++# ------------------------------------------------------------------
++# External Dependencies
++# ------------------------------------------------------------------
++
++if(OPENFST_HAS_ABSL)
++    # Find required Abseil components
++    find_package(absl REQUIRED COMPONENTS synchronization)
++    message(STATUS "Found Abseil (via find_package)")
++else()
++    message(STATUS "Abseil support disabled (OPENFST_HAS_ABSL=OFF)")
++endif()
++
++# ------------------------------------------------------------------
++# Add Source Directories
++# ------------------------------------------------------------------
++
++# Add 'src' directory to the build
++add_subdirectory(src)
+diff --git a/cmake/OpenFstConfig.cmake.in b/cmake/OpenFstConfig.cmake.in
+new file mode 100644
+index 0000000..0e594e2
+--- /dev/null
++++ b/cmake/OpenFstConfig.cmake.in
+@@ -0,0 +1,9 @@
++@PACKAGE_INIT@
++
++include(CMakeFindDependencyMacro)
++
++if(@OPENFST_HAS_ABSL@)
++    find_dependency(absl REQUIRED COMPONENTS synchronization)
++endif()
++
++include("${CMAKE_CURRENT_LIST_DIR}/fst-targets.cmake")
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+new file mode 100644
+index 0000000..426cc40
+--- /dev/null
++++ b/src/CMakeLists.txt
+@@ -0,0 +1,49 @@
++include(GNUInstallDirs)
++include(CMakePackageConfigHelpers)
++
++# Define an INTERFACE target to manage header files.
++#
++# Linking to the 'fst_headers' target automatically adds 'src/include' to the include path.
++# This eliminates the need to call include_directories() in each subproject.
++add_library(fst_headers INTERFACE)
++target_include_directories(
++    fst_headers
++    INTERFACE
++        # $<BUILD_INTERFACE:...> : Path used when linking 'fst_headers' in the build tree
++        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
++        # $<INSTALL_INTERFACE:...> : Path used when linking 'fst_headers' after installation
++        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
++)
++install(TARGETS fst_headers EXPORT fst-targets)
++
++# Add subdirectories for each component
++add_subdirectory(lib)
++add_subdirectory(script)
++if(OPENFST_BUILD_BIN)
++    add_subdirectory(bin)
++endif()
++add_subdirectory(extensions)
++
++# Write all targets (fst, fst_headers) accumulated in 'fst-targets'
++# to the package file after all add_subdirectory calls.
++install(
++    EXPORT fst-targets
++    FILE fst-targets.cmake
++    NAMESPACE OpenFst::
++    DESTINATION ${CMAKE_INSTALL_DATADIR}/openfst
++)
++
++# Generate 'OpenFstConfig.cmake' from the 'OpenFstConfig.cmake.in' template
++configure_package_config_file(
++    ${CMAKE_SOURCE_DIR}/cmake/OpenFstConfig.cmake.in
++    ${CMAKE_CURRENT_BINARY_DIR}/OpenFstConfig.cmake
++    INSTALL_DESTINATION ${CMAKE_INSTALL_DATADIR}/openfst
++    # Pass variables used by @PACKAGE_INIT@ in OpenFstConfig.cmake.in
++    PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
++)
++
++# Install the generated 'OpenFstConfig.cmake'
++install(
++    FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenFstConfig.cmake
++    DESTINATION ${CMAKE_INSTALL_DATADIR}/openfst
++)
+diff --git a/src/bin/CMakeLists.txt b/src/bin/CMakeLists.txt
+new file mode 100644
+index 0000000..3aa9466
+--- /dev/null
++++ b/src/bin/CMakeLists.txt
+@@ -0,0 +1,71 @@
++# Define all executable target names listed in Makefile.am's 'bin_PROGRAMS'
++set(FST_BINARIES
++    fstarcsort
++    fstclosure
++    fstcompile
++    fstcompose
++    fstconcat
++    fstconnect
++    fstconvert
++    fstdeterminize
++    fstdifference
++    fstdisambiguate
++    fstdraw
++    fstencode
++    fstepsnormalize
++    fstequal
++    fstequivalent
++    fstinfo
++    fstintersect
++    fstinvert
++    fstisomorphic
++    fstmap
++    fstminimize
++    fstprint
++    fstproject
++    fstprune
++    fstpush
++    fstrandgen
++    fstrelabel
++    fstreplace
++    fstreverse
++    fstreweight
++    fstrmepsilon
++    fstshortestdistance
++    fstshortestpath
++    fstsymbols
++    fstsynchronize
++    fsttopsort
++    fstunion
++)
++
++# Define all binaries in a single loop
++foreach(target_name IN LISTS FST_BINARIES)
++    # Add executable (e.g., fstarcsort.cc, fstarcsort-main.cc)
++    add_executable(${target_name} ${target_name}.cc ${target_name}-main.cc)
++
++    # Corresponds to AM_CPPFLAGS -I$(srcdir)/../script
++    target_include_directories(
++        ${target_name}
++        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../script
++    )
++
++    # Corresponds to LDADD (fstscript inherits fst, m, dl)
++    target_link_libraries(${target_name} PRIVATE fstscript lib_export_dynamic)
++endforeach()
++
++# ------------------------------------------------------------------
++# Installation settings
++# ------------------------------------------------------------------
++
++include(GNUInstallDirs)
++
++# Install all executables defined in this CMakeLists.txt
++# (using the FST_BINARIES list directly)
++install(
++    TARGETS ${FST_BINARIES}
++    # Installation path for executables (.exe or binaries)
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++    # Installation path for non-.exe binaries on Mac/Linux
++    DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
+diff --git a/src/extensions/CMakeLists.txt b/src/extensions/CMakeLists.txt
+new file mode 100644
+index 0000000..cb451d1
+--- /dev/null
++++ b/src/extensions/CMakeLists.txt
+@@ -0,0 +1,10 @@
++add_subdirectory(compact)
++add_subdirectory(compress)
++add_subdirectory(const)
++add_subdirectory(far)
++add_subdirectory(linear)
++add_subdirectory(lookahead)
++add_subdirectory(mpdt)
++add_subdirectory(ngram)
++add_subdirectory(pdt)
++add_subdirectory(special)
+diff --git a/src/extensions/compact/CMakeLists.txt b/src/extensions/compact/CMakeLists.txt
+new file mode 100644
+index 0000000..ddde6b4
+--- /dev/null
++++ b/src/extensions/compact/CMakeLists.txt
+@@ -0,0 +1,35 @@
++# Extension: Compact
++
++# Include GNUInstallDirs to access CMAKE_INSTALL_LIBDIR and related variables
++include(GNUInstallDirs)
++
++add_library(fstcompact STATIC
++    compact16_acceptor-fst.cc
++    compact16_string-fst.cc
++    compact16_unweighted-fst.cc
++    compact16_unweighted_acceptor-fst.cc
++    compact16_weighted_string-fst.cc
++    compact64_acceptor-fst.cc
++    compact64_string-fst.cc
++    compact64_unweighted-fst.cc
++    compact64_unweighted_acceptor-fst.cc
++    compact64_weighted_string-fst.cc
++    compact8_acceptor-fst.cc
++    compact8_string-fst.cc
++    compact8_unweighted-fst.cc
++    compact8_unweighted_acceptor-fst.cc
++    compact8_weighted_string-fst.cc
++)
++
++target_link_libraries(fstcompact PUBLIC fst)
++set_target_properties(fstcompact PROPERTIES
++    OUTPUT_NAME "fstcompact"
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++install(TARGETS fstcompact
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
+diff --git a/src/extensions/compress/CMakeLists.txt b/src/extensions/compress/CMakeLists.txt
+new file mode 100644
+index 0000000..a63a74f
+--- /dev/null
++++ b/src/extensions/compress/CMakeLists.txt
+@@ -0,0 +1,58 @@
++# Include GNUInstallDirs to access CMAKE_INSTALL_LIBDIR and related variables
++include(GNUInstallDirs)
++
++# Target: compressscript (corresponds to libfstcompressscript.la)
++add_library(fstcompressscript
++    compressscript.cc
++)
++
++# Set version information (corresponds to Makefile.am's -version-info 23:0:0)
++set_target_properties(fstcompressscript PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add header for IDE integration (installation handled by src/lib/CMakeLists.txt glob)
++target_sources(fstcompressscript PRIVATE
++    ../../include/fst/extensions/compress/compressscript.h
++)
++
++# Dependencies (corresponds to Makefile.am's libfstcompressscript_la_LIBADD)
++# fstscript inherits fst, m, dl
++target_link_libraries(fstcompressscript PUBLIC fstscript)
++
++# Install the library and add it to the 'fst-targets' export set
++install(TARGETS fstcompressscript
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++
++# ------------------------------------------------------------------
++# Executable binary (only if OPENFST_BUILD_BIN is ON)
++# ------------------------------------------------------------------
++
++# Corresponds to Makefile.am's 'if HAVE_BIN'
++if(OPENFST_BUILD_BIN)
++
++    # Target: fstcompress
++    add_executable(fstcompress
++        fstcompress.cc
++        fstcompress-main.cc
++    )
++    
++    # Dependencies (corresponds to Makefile.am's LDADD)
++    # compressscript inherits fstscript, fst, m, dl
++    target_link_libraries(fstcompress PRIVATE
++        compressscript
++        lib_export_dynamic
++    )
++
++    # Install the binary
++    install(TARGETS fstcompress
++        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++        DESTINATION ${CMAKE_INSTALL_BINDIR}
++    )
++
++endif()
+diff --git a/src/extensions/const/CMakeLists.txt b/src/extensions/const/CMakeLists.txt
+new file mode 100644
+index 0000000..a2d31e2
+--- /dev/null
++++ b/src/extensions/const/CMakeLists.txt
+@@ -0,0 +1,26 @@
++include(GNUInstallDirs)
++
++# Target: fstconst (corresponds to libfstconst.la)
++add_library(fstconst
++    const8-fst.cc
++    const16-fst.cc
++    const64-fst.cc
++)
++
++# Set version information (corresponds to Makefile.am's -version-info 23:0:0)
++set_target_properties(fstconst PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Dependencies (corresponds to Makefile.am's LIBS)
++# 'fst' target inherits dependencies from libfst.la, m, dl
++target_link_libraries(fstconst PUBLIC fst)
++
++# Install the library and add it to the 'fst-targets' export set
++install(TARGETS fstconst
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
+diff --git a/src/extensions/far/CMakeLists.txt b/src/extensions/far/CMakeLists.txt
+new file mode 100644
+index 0000000..70dc919
+--- /dev/null
++++ b/src/extensions/far/CMakeLists.txt
+@@ -0,0 +1,101 @@
++include(GNUInstallDirs)
++
++# Glob all headers under 'src/include/fst/extensions/far' (for IDE integration)
++file(GLOB_RECURSE FAR_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../../include/fst/extensions/far/*.h)
++
++# ------------------------------------------------------------------
++# Library: fstfar (corresponds to libfstfar.la)
++# ------------------------------------------------------------------
++add_library(fstfar
++    sttable.cc
++    stlist.cc
++)
++
++set_target_properties(fstfar PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add headers for IDE integration
++target_sources(fstfar PRIVATE ${FAR_HEADERS})
++
++# Dependencies (libfstfar_la_LIBADD)
++target_link_libraries(fstfar PUBLIC fst)
++
++# Install settings
++install(TARGETS fstfar
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++
++# ------------------------------------------------------------------
++# Library: fstfarscript (corresponds to libfstfarscript.la)
++# ------------------------------------------------------------------
++add_library(fstfarscript
++    far-class.cc
++    farscript.cc
++    getters.cc
++    script-impl.cc
++    strings.cc
++    # (sttable.cc and stlist.cc are linked from the fstfar target)
++)
++
++set_target_properties(fstfarscript PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add headers for IDE integration
++target_sources(fstfarscript PRIVATE ${FAR_HEADERS})
++
++# Dependencies (libfstfarscript_la_LIBADD)
++target_link_libraries(fstfarscript PUBLIC fstfar fstscript)
++
++# Install settings
++install(TARGETS fstfarscript
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++
++# ------------------------------------------------------------------
++# Executable binaries (only if OPENFST_BUILD_BIN is ON)
++# ------------------------------------------------------------------
++
++if(OPENFST_BUILD_BIN)
++
++    set(FAR_BINARIES
++        farcompilestrings
++        farconvert
++        farcreate
++        farequal
++        farextract
++        farinfo
++        farisomorphic
++        farprintstrings
++    )
++    
++    foreach(target_name IN LISTS FAR_BINARIES)
++        add_executable(${target_name}
++            ${target_name}.cc
++            ${target_name}-main.cc
++        )
++        
++        # Dependencies (Makefile.am's LDADD)
++        # (fstfarscript inherits fstfar, fstscript, fst, m, dl)
++        target_link_libraries(${target_name} PRIVATE
++            fstfarscript
++            lib_export_dynamic
++        )
++    endforeach()
++    
++    # Install binaries
++    install(TARGETS ${FAR_BINARIES}
++        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++        DESTINATION ${CMAKE_INSTALL_BINDIR}
++    )
++
++endif()
+diff --git a/src/extensions/far/farconvert-main.cc b/src/extensions/far/farconvert-main.cc
+index d9211a1..7f1a079 100644
+--- a/src/extensions/far/farconvert-main.cc
++++ b/src/extensions/far/farconvert-main.cc
+@@ -28,7 +28,7 @@
+ DECLARE_string(far_type);
+ DECLARE_string(fst_type);
+ 
+-int farconvert_main(int argc, char *argv[]) {
++int farconvert_main(int argc, char **argv) {
+   namespace s = fst::script;
+ 
+   std::string usage = "Converts FST and container types.\n\n Usage:";
+diff --git a/src/extensions/linear/CMakeLists.txt b/src/extensions/linear/CMakeLists.txt
+new file mode 100644
+index 0000000..dc6b9d2
+--- /dev/null
++++ b/src/extensions/linear/CMakeLists.txt
+@@ -0,0 +1,92 @@
++include(GNUInstallDirs)
++
++# Glob all headers under 'src/include/fst/extensions/linear' (for IDE integration)
++file(GLOB_RECURSE LINEAR_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../../include/fst/extensions/linear/*.h)
++
++# ------------------------------------------------------------------
++# Library: linear-fst (combines linear_tagger-fst.la and linear_classifier-fst.la)
++# ------------------------------------------------------------------
++add_library(linear-fst
++    linear-classifier-fst.cc
++    linear-tagger-fst.cc
++)
++
++set_target_properties(linear-fst PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add headers for IDE integration
++target_sources(linear-fst PRIVATE ${LINEAR_HEADERS})
++
++# Dependencies (Makefile.am's LIBS)
++target_link_libraries(linear-fst PUBLIC fst)
++
++# Install settings
++install(TARGETS linear-fst
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++
++# ------------------------------------------------------------------
++# Library: linearscript (corresponds to libfstlinearscript.la)
++# ------------------------------------------------------------------
++add_library(linearscript
++    linearscript.cc
++)
++
++set_target_properties(linearscript PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add headers for IDE integration
++target_sources(linearscript PRIVATE ${LINEAR_HEADERS})
++
++# Dependencies (libfstlinearscript_la_LIBADD and original file)
++target_link_libraries(linearscript PUBLIC
++    fstscript
++    linear-fst
++)
++
++# Install settings
++install(TARGETS linearscript
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++
++# ------------------------------------------------------------------
++# Executable binaries (only if OPENFST_BUILD_BIN is ON)
++# ------------------------------------------------------------------
++
++if(OPENFST_BUILD_BIN)
++
++    set(LINEAR_BINARIES
++        fstlinear
++        fstloglinearapply
++    )
++    
++    foreach(target_name IN LISTS LINEAR_BINARIES)
++        add_executable(${target_name}
++            ${target_name}.cc
++            ${target_name}-main.cc
++        )
++        
++        # Dependencies (Makefile.am's LDADD)
++        target_link_libraries(${target_name} PRIVATE
++            linearscript
++            lib_export_dynamic
++        )
++    endforeach()
++    
++    # Install binaries
++    install(TARGETS ${LINEAR_BINARIES}
++        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++        DESTINATION ${CMAKE_INSTALL_BINDIR}
++    )
++
++endif()
+diff --git a/src/extensions/lookahead/CMakeLists.txt b/src/extensions/lookahead/CMakeLists.txt
+new file mode 100644
+index 0000000..c4f4807
+--- /dev/null
++++ b/src/extensions/lookahead/CMakeLists.txt
+@@ -0,0 +1,32 @@
++include(GNUInstallDirs)
++
++# Glob all headers under 'src/include/fst/extensions/lookahead' (for IDE integration)
++file(GLOB_RECURSE LOOKAHEAD_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../../include/fst/extensions/lookahead/*.h)
++
++# Target: fstlookahead (corresponds to libfstlookahead.la)
++add_library(fstlookahead
++    arc_lookahead-fst.cc
++    ilabel_lookahead-fst.cc
++    olabel_lookahead-fst.cc
++)
++
++# Set version information (corresponds to Makefile.am's -version-info 23:0:0)
++set_target_properties(fstlookahead PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add headers for IDE integration
++target_sources(fstlookahead PRIVATE ${LOOKAHEAD_HEADERS})
++
++# Dependencies (corresponds to Makefile.am's LIBS)
++# 'fst' target inherits dependencies from libfst.la, m, dl
++target_link_libraries(fstlookahead PUBLIC fst)
++
++# Install the library and add it to the 'fst-targets' export set
++install(TARGETS fstlookahead
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
+diff --git a/src/extensions/mpdt/CMakeLists.txt b/src/extensions/mpdt/CMakeLists.txt
+new file mode 100644
+index 0000000..1ef6ba6
+--- /dev/null
++++ b/src/extensions/mpdt/CMakeLists.txt
+@@ -0,0 +1,68 @@
++include(GNUInstallDirs)
++
++# Glob all headers under 'src/include/fst/extensions/mpdt' (for IDE integration)
++file(GLOB_RECURSE MPDT_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../../include/fst/extensions/mpdt/*.h)
++
++# ------------------------------------------------------------------
++# Library: mpdtscript (corresponds to libfstmpdtscript.la)
++# ------------------------------------------------------------------
++add_library(fstmpdtscript
++    mpdtscript.cc
++)
++
++# Set version information (corresponds to Makefile.am's -version-info 23:0:0)
++set_target_properties(fstmpdtscript PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add headers for IDE integration
++target_sources(fstmpdtscript PRIVATE ${MPDT_HEADERS})
++
++# Dependencies (corresponds to Makefile.am's libfstmpdtscript_la_LIBADD)
++# fstscript inherits fst, m, dl
++target_link_libraries(fstmpdtscript PUBLIC fstscript)
++
++# Install the library and add it to the 'fst-targets' export set
++install(TARGETS fstmpdtscript
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++
++# ------------------------------------------------------------------
++# Executable binaries (only if OPENFST_BUILD_BIN is ON)
++# ------------------------------------------------------------------
++if(OPENFST_BUILD_BIN)
++
++    set(MPDT_BINARIES
++        mpdtcompose
++        mpdtexpand
++        mpdtinfo
++        mpdtreverse
++    )
++    
++    foreach(target_name IN LISTS MPDT_BINARIES)
++        add_executable(${target_name}
++            ${target_name}.cc
++            ${target_name}-main.cc
++        )
++        
++        # Dependencies (corresponds to Makefile.am's LDADD)
++        # 'pdtscript' corresponds to ../pdt/libfstpdtscript.la
++        # 'mpdtscript' corresponds to libfstmpdtscript.la
++        target_link_libraries(${target_name} PRIVATE
++            mpdtscript
++            pdtscript
++            lib_export_dynamic
++        )
++    endforeach()
++    
++    # Install binaries
++    install(TARGETS ${MPDT_BINARIES}
++        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++        DESTINATION ${CMAKE_INSTALL_BINDIR}
++    )
++
++endif()
+diff --git a/src/extensions/ngram/CMakeLists.txt b/src/extensions/ngram/CMakeLists.txt
+new file mode 100644
+index 0000000..2c56628
+--- /dev/null
++++ b/src/extensions/ngram/CMakeLists.txt
+@@ -0,0 +1,32 @@
++include(GNUInstallDirs)
++
++# Glob all headers under 'src/include/fst/extensions/ngram' (for IDE integration)
++file(GLOB_RECURSE NGRAM_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../../include/fst/extensions/ngram/*.h)
++
++# Target: ngram (corresponds to libfstngram.la)
++add_library(fstngram
++    bitmap-index.cc
++    ngram-fst.cc
++    nthbit.cc
++)
++
++# Set version information (corresponds to Makefile.am's -version-info 23:0:0)
++set_target_properties(fstngram PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add headers for IDE integration
++target_sources(fstngram PRIVATE ${NGRAM_HEADERS})
++
++# Dependencies (corresponds to Makefile.am's LIBS)
++# 'fst' target inherits dependencies from libfst.la, m, dl
++target_link_libraries(fstngram PUBLIC fst)
++
++# Install the library and add it to the 'fst-targets' export set
++install(TARGETS fstngram
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
+diff --git a/src/extensions/ngram/bitmap-index.cc b/src/extensions/ngram/bitmap-index.cc
+index f1a139d..5a83051 100644
+--- a/src/extensions/ngram/bitmap-index.cc
++++ b/src/extensions/ngram/bitmap-index.cc
+@@ -24,6 +24,27 @@
+ #include <fst/log.h>
+ #include <fst/extensions/ngram/nthbit.h>
+ 
++#if defined(_MSC_VER)
++#include <intrin.h>
++inline int popcountll(uint64_t x) {
++  return static_cast<int>(__popcnt64(x));
++}
++inline int ctzll(uint64_t x) {
++  unsigned long index;
++  if (_BitScanForward64(&index, x))
++    return static_cast<int>(index);
++  else
++    return 64; // Undefined, but mimic GCC behavior
++}
++#else
++inline int popcountll(uint64_t x) {
++  return __builtin_popcountll(x);
++}
++inline int ctzll(uint64_t x) {
++  return __builtin_ctzll(x);
++}
++#endif
++
+ namespace fst {
+ 
+ static_assert(sizeof(long long) >= sizeof(uint64),  // NOLINT
+@@ -43,7 +64,7 @@ size_t BitmapIndex::Rank1(size_t end) const {
+   // this depend on whether there's a popcnt instruction?
+   if (bit_index == 0) return sum;  // Entire answer is in the index.
+   const uint64 mask = (uint64{1} << bit_index) - 1;
+-  return sum + __builtin_popcountll(bits_[end_word] & mask);
++  return sum + popcountll(bits_[end_word] & mask);
+ }
+ 
+ size_t BitmapIndex::Select1(size_t bit_index) const {
+@@ -201,7 +222,7 @@ std::pair<size_t, size_t> BitmapIndex::Select0s(size_t bit_index) const {
+   // If this is 0, then the next zero is not in the same word.
+   if (masked_inv_word != 0) {
+     // We can't ctz on 0, but we already checked that.
+-    const int next_nth = __builtin_ctzll(masked_inv_word);
++    const int next_nth = ctzll(masked_inv_word);
+     return {kStorageBitSize * word_index + nth,
+             kStorageBitSize * word_index + next_nth};
+   } else {
+@@ -306,7 +327,7 @@ void BitmapIndex::BuildIndex(const uint64* bits, size_t num_bits,
+ 
+     // We can assume that the last word has zeros in the high bits.
+     const uint64 word = bits[word_index];
+-    const int word_ones_count = __builtin_popcountll(word);
++    const int word_ones_count = popcountll(word);
+     const uint32 bit_offset = kStorageBitSize * word_index;
+ 
+     if (enable_select_0_index) {
+diff --git a/src/extensions/pdt/CMakeLists.txt b/src/extensions/pdt/CMakeLists.txt
+new file mode 100644
+index 0000000..4535b0c
+--- /dev/null
++++ b/src/extensions/pdt/CMakeLists.txt
+@@ -0,0 +1,69 @@
++include(GNUInstallDirs)
++
++# Glob all headers under 'src/include/fst/extensions/pdt' (for IDE integration)
++file(GLOB_RECURSE PDT_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../../include/fst/extensions/pdt/*.h)
++
++# ------------------------------------------------------------------
++# Library: pdtscript (corresponds to libfstpdtscript.la)
++# ------------------------------------------------------------------
++add_library(pdtscript
++    getters.cc
++    pdtscript.cc
++)
++
++# Set version information (corresponds to Makefile.am's -version-info 23:0:0)
++set_target_properties(pdtscript PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add headers for IDE integration
++target_sources(pdtscript PRIVATE ${PDT_HEADERS})
++
++# Dependencies (corresponds to Makefile.am's libfstpdtscript_la_LIBADD)
++# fstscript inherits fst, m, dl
++target_link_libraries(pdtscript PUBLIC fstscript)
++
++# Install the library and add it to the 'fst-targets' export set
++install(TARGETS pdtscript
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++
++# ------------------------------------------------------------------
++# Executable binaries (only if OPENFST_BUILD_BIN is ON)
++# ------------------------------------------------------------------
++if(OPENFST_BUILD_BIN)
++
++    set(PDT_BINARIES
++        pdtcompose
++        pdtexpand
++        pdtinfo
++        pdtreplace
++        pdtreverse
++        pdtshortestpath
++    )
++    
++    foreach(target_name IN LISTS PDT_BINARIES)
++        add_executable(${target_name}
++            ${target_name}.cc
++            ${target_name}-main.cc
++        )
++        
++        # Dependencies (corresponds to Makefile.am's LDADD)
++        # (pdtscript inherits fstscript, fst, m, dl)
++        target_link_libraries(${target_name} PRIVATE
++            pdtscript
++            lib_export_dynamic
++        )
++    endforeach()
++    
++    # Install binaries
++    install(TARGETS ${PDT_BINARIES}
++        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++        DESTINATION ${CMAKE_INSTALL_BINDIR}
++    )
++
++endif()
+diff --git a/src/extensions/special/CMakeLists.txt b/src/extensions/special/CMakeLists.txt
+new file mode 100644
+index 0000000..66d2018
+--- /dev/null
++++ b/src/extensions/special/CMakeLists.txt
+@@ -0,0 +1,70 @@
++include(GNUInstallDirs)
++
++# Glob all headers under 'src/include/fst/extensions/special' (for IDE integration)
++file(GLOB_RECURSE SPECIAL_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../../include/fst/extensions/special/*.h)
++
++# ------------------------------------------------------------------
++# Library: fstspecial (corresponds to libfstspecial.la)
++# Combines modules like phi-fst.la into a single library
++# ------------------------------------------------------------------
++add_library(fstspecial
++    phi-fst.cc
++    rho-fst.cc
++    sigma-fst.cc
++)
++
++# Set version information (corresponds to Makefile.am's -version-info 23:0:0)
++set_target_properties(fstspecial PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add headers for IDE integration
++target_sources(fstspecial PRIVATE ${SPECIAL_HEADERS})
++
++# Dependencies (corresponds to Makefile.am's LIBS)
++target_link_libraries(fstspecial PUBLIC fst)
++
++# Install the library and add it to the 'fst-targets' export set
++install(TARGETS fstspecial
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++
++# ------------------------------------------------------------------
++# Executable binary (only if OPENFST_BUILD_BIN is ON)
++# ------------------------------------------------------------------
++if(OPENFST_BUILD_BIN)
++
++    # Use 'fstspecial_bin' as the CMake target name for the executable
++    add_executable(fstspecial_bin
++        # Use fstspecial.cc as per Makefile.am's fstspecial_SOURCES
++        fstspecial.cc
++        # (phi-fst.cc etc. are linked from the 'fstspecial' library)
++    )
++    
++    # Set the output file name to 'fstspecial' (matches bin_PROGRAMS)
++    set_target_properties(fstspecial_bin PROPERTIES
++        OUTPUT_NAME "fstspecial"
++    )
++
++    target_include_directories(fstspecial_bin PRIVATE
++        ${CMAKE_CURRENT_SOURCE_DIR}/../../bin
++    )
++
++    # Link dependencies (as per Makefile.am's LDADD and SOURCES)
++    target_link_libraries(fstspecial_bin PRIVATE
++        fstscript
++        fstspecial
++        lib_export_dynamic
++    )
++
++    # Install the executable
++    install(TARGETS fstspecial_bin
++        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++        DESTINATION ${CMAKE_INSTALL_BINDIR}
++    )
++
++endif()
+diff --git a/src/include/fst/extensions/far/compile-strings.h b/src/include/fst/extensions/far/compile-strings.h
+index 881b0c3..5a5d726 100644
+--- a/src/include/fst/extensions/far/compile-strings.h
++++ b/src/include/fst/extensions/far/compile-strings.h
+@@ -18,7 +18,9 @@
+ #ifndef FST_EXTENSIONS_FAR_COMPILE_STRINGS_H_
+ #define FST_EXTENSIONS_FAR_COMPILE_STRINGS_H_
+ 
++#ifndef _MSC_VER
+ #include <libgen.h>
++#endif
+ 
+ #include <fstream>
+ #include <istream>
+@@ -31,6 +33,48 @@
+ 
+ namespace fst {
+ 
++#ifdef _MSC_VER
++inline char* far_compile_strings_internal_basename(char* path) {
++    static char dot[] = ".";
++    static char slash[] = "/";
++
++    char* last_sep = nullptr;
++    char* p;
++
++    if (!path || *path == '\0') {
++        return dot;
++    }
++
++    char* end = path + strlen(path) - 1;
++    while (end > path && (*end == '/' || *end == '\\')) {
++        *end = '\0';
++        end--;
++    }
++
++    p = path;
++    while (*p) {
++        if (*p == '/' || *p == '\\') {
++            last_sep = p;
++        }
++        p++;
++    }
++
++    if (last_sep == nullptr) {
++        if (path[0] != '\0' && path[1] == ':' && path[2] == '\0') {
++            return slash;
++        }
++
++        return path;
++    }
++
++    if (last_sep == path && *(last_sep + 1) == '\0') {
++        return slash;
++    }
++
++    return last_sep + 1;
++}
++#endif
++
+ // Constructs a reader that provides FSTs from a file (stream) either on a
+ // line-by-line basis or on a per-stream basis. Note that the freshly
+ // constructed reader is already set to the first input.
+@@ -234,7 +278,11 @@ void FarCompileStrings(const std::vector<std::string> &in_sources,
+       } else {
+         auto *source = new char[in_source.size() + 1];
+         strcpy(source, in_source.c_str());  // NOLINT
++#ifdef _MSC_VER
++        key = far_compile_strings_internal_basename(source);
++#else
+         key = basename(source);
++#endif
+         if (entry_type != FarEntryType::FILE) {
+           key += "-";
+           key += keybuf.str();
+diff --git a/src/include/fst/extensions/far/create.h b/src/include/fst/extensions/far/create.h
+index 29f886f..b85a11c 100644
+--- a/src/include/fst/extensions/far/create.h
++++ b/src/include/fst/extensions/far/create.h
+@@ -20,7 +20,9 @@
+ #ifndef FST_EXTENSIONS_FAR_CREATE_H_
+ #define FST_EXTENSIONS_FAR_CREATE_H_
+ 
++#ifndef _MSC_VER
+ #include <libgen.h>
++#endif
+ 
+ #include <sstream>
+ #include <string>
+@@ -30,6 +32,48 @@
+ 
+ namespace fst {
+ 
++#ifdef _MSC_VER
++inline char* far_create_internal_basename(char* path) {
++    static char dot[] = ".";
++    static char slash[] = "/";
++
++    char* last_sep = nullptr;
++    char* p;
++
++    if (!path || *path == '\0') {
++        return dot;
++    }
++
++    char* end = path + strlen(path) - 1;
++    while (end > path && (*end == '/' || *end == '\\')) {
++        *end = '\0';
++        end--;
++    }
++
++    p = path;
++    while (*p) {
++        if (*p == '/' || *p == '\\') {
++            last_sep = p;
++        }
++        p++;
++    }
++
++    if (last_sep == nullptr) {
++        if (path[0] != '\0' && path[1] == ':' && path[2] == '\0') {
++            return slash;
++        }
++
++        return path;
++    }
++
++    if (last_sep == path && *(last_sep + 1) == '\0') {
++        return slash;
++    }
++
++    return last_sep + 1;
++}
++#endif
++
+ template <class Arc>
+ void FarCreate(const std::vector<std::string> &in_sources,
+                const std::string &out_source, const int32 generate_keys,
+@@ -51,7 +95,11 @@ void FarCreate(const std::vector<std::string> &in_sources,
+     } else {
+       auto *source = new char[in_sources[i].size() + 1];
+       strcpy(source, in_sources[i].c_str());  // NOLINT
++#ifdef _MSC_VER
++      key = far_create_internal_basename(source);
++#else
+       key = basename(source);
++#endif
+       delete[] source;
+     }
+     far_writer->Add(key_prefix + key + key_suffix, *ifst);
+diff --git a/src/include/fst/extensions/ngram/nthbit.h b/src/include/fst/extensions/ngram/nthbit.h
+index 4f47ee5..8f192e6 100644
+--- a/src/include/fst/extensions/ngram/nthbit.h
++++ b/src/include/fst/extensions/ngram/nthbit.h
+@@ -27,7 +27,33 @@
+ #include <fst/types.h>
+ #include <fst/log.h>
+ 
+-#if defined(__BMI2__)  // Intel Bit Manipulation Instruction Set 2
++#if defined(_MSC_VER)
++// MSVC implementation using intrinsics.
++#include <intrin.h>
++
++namespace fst {
++// Returns the position (0-63) of the r-th 1 bit in v.
++// 0 <= r < CountOnes(v) <= 64. Therefore, v must not be 0.
++inline uint32 nth_bit(uint64 v, uint32 r) {
++  DCHECK_NE(v, 0);
++  DCHECK_LE(0, r);
++  // __popcnt64 is available on x64 MSVC
++  DCHECK_LT(r, static_cast<uint32>(__popcnt64(v)));
++
++  // Find the position of the r-th set bit in v.
++  // This is a simple implementation; for performance, a broadword version could be ported.
++  for (uint32 i = 0; i < 64; ++i) {
++    if (v & (uint64(1) << i)) {
++      if (r == 0) return i;
++      --r;
++    }
++  }
++  // Should never reach here due to DCHECKs.
++  return 64;
++}
++}  // namespace fst
++
++#elif defined(__BMI2__)  // Intel Bit Manipulation Instruction Set 2
+ // PDEP requires BMI2; this is present starting with Haswell.
+ 
+ #include <immintrin.h>
+diff --git a/src/include/fst/map.h b/src/include/fst/map.h
+index 4627110..b91d320 100644
+--- a/src/include/fst/map.h
++++ b/src/include/fst/map.h
+@@ -50,6 +50,15 @@ void Map(const Fst<A> &ifst, MutableFst<B> *ofst, C mapper) {
+   ArcMap(ifst, ofst, mapper);
+ }
+ 
++#ifdef _MSC_VER
++using MapFstOptions = ArcMapFstOptions;
++
++template <class A, class B, class C>
++using MapFst = ArcMapFst<A, B, C>;
++
++template <class A>
++using IdentityMapper = IdentityArcMapper<A>;
++#else
+ using MapFstOptions OPENFST_DEPRECATED("Use `ArcMapFstOptions` instead.") =
+     ArcMapFstOptions;
+ 
+@@ -59,6 +68,7 @@ using MapFst OPENFST_DEPRECATED("Use `ArcMapFst` instead.") = ArcMapFst<A, B, C>
+ template <class A>
+ using IdentityMapper OPENFST_DEPRECATED("Use `IdentityArcMapper` instead.") =
+     IdentityArcMapper<A>;
++#endif
+ 
+ }  // namespace fst
+ 
+diff --git a/src/include/fst/types.h b/src/include/fst/types.h
+index f207cd9..50c8c22 100644
+--- a/src/include/fst/types.h
++++ b/src/include/fst/types.h
+@@ -31,4 +31,9 @@ using uint16 = uint16_t;
+ using uint32 = uint32_t;
+ using uint64 = uint64_t;
+ 
++#ifdef _MSC_VER
++#include <cstddef>
++using ssize_t = std::ptrdiff_t;
++#endif
++
+ #endif  // FST_LIB_TYPES_H_
+diff --git a/src/lib/CMakeLists.txt b/src/lib/CMakeLists.txt
+new file mode 100644
+index 0000000..9033df3
+--- /dev/null
++++ b/src/lib/CMakeLists.txt
+@@ -0,0 +1,103 @@
++# Recursively glob all headers under 'src/include'
++# Create a list of relative paths from CMAKE_CURRENT_SOURCE_DIR (src/lib)
++file(
++    GLOB_RECURSE PUBLIC_HEADERS_H
++    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
++    ../include/*.h
++)
++file(
++    GLOB_RECURSE PUBLIC_HEADERS_INC
++    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
++    ../include/*.inc
++)
++set(PUBLIC_HEADERS ${PUBLIC_HEADERS_H} ${PUBLIC_HEADERS_INC})
++
++# Target: fst (single library based on Makefile.am's libfst_la_SOURCES)
++add_library(fst)
++
++set_target_properties(
++    fst
++    PROPERTIES VERSION "${OPENFST_VERSION}" SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Add MSVC-specific compile options and definitions
++if(MSVC)
++    target_compile_options(fst PUBLIC /bigobj)
++    target_compile_definitions(fst PUBLIC NOMINMAX FST_NO_DYNAMIC_LINKING)
++endif()
++
++# Specify public headers (for IDE integration and installation)
++target_sources(
++    fst
++    PRIVATE
++        # --- Source files (.cc) ---
++        compat.cc
++        encode.cc
++        flags.cc
++        fst.cc
++        fst-types.cc
++        mapped-file.cc
++        properties.cc
++        symbol-table.cc
++        symbol-table-ops.cc
++        weight.cc
++        util.cc
++        # --- Header files (.h) ---
++        ${PUBLIC_HEADERS}
++)
++
++# Include path (via 'fst_headers' target)
++target_link_libraries(fst PUBLIC fst_headers)
++
++# Abseil dependency
++if(OPENFST_HAS_ABSL)
++    target_compile_definitions(fst PUBLIC OPENFST_HAS_ABSL=1)
++    target_link_libraries(fst PUBLIC absl::synchronization)
++endif()
++
++# Compiler options (suppress warnings)
++target_compile_options(
++    fst
++    PRIVATE
++        "$<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wno-sign-compare>"
++        "$<$<CXX_COMPILER_ID:MSVC>:/wd4018>"
++)
++
++# Link libraries (dl, m)
++# ${CMAKE_DL_LIBS} is empty on Windows, 'dl' on Linux
++target_link_libraries(fst PRIVATE ${CMAKE_DL_LIBS})
++if(UNIX)
++    target_link_libraries(fst PRIVATE m)
++endif()
++
++# Target: lib_export_dynamic
++# (Settings for binaries linking to fst, separate from the fst target itself)
++add_library(lib_export_dynamic INTERFACE)
++set_property(TARGET lib_export_dynamic PROPERTY INTERFACE_ENABLE_EXPORTS ON)
++target_link_libraries(lib_export_dynamic INTERFACE fst)
++
++# ------------------------------------------------------------------
++# Installation settings
++# ------------------------------------------------------------------
++
++include(GNUInstallDirs)
++
++# Install settings for 'fst' target
++# 'EXPORT fst-targets' associates 'fst' with the export set
++install(
++    TARGETS fst
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++
++# Install header files manually using 'install(DIRECTORY ...)'
++# Install the entire 'src/include/' directory
++install(
++    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/
++    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
++    FILES_MATCHING
++    PATTERN "*.h"
++    PATTERN "*.inc"
++)
+diff --git a/src/script/CMakeLists.txt b/src/script/CMakeLists.txt
+new file mode 100644
+index 0000000..4d4dbcd
+--- /dev/null
++++ b/src/script/CMakeLists.txt
+@@ -0,0 +1,51 @@
++# Glob all headers under 'src/include/fst/script' (for IDE integration)
++file(GLOB_RECURSE SCRIPT_HEADERS_H RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../include/fst/script/*.h)
++file(GLOB_RECURSE SCRIPT_HEADERS_INC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../include/fst/script/*.inc)
++set(SCRIPT_HEADERS ${SCRIPT_HEADERS_H} ${SCRIPT_HEADERS_INC})
++
++# Glob all .cc source files under 'src/script'
++# (corresponds to Makefile.am's libfstscript_la_SOURCES)
++file(GLOB SCRIPT_SOURCES
++    ${CMAKE_CURRENT_SOURCE_DIR}/*.cc
++)
++
++# Target: fstscript (single library corresponding to libfstscript.la)
++add_library(fstscript)
++
++# Version information (corresponds to Makefile.am's -version-info 23:0:0)
++# (Assumes variables are defined in the root CMakeLists.txt)
++set_target_properties(fstscript PROPERTIES
++    VERSION "${OPENFST_VERSION}"
++    SOVERSION "${OPENFST_SOVERSION}"
++)
++
++# Associate source and header files with the target
++target_sources(fstscript PRIVATE
++    ${SCRIPT_SOURCES}
++    ${SCRIPT_HEADERS}
++)
++
++# Compiler options (suppress warnings)
++target_compile_options(fstscript PRIVATE
++    "$<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wno-sign-compare>"
++    "$<$<CXX_COMPILER_ID:MSVC>:/wd4018>"
++)
++
++# Dependencies (corresponds to Makefile.am's libfstscript_la_LIBADD)
++# Link to fst (libfst.la) as PUBLIC and inherit include path (fst_headers)
++target_link_libraries(fstscript PUBLIC fst)
++# Link to m and dl (empty on Windows)
++target_link_libraries(fstscript PRIVATE ${CMAKE_DL_LIBS})
++if(UNIX)
++    target_link_libraries(fstscript PRIVATE m)
++endif()
++
++# Install settings
++# Add 'fstscript' target to the 'fst-targets' export set
++# (headers are already installed in src/lib/CMakeLists.txt)
++install(TARGETS fstscript
++    EXPORT fst-targets
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
