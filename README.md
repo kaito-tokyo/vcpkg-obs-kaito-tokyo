@@ -23,13 +23,15 @@ The binary caches available in this repository are optimized for modern OBS (Ope
 
 ### Using the Binary Cache
 
-To use the binary cache from this repository, set the `VCPKG_BINARY_SOURCES` environment variable:
+To use the binary cache from this repository in **GitHub Actions**, set the `VCPKG_BINARY_SOURCES` environment variable:
 
 ```bash
 export VCPKG_BINARY_SOURCES="clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}"
 ```
 
 This will configure vcpkg to download pre-built binaries from our cache, significantly speeding up your build process.
+
+**Note:** This binary cache is only accessible within GitHub Actions workflows.
 
 ## Usage
 
