@@ -1,10 +1,26 @@
 {
-	"$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
   "default-registry": {
     "kind": "git",
-    "baseline": "0804e3b55b7e435c593707071052363fa876f170",
+    "baseline": "84bab45d415d22042bd0b9081aea57f362da3f35",
     "repository": "https://github.com/microsoft/vcpkg"
   },
+  "registries": [
+    {
+      "kind": "git",
+      "baseline": "bb944bef0621421dca878b1907c34ca3bb4a9737",
+      "repository": "https://github.com/kaito-tokyo/vcpkg-obs-kaito-tokyo",
+      "packages": [
+        "kaldi",
+        "libpng",
+        "ncnn",
+        "openfst",
+        "tesseract",
+        "vosk",
+        "wolfssl"
+      ]
+    }
+  ],
   "overlay-triplets": [
     "./vcpkg-triplets"
   ]
