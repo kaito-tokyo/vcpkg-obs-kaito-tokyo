@@ -22,7 +22,7 @@ const secretKey = await crypto.subtle.generateKey({
 const secretJwk = Object.fromEntries(
 	[
 		...Object.entries(await exportJWK(secretKey)),
-		["alg", "HMAC"],
+		["alg", "HS256"],
 		["key_ops", ["sign", "verify"]],
 		["kid", kid],
 		["use", "sig"],

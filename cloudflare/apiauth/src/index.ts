@@ -62,7 +62,7 @@ export async function handleServiceToken(
 				.setAudience(AUDIENCE)
 				.sign(privateKey);
 
-			return new Response(`Service master token:\n${jwt}`, {
+			return new Response(`Service master token:\n${jwt}\n`, {
 				status: 200,
 				headers: { "Content-Type": "text/plain" },
 			});

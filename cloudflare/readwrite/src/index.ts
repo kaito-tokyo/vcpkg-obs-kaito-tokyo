@@ -62,6 +62,38 @@ export async function verifyMasterToken(token: string): Promise<JWTPayload | und
     }
 }
 
+export async function generateAccessToken(secretJwk: SecretJwk, sub: string): Promise<string> {
+	const { alg, kid, kty } = secretJwk;
+    if (kty !== "oct" || alg !== "HS256") {
+        throw new Error("Invalid key type or algorithm for HMAC access token.");
+    }
+
+	const secretKey = await crypto.subtle.importKey(
+		"jwk",
+		secretJwk,
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
+	);
+
+    const jwt = await new SignJWT({
+        [TYPE_CLAIM]: "access",
+        [SCOPE_CLAIM]: "binarycache",
+		client_id: "readwrite",
+		ver: "1.0",
+    })
+        .setProtectedHeader({ alg, kid, typ: "JWT" })
+        .setIssuer(ISSUER)
+        .setSubject(sub)
+        .setIssuedAt()
+        .setExpirationTime(ACCESS_TOKEN_LIFE)
+        .setAudience(AUDIENCE)
+        .setJti(`${kid}_${uuidv7()}`)
+        .sign(secretKey);
+
+    return jwt;
+}
+
 export async function verifyAccessToken(secretJwk: SecretJwk, token: string): Promise<JWTPayload | undefined> {
 	const secretKey = await crypto.subtle.importKey(
 		"jwk",
@@ -101,38 +133,6 @@ export async function verifyAccessToken(secretJwk: SecretJwk, token: string): Pr
 		console.error("JWT verification failed:", e);
 		return;
     }
-}
-
-export async function generateAccessToken(secretJwk: SecretJwk, sub: string): Promise<string> {
-	const { alg, kid, kty } = secretJwk;
-    if (kty !== "oct" || alg !== "HS256") {
-        throw new Error("Invalid key type or algorithm for HMAC access token.");
-    }
-
-	const secretKey = await crypto.subtle.importKey(
-		"jwk",
-		secretJwk,
-		{ name: "HMAC", hash: "SHA-256" },
-		false,
-		["sign"],
-	);
-
-    const jwt = await new SignJWT({
-        [TYPE_CLAIM]: "access",
-        [SCOPE_CLAIM]: "binarycache",
-		client_id: "readwrite",
-		ver: "1.0",
-    })
-        .setProtectedHeader({ alg, kid, typ: "JWT" })
-        .setIssuer(ISSUER)
-        .setSubject(sub)
-        .setIssuedAt()
-        .setExpirationTime(ACCESS_TOKEN_LIFE)
-        .setAudience(AUDIENCE)
-        .setJti(`${kid}_${uuidv7()}`)
-        .sign(secretKey);
-
-    return jwt;
 }
 
 export async function handleBinaryCache(
@@ -241,7 +241,8 @@ export async function handleToken(
 
 			const masterTokenPayload = await verifyMasterToken(masterToken);
 			if (masterTokenPayload && masterTokenPayload.sub) {
-				return new Response(await generateAccessToken(JSON.parse(env.SECRET_KEY_JSON), masterTokenPayload.sub), {
+				const accessToken = await generateAccessToken(JSON.parse(env.SECRET_KEY_JSON), masterTokenPayload.sub);
+				return new Response(`${accessToken}\n`, {
 					headers: { "Content-Type": "application/jwt" },
 				});
 			} else {
