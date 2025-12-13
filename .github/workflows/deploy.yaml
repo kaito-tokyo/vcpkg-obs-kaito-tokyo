@@ -41,7 +41,7 @@ jobs:
         working-directory: ${{ github.workspace }}/ciproxy
         run: |
           go build
-          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
+          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 ./ciproxy
 
       - name: Checkout vcpkg repository
         uses: actions/checkout@v5
