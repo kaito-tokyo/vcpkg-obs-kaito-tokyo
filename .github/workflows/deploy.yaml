@@ -54,7 +54,7 @@ jobs:
         run: ./bootstrap-vcpkg.sh
 
       - name: Build
-        run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs --debug
+        run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs
 
   DeployOnMacOSX64:
     runs-on: macos-15

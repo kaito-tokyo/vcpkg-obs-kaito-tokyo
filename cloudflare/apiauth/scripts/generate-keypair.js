@@ -14,7 +14,11 @@ if (!keyname) {
 
 const kid = `${keytype}_${keyname}`;
 
-const { privateKey, publicKey } = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+const { privateKey, publicKey } = await crypto.subtle.generateKey(
+	{ name: "Ed25519" },
+	true,
+	["sign", "verify"],
+);
 
 const privateKeyJwk = Object.fromEntries(
 	[

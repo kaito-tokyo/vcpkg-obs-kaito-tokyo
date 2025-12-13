@@ -221,16 +221,6 @@ export async function handleBinaryCache(
 	}
 
 	switch (request.method) {
-		case "HEAD":
-		case "GET": {
-			return new Response(null, {
-				status: 308,
-				headers: {
-					Location: `https://vcpkg-obs.kaito.tokyo/${key}`,
-				},
-			});
-		}
-
 		case "POST": {
 			const s3client = new S3Client({
 				region: "auto",
@@ -260,7 +250,7 @@ export async function handleBinaryCache(
 		default: {
 			return new Response("Method Not Allowed", {
 				status: 405,
-				headers: { Allow: "GET, HEAD, POST" },
+				headers: { Allow: "POST" },
 			});
 		}
 	}
