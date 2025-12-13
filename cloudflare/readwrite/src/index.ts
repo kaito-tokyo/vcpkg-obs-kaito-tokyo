@@ -212,7 +212,7 @@ export async function handleBinaryCache(
 					return new Response(null, { status: 200, headers });
 				} else {
 					return new Response(object.body, {
-						status: "range" in object ? 206 : 200,
+						status: request.headers.get("range") === null ? 200 : 206,
 						headers,
 					});
 				}
