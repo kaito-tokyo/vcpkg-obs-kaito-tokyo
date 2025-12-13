@@ -123,7 +123,7 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s CIProxyServer) handleRedirect(w http.ResponseWriter, r *http.Request) {
-	binarycacheURL := "https://readwrite.vcpkg-obs.kaito.tokyo/binarycache"
+	binarycacheURL := "https://vcpkg-obs.kaito.tokyo"
 	http.Redirect(w, r, binarycacheURL+r.URL.Path, http.StatusTemporaryRedirect)
 }
 
