@@ -4,7 +4,7 @@
 //
 // See LICENSE for more information.
 
-import { SignJWT } from "jose";
+import { SignJWT } from "jose/jwt/sign";
 import { v7 as uuidv7 } from "uuid";
 
 interface PrivateJwk extends JsonWebKey {
