@@ -48,22 +48,6 @@ To use this registry in your project, add the following to your `vcpkg-configura
 
 Replace `<baseline-commit-hash>` with the appropriate commit hash from this repository.
 
-## Dependencies
-
-The repository includes dependencies defined in `vcpkg.json`, including:
-
-- backward-cpp
-- cpp-httplib
-- curl
-- fmt
-- gtest
-- libuv
-- ncnn
-- nlohmann-json
-- opencv4
-- tesseract
-- uwebsockets
-
 ## Development
 
 ### Adding Versions
