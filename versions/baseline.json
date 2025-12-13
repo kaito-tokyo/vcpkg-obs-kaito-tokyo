@@ -4,6 +4,10 @@
       "baseline": "master",
       "port-version": 0
     },
+    "libpng": {
+      "baseline": "1.6.53",
+      "port-version": 0
+    },
     "openfst": {
       "baseline": "1.8.0",
       "port-version": 0
