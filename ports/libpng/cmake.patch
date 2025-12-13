@@ -1,3 +1,4 @@
+
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index d91e3a6c3..249d04c0f 100644
 --- a/CMakeLists.txt
@@ -16,7 +17,7 @@ index d91e3a6c3..249d04c0f 100644
  endif()
  if(PNG_HAVE_LIBM_POW)
 @@ -240,9 +246,9 @@ if(PNG_HARDWARE_OPTIMIZATIONS)
- 
+
    # Set definitions and sources for MIPS.
    if(PNG_TARGET_ARCHITECTURE MATCHES "^(mipsel|mips64el)")
 -    set(PNG_MIPS_MSA_POSSIBLE_VALUES on off)
@@ -47,12 +48,12 @@ index d91e3a6c3..249d04c0f 100644
 -  set(PNG_STATIC_OUTPUT_NAME "libpng${PNGLIB_ABI_VERSION}_static")
 +  set(PNG_STATIC_OUTPUT_NAME "libpng${PNGLIB_ABI_VERSION}")
  endif()
- 
+
  if(PNG_SHARED)
 @@ -939,10 +951,10 @@ if(PNG_TESTS AND PNG_SHARED)
                 FILES ${PNGSUITE_PNGS})
  endif()
- 
+
 -if(PNG_SHARED AND PNG_TOOLS)
 +if(PNG_TOOLS)
    add_executable(pngfix ${pngfix_sources})
@@ -60,7 +61,7 @@ index d91e3a6c3..249d04c0f 100644
 -                        PRIVATE png_shared)
 +                        PRIVATE $<TARGET_NAME_IF_EXISTS:png_shared> $<TARGET_NAME_IF_EXISTS:png_static>) # in vcpkg there's only one
    set(PNG_BIN_TARGETS pngfix)
- 
+
    add_executable(png-fix-itxt ${png_fix_itxt_sources})
 @@ -1028,12 +1040,15 @@ endif()
  # We use the same files like ./configure, so we have to set its vars.
@@ -82,7 +83,7 @@ index d91e3a6c3..249d04c0f 100644
                   @ONLY)
 @@ -1092,6 +1107,9 @@ if(NOT SKIP_INSTALL_PROGRAMS AND NOT SKIP_INSTALL_ALL)
  endif()
- 
+
  if(NOT SKIP_INSTALL_FILES AND NOT SKIP_INSTALL_ALL)
 +  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libpng${PNGLIB_ABI_VERSION}.pc
 +          DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

@@ -4,7 +4,7 @@ index 249d04c..85ad9fe 100644
 +++ b/CMakeLists.txt
 @@ -1021,6 +1021,8 @@ function(create_symlink DEST_FILE)
  endfunction()
- 
+
  # Create source generation scripts.
 +set(PNG_BACKUP_CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 +set(CMAKE_C_FLAGS "" CACHE INTERNAL "Empty CFLAGS for host tool generation")
@@ -16,6 +16,6 @@ index 249d04c..85ad9fe 100644
                 "${CMAKE_CURRENT_BINARY_DIR}/scripts/cmake/gensrc.cmake"
                 @ONLY)
 +set(CMAKE_C_FLAGS "${PNG_BACKUP_CMAKE_C_FLAGS}" CACHE INTERNAL "Restore CFLAGS")
- 
+
  # libpng is a library so default to 'lib'
  if(NOT DEFINED CMAKE_INSTALL_LIBDIR)
