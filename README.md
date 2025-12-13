@@ -48,6 +48,18 @@ To use this registry in your project, add the following to your `vcpkg-configura
 
 Replace `<baseline-commit-hash>` with the appropriate commit hash from this repository.
 
+## Infrastructure
+
+This registry leverages Cloudflare-based infrastructure to provide enterprise-level security and almost-zero running cost:
+
+- **Cloudflare Workers**: Serverless functions handling authentication and binary cache operations
+  - `apiauth`: JWT-based authentication service for secure API access
+  - `readwrite`: Binary cache management with R2 presigned URLs
+- **Cloudflare R2**: Object storage for vcpkg binary cache with zero egress fees
+- **Edge Computing**: Global distribution through Cloudflare's edge network for low-latency access
+
+The infrastructure uses JWT tokens with EdDSA signatures for secure authentication, and presigned URLs for direct R2 access, minimizing serverless compute costs while maintaining high security standards.
+
 ## Development
 
 ### Adding Versions
