@@ -80,4 +80,4 @@ This script will automatically update the version database for all packages in t
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2025 kaito.tokyo
+Copyright (C) 2025 Kaito Udagawa
