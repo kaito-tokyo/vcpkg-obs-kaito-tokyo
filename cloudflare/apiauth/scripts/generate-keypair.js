@@ -1,3 +1,9 @@
+// The MIT License (MIT)
+//
+// Copyright (c) 2025 Kaito Udagawa
+//
+// See LICENSE for more information.
+
 import { exportJWK } from "jose";
 
 const keytype = "service-master";

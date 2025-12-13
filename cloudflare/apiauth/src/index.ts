@@ -11,10 +11,11 @@ interface PrivateJwk extends JsonWebKey {
 	kid?: string;
 }
 
-const ISSUER = "https://apiauth.vcpkg-obs.kaito.tokyo";
+const ISSUER = "https://vcpkg-obs.kaito.tokyo";
 const TYPE_CLAIM = `${ISSUER}/type`;
 const SCOPE_CLAIM = `${ISSUER}/scope`;
 const AUDIENCE = "https://readwrite.vcpkg-obs.kaito.tokyo";
+const MASTER_TOKEN_LIFE = "1y";
 
 export async function handleServiceToken(
 	request: Request,
@@ -46,7 +47,7 @@ export async function handleServiceToken(
 			);
 
 			const jwt = await new SignJWT({
-				[TYPE_CLAIM]: "service-master",
+				[TYPE_CLAIM]: "master",
 				[SCOPE_CLAIM]: "accesstoken",
 				client_id: "apiauth",
 				ver: "1.0",
@@ -56,7 +57,7 @@ export async function handleServiceToken(
 				.setSubject(sub)
 				.setIssuedAt()
 				.setNotBefore("5s")
-				.setExpirationTime("1y")
+				.setExpirationTime(MASTER_TOKEN_LIFE)
 				.setJti(`${kid}_${uuidv7()}`)
 				.setAudience(AUDIENCE)
 				.sign(privateKey);
