@@ -2,4 +2,4 @@
 
 PACKAGE_NAMES=($(ls ports))
 
-vcpkg --x-builtin-ports-root=./ports --x-builtin-registry-versions-dir=./versions x-add-version --verbose "${PACKAGE_NAMES[@]}"
+vcpkg --x-builtin-ports-root=./ports --x-builtin-registry-versions-dir=./versions x-add-version --verbose --overwrite-version "${PACKAGE_NAMES[@]}"
