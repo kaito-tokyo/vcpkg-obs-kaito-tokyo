@@ -33,7 +33,16 @@
     },
     "ncnn",
     "nlohmann-json",
-	  "opencv4",
+    {
+      "name": "opencv4",
+      "default-features": false,
+      "features": [
+        "jpeg",
+        "png",
+        "tiff",
+        "webp"
+      ]
+    },
     "tesseract",
     {
       "name": "uwebsockets",
