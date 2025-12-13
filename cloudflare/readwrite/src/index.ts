@@ -235,6 +235,7 @@ export async function handleBinaryCache(
 				onlyIf: request.headers,
 				httpMetadata: {
 					contentType: request.headers.get("content-type") || undefined,
+					cacheControl: "public, max-age=31536000, immutable"
 				},
 			});
 
