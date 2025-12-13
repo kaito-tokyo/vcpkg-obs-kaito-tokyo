@@ -231,7 +231,7 @@ export async function handleBinaryCache(
 			});
 		}
 
-		case "PUT": {
+		case "POST": {
 			const s3client = new S3Client({
 				region: "auto",
 				endpoint: R2_ENDPOINT,
@@ -251,16 +251,16 @@ export async function handleBinaryCache(
 				{ expiresIn: 3600 },
 			);
 
-			return new Response(null, {
-				status: 307,
-				headers: { Location: presignedUrl },
+			return new Response(JSON.stringify({ presignedUrl }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
 			});
 		}
 
 		default: {
 			return new Response("Method Not Allowed", {
 				status: 405,
-				headers: { Allow: "GET, HEAD, PUT" },
+				headers: { Allow: "GET, HEAD, POST" },
 			});
 		}
 	}

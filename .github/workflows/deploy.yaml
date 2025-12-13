@@ -14,6 +14,7 @@ defaults:
     shell: bash
 
 env:
+  VCPKG_BINARY_SOURCES: clear;http,https://localhost:8080/{name}/{version}/{sha},readwrite
   VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
 permissions:
@@ -28,18 +29,14 @@ jobs:
     environment: production
 
     steps:
-      - name: Get access token
-        run: |
-          ACCESS_TOKEN=$(curl -fsSL -X POST -d "master_token=${{ secrets.MASTER_TOKEN }}" https://readwrite.vcpkg-obs.kaito.tokyo/token)
-          if [[ -z "$ACCESS_TOKEN" ]]; then
-            echo "Failed to get access token"
-            exit 1
-          fi
-          printf 'VCPKG_BINARY_SOURCES=clear;http,https://readwrite.vcpkg-obs.kaito.tokyo/binarycache/{name}/{version}/{sha},readwrite,Authorization: Bearer %s\n' "$ACCESS_TOKEN" >> "$GITHUB_ENV"
-          echo "::add-mask::$ACCESS_TOKEN"
-
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Start ciproxy
+        working-directory: ${{ github.workspace }}/ciproxy
+        run: |
+          go build
+          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
 
       - name: Checkout vcpkg repository
         uses: actions/checkout@v5
@@ -62,18 +59,14 @@ jobs:
     environment: production
 
     steps:
-      - name: Get access token
-        run: |
-          ACCESS_TOKEN=$(curl -fsSL -X POST -d "master_token=${{ secrets.MASTER_TOKEN }}" https://readwrite.vcpkg-obs.kaito.tokyo/token)
-          if [[ -z "$ACCESS_TOKEN" ]]; then
-            echo "Failed to get access token"
-            exit 1
-          fi
-          printf 'VCPKG_BINARY_SOURCES=clear;http,https://readwrite.vcpkg-obs.kaito.tokyo/binarycache/{name}/{version}/{sha},readwrite,Authorization: Bearer %s\n' "$ACCESS_TOKEN" >> "$GITHUB_ENV"
-          echo "::add-mask::$ACCESS_TOKEN"
-
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Start ciproxy
+        working-directory: ${{ github.workspace }}/ciproxy
+        run: |
+          go build
+          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
 
       - name: Checkout vcpkg repository
         uses: actions/checkout@v5
@@ -96,19 +89,14 @@ jobs:
     environment: production
 
     steps:
-      - name: Get access token
-        shell: bash
-        run: |
-          ACCESS_TOKEN=$(curl -fsSL -X POST -d "master_token=${{ secrets.MASTER_TOKEN }}" https://readwrite.vcpkg-obs.kaito.tokyo/token)
-          if [[ -z "$ACCESS_TOKEN" ]]; then
-            echo "Failed to get access token"
-            exit 1
-          fi
-          printf 'VCPKG_BINARY_SOURCES=clear;http,https://readwrite.vcpkg-obs.kaito.tokyo/binarycache/{name}/{version}/{sha},readwrite,Authorization: Bearer %s\n' "$ACCESS_TOKEN" >> "$GITHUB_ENV"
-          echo "::add-mask::$ACCESS_TOKEN"
-
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Start ciproxy
+        working-directory: ${{ github.workspace }}/ciproxy
+        run: |
+          go build
+          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
 
       - name: Checkout vcpkg repository
         uses: actions/checkout@v5
@@ -132,18 +120,14 @@ jobs:
     environment: production
 
     steps:
-      - name: Get access token
-        run: |
-          ACCESS_TOKEN=$(curl -fsSL -X POST -d "master_token=${{ secrets.MASTER_TOKEN }}" https://readwrite.vcpkg-obs.kaito.tokyo/token)
-          if [[ -z "$ACCESS_TOKEN" ]]; then
-            echo "Failed to get access token"
-            exit 1
-          fi
-          printf 'VCPKG_BINARY_SOURCES=clear;http,https://readwrite.vcpkg-obs.kaito.tokyo/binarycache/{name}/{version}/{sha},readwrite,Authorization: Bearer %s\n' "$ACCESS_TOKEN" >> "$GITHUB_ENV"
-          echo "::add-mask::$ACCESS_TOKEN"
-
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Start ciproxy
+        working-directory: ${{ github.workspace }}/ciproxy
+        run: |
+          go build
+          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
 
       - name: Checkout vcpkg repository
         uses: actions/checkout@v5
