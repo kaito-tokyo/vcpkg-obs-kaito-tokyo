@@ -104,7 +104,6 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	presignedURL, err := getPresignedURL(s.AccessToken, key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
-		fmt.Printf("Failed to get presigned URL: %v\n", err)
 		return
 	}
 
@@ -116,7 +115,6 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	tempFile, err := os.Create(tempPath)
 	if err != nil {
 		http.Error(w, "Failed to create temp file", http.StatusInternalServerError)
-		fmt.Printf("Failed to create temp file %s: %v\n", tempPath, err)
 		return
 	}
 
@@ -130,7 +128,6 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	req, err := http.NewRequest(http.MethodPut, presignedURL, teeBody)
 	if err != nil {
 		http.Error(w, "Error creating R2 request", http.StatusInternalServerError)
-		fmt.Printf("Failed to create R2 request: %v\n", err)
 		return
 	}
 
@@ -140,14 +137,12 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(w, "R2 transfer failed", http.StatusBadGateway)
-		fmt.Printf("R2 transfer failed: %v\n", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
 		http.Error(w, "R2 returned error status", resp.StatusCode)
-		fmt.Printf("R2 returned error: %d\n", resp.StatusCode)
 		return
 	}
 
@@ -155,11 +150,8 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 
 	if err := os.Rename(tempPath, finalPath); err != nil {
 		http.Error(w, "Failed to commit artifact", http.StatusInternalServerError)
-		fmt.Printf("Failed to move file from %s to %s: %v\n", tempPath, finalPath, err)
 		return
 	}
-
-	fmt.Printf("Successfully saved and uploaded: %s\n", finalPath)
 
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
