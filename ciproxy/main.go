@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+const (
+	ArtifactDir = "vcpkg_artifacts"
+	TempDir     = "vcpkg_artifacts_tmp"
+)
+
 func getAccessToken(masterToken string) (string, error) {
 	tokenURL := "https://readwrite.vcpkg-obs.kaito.tokyo/token"
 
@@ -91,7 +96,6 @@ func getPresignedURL(accessToken string, key string) (string, error) {
 
 type CIProxyServer struct {
 	AccessToken string
-	ArtifactDir string
 }
 
 func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) {
@@ -105,16 +109,23 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	filename := filepath.Base(key)
-	localPath := filepath.Join(s.ArtifactDir, filename)
 
-	dstFile, err := os.Create(localPath)
+	finalPath := filepath.Join(ArtifactDir, filename)
+	tempPath := filepath.Join(TempDir, filename)
+
+	tempFile, err := os.Create(tempPath)
 	if err != nil {
-		http.Error(w, "Failed to create local file", http.StatusInternalServerError)
+		http.Error(w, "Failed to create temp file", http.StatusInternalServerError)
+		fmt.Printf("Failed to create temp file %s: %v\n", tempPath, err)
 		return
 	}
-	defer dstFile.Close()
 
-	teeBody := io.TeeReader(r.Body, dstFile)
+	defer func() {
+		tempFile.Close()
+		os.Remove(tempPath)
+	}()
+
+	teeBody := io.TeeReader(r.Body, tempFile)
 
 	req, err := http.NewRequest(http.MethodPut, presignedURL, teeBody)
 	if err != nil {
@@ -134,11 +145,24 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode >= 300 {
+		http.Error(w, "R2 returned error status", resp.StatusCode)
+		fmt.Printf("R2 returned error: %d\n", resp.StatusCode)
+		return
+	}
+
+	tempFile.Close()
+
+	if err := os.Rename(tempPath, finalPath); err != nil {
+		http.Error(w, "Failed to commit artifact", http.StatusInternalServerError)
+		fmt.Printf("Failed to move file from %s to %s: %v\n", tempPath, finalPath, err)
+		return
+	}
+
+	fmt.Printf("Successfully saved and uploaded: %s\n", finalPath)
+
 	w.WriteHeader(resp.StatusCode)
-
 	io.Copy(w, resp.Body)
-
-	fmt.Printf("Processed: %s (Size: %d)\n", localPath, r.ContentLength)
 }
 
 func (s CIProxyServer) handleRedirect(w http.ResponseWriter, r *http.Request) {
