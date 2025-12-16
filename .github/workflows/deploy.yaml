@@ -75,7 +75,7 @@ jobs:
           echo "Ciproxy stopped."
 
       - name: list artifacts
-        run: ls -la vcpkg_artifacts
+        run: ls -la ciproxy/vcpkg_artifacts
 
   DeployOnMacOSX64:
     runs-on: macos-15
@@ -134,7 +134,7 @@ jobs:
           echo "Ciproxy stopped."
 
       - name: list artifacts
-        run: ls -la vcpkg_artifacts
+        run: ls -la ciproxy/vcpkg_artifacts
 
   DeployOnWindows:
     runs-on: windows-2022
@@ -193,7 +193,7 @@ jobs:
           echo "Ciproxy stopped."
 
       - name: list artifacts
-        run: ls -la vcpkg_artifacts
+        run: ls -la ciproxy/vcpkg_artifacts
 
   DeployOnUbuntu:
     runs-on: ubuntu-24.04
@@ -252,4 +252,4 @@ jobs:
           echo "Ciproxy stopped."
 
       - name: list artifacts
-        run: ls -la vcpkg_artifacts
+        run: ls -la ciproxy/vcpkg_artifacts
