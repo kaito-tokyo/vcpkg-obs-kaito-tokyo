@@ -10,10 +10,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
-	"regexp"
 )
 
 const (
@@ -176,19 +176,6 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
-}
-
-// isSafeFilename returns true if the filename is a single safe file name component (no path traversal, no separators, not empty/special)
-func isSafeFilename(filename string) bool {
-	if filename == "" || filename == "." || filename == ".." {
-		return false
-	}
-	if strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
-		return false
-	}
-	// Allow only alphanumerics, hyphens, underscores, and dots (adjust as needed)
-	safeName := regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
-	return safeName.MatchString(filename)
 }
 
 func (s CIProxyServer) handleRedirect(w http.ResponseWriter, r *http.Request) {
