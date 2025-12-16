@@ -99,6 +99,20 @@ type CIProxyServer struct {
 	AccessToken string
 }
 
+// isSafeFilename returns true if the filename contains only safe characters and does not allow any path separators or "..".
+func isSafeFilename(name string) bool {
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+	// Reject any path separators or directory traversal
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") || strings.Contains(name, "..") {
+		return false
+	}
+	// Optionally: restrict to alphanumerics, dot, dash, and underscore
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9._-]+$`, name)
+	return err == nil && matched
+}
+
 func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
 
