@@ -39,12 +39,43 @@ jobs:
         run: |
           go build
           MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
+          PID=$!
+          echo "Proxy started with PID: $PID"
+          echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
+          sleep 3
 
       - name: Set up vcpkg
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs
+
+      - name: Stop ciproxy
+        run: |
+          if [ -z "$CIPROXY_PID" ]; then
+            echo "CIPROXY_PID is not set. Aborting."
+            exit 1
+          fi
+
+          echo "Sending SIGTERM to ciproxy (PID: $CIPROXY_PID)..."
+          kill -15 $CIPROXY_PID || true
+
+          count=0
+          while kill -0 $CIPROXY_PID 2>/dev/null; do
+            echo "Waiting for process $CIPROXY_PID to exit..."
+            sleep 1
+            count=$((count+1))
+            if [ $count -ge 10 ]; then
+              echo "Timeout reached. Force killing..."
+              kill -9 $CIPROXY_PID || true
+              break
+            fi
+          done
+
+          echo "Ciproxy stopped."
+
+      - name: list artifacts
+        run: ls -la vcpkg_artifacts
 
   DeployOnMacOSX64:
     runs-on: macos-15
@@ -67,12 +98,43 @@ jobs:
         run: |
           go build
           MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
+          PID=$!
+          echo "Proxy started with PID: $PID"
+          echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
+          sleep 3
 
       - name: Set up vcpkg
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs
+
+      - name: Stop ciproxy
+        run: |
+          if [ -z "$CIPROXY_PID" ]; then
+            echo "CIPROXY_PID is not set. Aborting."
+            exit 1
+          fi
+
+          echo "Sending SIGTERM to ciproxy (PID: $CIPROXY_PID)..."
+          kill -15 $CIPROXY_PID || true
+
+          count=0
+          while kill -0 $CIPROXY_PID 2>/dev/null; do
+            echo "Waiting for process $CIPROXY_PID to exit..."
+            sleep 1
+            count=$((count+1))
+            if [ $count -ge 10 ]; then
+              echo "Timeout reached. Force killing..."
+              kill -9 $CIPROXY_PID || true
+              break
+            fi
+          done
+
+          echo "Ciproxy stopped."
+
+      - name: list artifacts
+        run: ls -la vcpkg_artifacts
 
   DeployOnWindows:
     runs-on: windows-2022
@@ -95,12 +157,43 @@ jobs:
         run: |
           go build
           MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
+          PID=$!
+          echo "Proxy started with PID: $PID"
+          echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
+          sleep 3
 
       - name: Set up vcpkg
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs
+
+      - name: Stop ciproxy
+        run: |
+          if [ -z "$CIPROXY_PID" ]; then
+            echo "CIPROXY_PID is not set. Aborting."
+            exit 1
+          fi
+
+          echo "Sending SIGTERM to ciproxy (PID: $CIPROXY_PID)..."
+          kill -15 $CIPROXY_PID || true
+
+          count=0
+          while kill -0 $CIPROXY_PID 2>/dev/null; do
+            echo "Waiting for process $CIPROXY_PID to exit..."
+            sleep 1
+            count=$((count+1))
+            if [ $count -ge 10 ]; then
+              echo "Timeout reached. Force killing..."
+              kill -9 $CIPROXY_PID || true
+              break
+            fi
+          done
+
+          echo "Ciproxy stopped."
+
+      - name: list artifacts
+        run: ls -la vcpkg_artifacts
 
   DeployOnUbuntu:
     runs-on: ubuntu-24.04
@@ -123,9 +216,40 @@ jobs:
         run: |
           go build
           MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
+          PID=$!
+          echo "Proxy started with PID: $PID"
+          echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
+          sleep 3
 
       - name: Set up vcpkg
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs
+
+      - name: Stop ciproxy
+        run: |
+          if [ -z "$CIPROXY_PID" ]; then
+            echo "CIPROXY_PID is not set. Aborting."
+            exit 1
+          fi
+
+          echo "Sending SIGTERM to ciproxy (PID: $CIPROXY_PID)..."
+          kill -15 $CIPROXY_PID || true
+
+          count=0
+          while kill -0 $CIPROXY_PID 2>/dev/null; do
+            echo "Waiting for process $CIPROXY_PID to exit..."
+            sleep 1
+            count=$((count+1))
+            if [ $count -ge 10 ]; then
+              echo "Timeout reached. Force killing..."
+              kill -9 $CIPROXY_PID || true
+              break
+            fi
+          done
+
+          echo "Ciproxy stopped."
+
+      - name: list artifacts
+        run: ls -la vcpkg_artifacts

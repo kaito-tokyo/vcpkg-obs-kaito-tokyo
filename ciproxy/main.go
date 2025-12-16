@@ -1,14 +1,23 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
+)
+
+const (
+	ArtifactDir = "vcpkg_artifacts"
+	TempDir     = "vcpkg_artifacts_tmp"
 )
 
 func getAccessToken(masterToken string) (string, error) {
@@ -86,23 +95,57 @@ func getPresignedURL(accessToken string, key string) (string, error) {
 }
 
 type CIProxyServer struct {
-	accessToken string
+	AccessToken string
+}
+
+// isSafeFilename returns true if the filename contains only safe characters and does not allow any path separators or "..".
+func isSafeFilename(name string) bool {
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+	// Reject any path separators or directory traversal
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") || strings.Contains(name, "..") {
+		return false
+	}
+	return true
 }
 
 func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
 
-	presignedURL, err := getPresignedURL(s.accessToken, key)
+	presignedURL, err := getPresignedURL(s.AccessToken, key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
-		fmt.Printf("Failed to get presigned URL: %v\n", err)
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodPut, presignedURL, r.Body)
+	filename := filepath.Base(key)
+
+	// Validate that filename is safe
+	if !isSafeFilename(filename) {
+		http.Error(w, "Invalid file name", http.StatusBadRequest)
+		return
+	}
+
+	finalPath := filepath.Join(ArtifactDir, filename)
+	tempPath := filepath.Join(TempDir, filename)
+
+	tempFile, err := os.Create(tempPath)
+	if err != nil {
+		http.Error(w, "Failed to create temp file", http.StatusInternalServerError)
+		return
+	}
+
+	defer func() {
+		tempFile.Close()
+		os.Remove(tempPath)
+	}()
+
+	teeBody := io.TeeReader(r.Body, tempFile)
+
+	req, err := http.NewRequest(http.MethodPut, presignedURL, teeBody)
 	if err != nil {
 		http.Error(w, "Error creating R2 request", http.StatusInternalServerError)
-		fmt.Printf("Failed to create R2 request: %v\n", err)
 		return
 	}
 
@@ -112,13 +155,23 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(w, "R2 transfer failed", http.StatusBadGateway)
-		fmt.Printf("R2 transfer failed: %v\n", err)
 		return
 	}
 	defer resp.Body.Close()
 
-	w.WriteHeader(resp.StatusCode)
+	if resp.StatusCode >= 300 {
+		http.Error(w, "R2 returned error status", resp.StatusCode)
+		return
+	}
 
+	tempFile.Close()
+
+	if err := os.Rename(tempPath, finalPath); err != nil {
+		http.Error(w, "Failed to commit artifact", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 }
 
@@ -140,6 +193,16 @@ func (s CIProxyServer) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Ensure ArtifactDir and TempDir exist
+	if err := os.MkdirAll(ArtifactDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create ArtifactDir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.MkdirAll(TempDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create TempDir: %v\n", err)
+		os.Exit(1)
+	}
+
 	envMasterToken := os.Getenv("MASTER_TOKEN")
 	if envMasterToken == "" {
 		panic("MASTER_TOKEN environment variable is not set")
@@ -156,12 +219,32 @@ func main() {
 		panic(err)
 	}
 
-	server := CIProxyServer{accessToken: accessToken}
-
-	http.HandleFunc("/", server.handle)
-
-	fmt.Printf("Starting CI Proxy Server on port %s...\n", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		panic(err)
+	server := &http.Server{
+		Addr:    ":" + port,
+		Handler: nil,
 	}
+	proxyServer := CIProxyServer{AccessToken: accessToken}
+	http.HandleFunc("/", proxyServer.handle)
+
+	go func() {
+		fmt.Printf("Starting CI Proxy Server on port %s...\n", port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("HTTP server ListenAndServe: %v\n", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+	fmt.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		fmt.Printf("Server forced to shutdown: %v\n", err)
+	}
+
+	fmt.Println("Server exiting")
 }
