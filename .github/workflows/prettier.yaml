@@ -1,13 +1,11 @@
 name: Prettier
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 defaults:
   run:
@@ -17,17 +15,17 @@ jobs:
   Prettier:
     runs-on: ubuntu-24.04
 
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: "24"
 
       - name: Run Prettier
         working-directory: ${{ github.workspace }}/cloudflare
-        run: npx prettier --check
+        run: npx prettier --check .
