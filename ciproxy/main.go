@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -86,20 +90,33 @@ func getPresignedURL(accessToken string, key string) (string, error) {
 }
 
 type CIProxyServer struct {
-	accessToken string
+	AccessToken string
+	ArtifactDir string
 }
 
 func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
 
-	presignedURL, err := getPresignedURL(s.accessToken, key)
+	presignedURL, err := getPresignedURL(s.AccessToken, key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		fmt.Printf("Failed to get presigned URL: %v\n", err)
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodPut, presignedURL, r.Body)
+	filename := filepath.Base(key)
+	localPath := filepath.Join(s.ArtifactDir, filename)
+
+	dstFile, err := os.Create(localPath)
+	if err != nil {
+		http.Error(w, "Failed to create local file", http.StatusInternalServerError)
+		return
+	}
+	defer dstFile.Close()
+
+	teeBody := io.TeeReader(r.Body, dstFile)
+
+	req, err := http.NewRequest(http.MethodPut, presignedURL, teeBody)
 	if err != nil {
 		http.Error(w, "Error creating R2 request", http.StatusInternalServerError)
 		fmt.Printf("Failed to create R2 request: %v\n", err)
@@ -120,6 +137,8 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(resp.StatusCode)
 
 	io.Copy(w, resp.Body)
+
+	fmt.Printf("Processed: %s (Size: %d)\n", localPath, r.ContentLength)
 }
 
 func (s CIProxyServer) handleRedirect(w http.ResponseWriter, r *http.Request) {
@@ -156,12 +175,32 @@ func main() {
 		panic(err)
 	}
 
-	server := CIProxyServer{accessToken: accessToken}
-
-	http.HandleFunc("/", server.handle)
-
-	fmt.Printf("Starting CI Proxy Server on port %s...\n", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		panic(err)
+	server := &http.Server{
+		Addr:    ":" + port,
+		Handler: nil,
 	}
+	proxyServer := CIProxyServer{AccessToken: accessToken}
+	http.HandleFunc("/", proxyServer.handle)
+
+	go func() {
+		fmt.Printf("Starting CI Proxy Server on port %s...\n", port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("HTTP server ListenAndServe: %v\n", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+	fmt.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		fmt.Printf("Server forced to shutdown: %v\n", err)
+	}
+
+	fmt.Println("Server exiting")
 }
