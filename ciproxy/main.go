@@ -196,6 +196,16 @@ func (s CIProxyServer) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Ensure ArtifactDir and TempDir exist
+	if err := os.MkdirAll(ArtifactDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create ArtifactDir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.MkdirAll(TempDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create TempDir: %v\n", err)
+		os.Exit(1)
+	}
+
 	envMasterToken := os.Getenv("MASTER_TOKEN")
 	if envMasterToken == "" {
 		panic("MASTER_TOKEN environment variable is not set")

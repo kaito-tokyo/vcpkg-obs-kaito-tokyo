@@ -52,9 +52,26 @@ jobs:
 
       - name: Stop ciproxy
         run: |
-          echo "Stopping ciproxy with PID: $CIPROXY_PID"
-          kill -TERM "$CIPROXY_PID" || echo "Failed to stop ciproxy"
-          wait $CIPROXY_PID || true
+          if [ -z "$CIPROXY_PID" ]; then
+            echo "CIPROXY_PID is not set. Aborting."
+            exit 1
+          fi
+
+          echo "Sending SIGTERM to ciproxy (PID: $CIPROXY_PID)..."
+          kill -15 $CIPROXY_PID || true
+
+          count=0
+          while kill -0 $CIPROXY_PID 2>/dev/null; do
+            echo "Waiting for process $CIPROXY_PID to exit..."
+            sleep 1
+            count=$((count+1))
+            if [ $count -ge 10 ]; then
+              echo "Timeout reached. Force killing..."
+              kill -9 $CIPROXY_PID || true
+              break
+            fi
+          done
+
           echo "Ciproxy stopped."
 
       - name: list artifacts
