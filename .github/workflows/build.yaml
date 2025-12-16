@@ -3,6 +3,8 @@ name: "Build"
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,17 +29,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - name: Checkout vcpkg repository
-        uses: actions/checkout@v5
-        with:
-          repository: microsoft/vcpkg
-          path: ${{ env.VCPKG_ROOT }}
-
-      - name: Bootstrap vcpkg
-        working-directory: ${{ env.VCPKG_ROOT }}
-        run: ./bootstrap-vcpkg.sh
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs
@@ -49,17 +44,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - name: Checkout vcpkg repository
-        uses: actions/checkout@v5
-        with:
-          repository: microsoft/vcpkg
-          path: ${{ env.VCPKG_ROOT }}
-
-      - name: Bootstrap vcpkg
-        working-directory: ${{ env.VCPKG_ROOT }}
-        run: ./bootstrap-vcpkg.sh
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs
@@ -71,18 +59,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - name: Checkout vcpkg repository
-        uses: actions/checkout@v5
-        with:
-          repository: microsoft/vcpkg
-          path: ${{ env.VCPKG_ROOT }}
-
-      - name: Bootstrap vcpkg
-        working-directory: ${{ env.VCPKG_ROOT }}
-        shell: pwsh
-        run: .\bootstrap-vcpkg.bat
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs
@@ -90,21 +70,14 @@ jobs:
   BuildOnUbuntu:
     runs-on: ubuntu-24.04
 
-    timeout-minutes: 60
+    timeout-minutes: 180
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - name: Checkout vcpkg repository
-        uses: actions/checkout@v5
-        with:
-          repository: microsoft/vcpkg
-          path: ${{ env.VCPKG_ROOT }}
-
-      - name: Bootstrap vcpkg
-        working-directory: ${{ env.VCPKG_ROOT }}
-        run: ./bootstrap-vcpkg.sh
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs

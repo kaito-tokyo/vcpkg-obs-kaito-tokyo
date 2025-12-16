@@ -3,11 +3,9 @@ name: "Deploy"
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "23 9 * * *" # Every day at 09:23 UTC
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 defaults:
   run:
@@ -15,7 +13,6 @@ defaults:
 
 env:
   VCPKG_BINARY_SOURCES: clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite
-  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
 permissions:
   contents: read
@@ -30,12 +27,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.5'
+          go-version: "1.25.5"
 
       - name: Start ciproxy
         working-directory: ${{ github.workspace }}/ciproxy
@@ -43,15 +40,8 @@ jobs:
           go build
           MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
 
-      - name: Checkout vcpkg repository
-        uses: actions/checkout@v5
-        with:
-          repository: microsoft/vcpkg
-          path: ${{ env.VCPKG_ROOT }}
-
-      - name: Bootstrap vcpkg
-        working-directory: ${{ env.VCPKG_ROOT }}
-        run: ./bootstrap-vcpkg.sh
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs
@@ -65,12 +55,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.5'
+          go-version: "1.25.5"
 
       - name: Start ciproxy
         working-directory: ${{ github.workspace }}/ciproxy
@@ -78,15 +68,8 @@ jobs:
           go build
           MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
 
-      - name: Checkout vcpkg repository
-        uses: actions/checkout@v5
-        with:
-          repository: microsoft/vcpkg
-          path: ${{ env.VCPKG_ROOT }}
-
-      - name: Bootstrap vcpkg
-        working-directory: ${{ env.VCPKG_ROOT }}
-        run: ./bootstrap-vcpkg.sh
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs
@@ -100,12 +83,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.5'
+          go-version: "1.25.5"
 
       - name: Start ciproxy
         working-directory: ${{ github.workspace }}/ciproxy
@@ -113,16 +96,8 @@ jobs:
           go build
           MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
 
-      - name: Checkout vcpkg repository
-        uses: actions/checkout@v5
-        with:
-          repository: microsoft/vcpkg
-          path: ${{ env.VCPKG_ROOT }}
-
-      - name: Bootstrap vcpkg
-        working-directory: ${{ env.VCPKG_ROOT }}
-        shell: pwsh
-        run: .\bootstrap-vcpkg.bat
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs
@@ -141,7 +116,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.5'
+          go-version: "1.25.5"
 
       - name: Start ciproxy
         working-directory: ${{ github.workspace }}/ciproxy
@@ -149,15 +124,8 @@ jobs:
           go build
           MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
 
-      - name: Checkout vcpkg repository
-        uses: actions/checkout@v5
-        with:
-          repository: microsoft/vcpkg
-          path: ${{ env.VCPKG_ROOT }}
-
-      - name: Bootstrap vcpkg
-        working-directory: ${{ env.VCPKG_ROOT }}
-        run: ./bootstrap-vcpkg.sh
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs
