@@ -2,6 +2,15 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "dependencies": [
     "backward-cpp",
+    {
+      "name": "boost-stacktrace",
+      "default-features": false,
+      "platform": "osx"
+    },
+    {
+      "name": "boost-stacktrace",
+      "platform": "!osx"
+    },
     "boost-thread",
     {
       "name": "cpp-httplib",
