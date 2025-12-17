@@ -218,7 +218,7 @@ export async function handleBinaryCache(
 	}
 
 	switch (request.method) {
-		case "POST": {
+		case "PUT": {
 			const s3client = new S3Client({
 				region: "auto",
 				endpoint: R2_ENDPOINT,
@@ -312,25 +312,38 @@ export async function handleSigstore(
 	}
 }
 
-export async function handleSigstoreCurl(env: Env): Promise<Response> {
-	const list = await env.R2_BUCKET.list({ prefix: "_sigstore/" });
-	const configLines = list.objects.flatMap(({ key }) => {
-		if (!key) return [];
+export async function handleSigstoreCurl(
+	request: Request,
+	env: Env,
+): Promise<Response> {
+	switch (request.method) {
+		case "GET": {
+			const list = await env.R2_BUCKET.list({ prefix: "_sigstore/" });
+			const configLines = list.objects.flatMap(({ key }) => {
+				if (!key) return [];
 
-		const matches = SIGSTORE_PATH_REGEX.exec(key);
-		if (matches === null || matches.length !== 1) return [];
+				const matches = SIGSTORE_PATH_REGEX.exec(key);
+				if (matches === null || matches.length !== 2) return [];
 
-		return [
-			`url = "https:://vcpkg-obs.kaito.tokyo/${key}"`,
-			`output = "${matches[1]}"`,
-		];
-	});
-	return new Response(configLines.join("\n"), {
-		headers: {
-			"Content-Type": "text/plain",
-			"Cache-Control": "no-store, no-cache, must-revalidate",
-		},
-	});
+				return [
+					`url = "https://vcpkg-obs.kaito.tokyo/${key}"`,
+					`output = "${matches[1]}"`,
+				];
+			});
+			return new Response(configLines.join("\n"), {
+				headers: {
+					"Content-Type": "text/plain",
+					"Cache-Control": "no-store, no-cache, must-revalidate",
+				},
+			});
+		}
+		default: {
+			return new Response("Method Not Allowed", {
+				status: 405,
+				headers: { Allow: "GET" },
+			});
+		}
+	}
 }
 
 export default {
@@ -352,7 +365,7 @@ export default {
 					return handleToken(request, env);
 				}
 				case "/sigstore/curl": {
-					return handleSigstoreCurl(env);
+					return handleSigstoreCurl(request, env);
 				}
 				default: {
 					return new Response("Not Found", { status: 404 });
