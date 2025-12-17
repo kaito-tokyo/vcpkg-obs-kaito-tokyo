@@ -203,6 +203,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to create TempDir: %v\n", err)
 		os.Exit(1)
 	}
+	if err := os.MkdirAll(CurlScriptsDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create CurlScriptsDir: %v\n", err)
+		os.Exit(1)
+	}
 
 	envMasterToken := os.Getenv("MASTER_TOKEN")
 	if envMasterToken == "" {
