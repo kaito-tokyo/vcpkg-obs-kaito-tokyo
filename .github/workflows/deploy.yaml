@@ -108,17 +108,18 @@ jobs:
           JOB_ID: ${{ github.job }}
           BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
         run: |
-          jq -c . "$BUNDLE_PATH" | tee attestation.jsonl
+          jq -c . "$BUNDLE_PATH" > attestation.jsonl
 
           FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
           SHORT_HASH=${FULL_HASH:0:${ATTESTATION_SHORT_HASH_LENGTH:?}}
-
           FILENAME="$OWNER@$REPO@$RUN_ID@$ATTEMPT@$JOB_ID@$SHORT_HASH.jsonl"
+          echo "Uploading $FILENAME..."
 
           ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
           printf "::add-mask::%s\n" "$ACCESS_TOKEN"
 
           curl -fsSL \
+            -X PUT \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
             -T ./attestation.jsonl \
@@ -215,17 +216,18 @@ jobs:
           JOB_ID: ${{ github.job }}
           BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
         run: |
-          jq -c . "$BUNDLE_PATH" | tee attestation.jsonl
+          jq -c . "$BUNDLE_PATH" > attestation.jsonl
 
           FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
           SHORT_HASH=${FULL_HASH:0:${ATTESTATION_SHORT_HASH_LENGTH:?}}
-
           FILENAME="$OWNER@$REPO@$RUN_ID@$ATTEMPT@$JOB_ID@$SHORT_HASH.jsonl"
+          echo "Uploading $FILENAME..."
 
           ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
           printf "::add-mask::%s\n" "$ACCESS_TOKEN"
 
           curl -fsSL \
+            -X PUT \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
             -T ./attestation.jsonl \
@@ -322,17 +324,18 @@ jobs:
           JOB_ID: ${{ github.job }}
           BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
         run: |
-          jq -c . "$BUNDLE_PATH" | tee attestation.jsonl
+          jq -c . "$BUNDLE_PATH" > attestation.jsonl
 
           FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
           SHORT_HASH=${FULL_HASH:0:${ATTESTATION_SHORT_HASH_LENGTH:?}}
-
           FILENAME="$OWNER@$REPO@$RUN_ID@$ATTEMPT@$JOB_ID@$SHORT_HASH.jsonl"
+          echo "Uploading $FILENAME..."
 
           ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
           printf "::add-mask::%s\n" "$ACCESS_TOKEN"
 
           curl -fsSL \
+            -X PUT \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
             -T ./attestation.jsonl \
@@ -429,17 +432,18 @@ jobs:
           JOB_ID: ${{ github.job }}
           BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
         run: |
-          jq -c . "$BUNDLE_PATH" | tee attestation.jsonl
+          jq -c . "$BUNDLE_PATH" > attestation.jsonl
 
           FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
           SHORT_HASH=${FULL_HASH:0:${ATTESTATION_SHORT_HASH_LENGTH:?}}
-
           FILENAME="$OWNER@$REPO@$RUN_ID@$ATTEMPT@$JOB_ID@$SHORT_HASH.jsonl"
+          echo "Uploading $FILENAME..."
 
           ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
           printf "::add-mask::%s\n" "$ACCESS_TOKEN"
 
           curl -fsSL \
+            -X PUT \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
             -T ./attestation.jsonl \
