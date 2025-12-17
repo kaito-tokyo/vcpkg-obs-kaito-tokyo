@@ -316,7 +316,18 @@ export async function handleSigstoreCurl(
 	request: Request,
 	env: Env,
 ): Promise<Response> {
+	const contentType = "text/plain";
+	const cacheControl = "no-store, no-cache, must-revalidate";
 	switch (request.method) {
+		case "HEAD": {
+			return new Response(null, {
+				headers: {
+					"Content-Type": contentType,
+					"Cache-Control": cacheControl,
+				},
+			});
+		}
+
 		case "GET": {
 			const list = await env.R2_BUCKET.list({ prefix: "_sigstore/" });
 			const configLines = list.objects.flatMap(({ key }) => {
@@ -332,8 +343,8 @@ export async function handleSigstoreCurl(
 			});
 			return new Response(configLines.join("\n"), {
 				headers: {
-					"Content-Type": "text/plain",
-					"Cache-Control": "no-store, no-cache, must-revalidate",
+					"Content-Type": contentType,
+					"Cache-Control": cacheControl,
 				},
 			});
 		}
