@@ -31,7 +31,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.25.5"
+          go-version-file: ciproxy/go.mod
+          cache: false
 
       - name: Start ciproxy
         shell: bash
@@ -123,7 +124,7 @@ jobs:
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
             -T ./attestation.jsonl \
-            "https://vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
+            "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
 
   deploy-macos-x64:
     name: Deploy on macOS x64
@@ -139,7 +140,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.25.5"
+          go-version-file: ciproxy/go.mod
+          cache: false
 
       - name: Start ciproxy
         shell: bash
@@ -231,7 +233,7 @@ jobs:
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
             -T ./attestation.jsonl \
-            "https://vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
+            "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
 
   deploy-windows:
     name: Deploy on Windows
@@ -247,7 +249,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.25.5"
+          go-version-file: ciproxy/go.mod
+          cache: false
 
       - name: Start ciproxy
         shell: bash
@@ -339,7 +342,7 @@ jobs:
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
             -T ./attestation.jsonl \
-            "https://vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
+            "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
 
   deploy-ubuntu:
     name: Deploy on Ubuntu
@@ -355,7 +358,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.25.5"
+          go-version-file: ciproxy/go.mod
+          cache: false
 
       - name: Start ciproxy
         shell: bash
@@ -447,4 +451,4 @@ jobs:
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
             -T ./attestation.jsonl \
-            "https://vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
+            "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
