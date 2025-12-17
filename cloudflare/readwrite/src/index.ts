@@ -319,14 +319,6 @@ export async function handleSigstoreCurl(
 	const contentType = "text/plain";
 	const cacheControl = "no-store, no-cache, must-revalidate";
 	switch (request.method) {
-		case "HEAD": {
-			return new Response(null, {
-				headers: {
-					"Content-Type": contentType,
-					"Cache-Control": cacheControl,
-				},
-			});
-		}
 
 		case "GET": {
 			const list = await env.R2_BUCKET.list({ prefix: "_sigstore/" });
@@ -349,10 +341,19 @@ export async function handleSigstoreCurl(
 			});
 		}
 
+		case "HEAD": {
+			return new Response(null, {
+				headers: {
+					"Content-Type": contentType,
+					"Cache-Control": cacheControl,
+				},
+			});
+		}
+
 		default: {
 			return new Response("Method Not Allowed", {
 				status: 405,
-				headers: { Allow: "GET" },
+				headers: { Allow: "GET, HEAD" },
 			});
 		}
 	}
