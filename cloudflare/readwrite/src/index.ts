@@ -230,8 +230,6 @@ export async function handleBinaryCache(
 					Bucket: R2_BUCKET_NAME,
 					Key: key,
 					CacheControl: "public, max-age=31536000, immutable",
-					ContentType:
-						request.headers.get("content-type") || "application/octet-stream",
 				}),
 				{ expiresIn: 3600 },
 			);
