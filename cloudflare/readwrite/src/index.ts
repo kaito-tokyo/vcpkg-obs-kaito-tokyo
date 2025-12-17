@@ -230,6 +230,7 @@ export async function handleBinaryCache(
 					Bucket: R2_BUCKET_NAME,
 					Key: key,
 					CacheControl: "public, max-age=31536000, immutable",
+					ContentType: "application/zip",
 				}),
 				{ expiresIn: 3600 },
 			);

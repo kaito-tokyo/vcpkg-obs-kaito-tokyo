@@ -152,18 +152,13 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	contentType := r.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-
 	safeFinalPath := filepath.ToSlash(finalPath)
 	entry := fmt.Sprintf(
 		"url = \"%s\"\n"+
 			"upload-file = \"%s\"\n"+
-			"header = \"Content-Type: %s\"\n"+
+			"header = \"Content-Type: application/zip\"\n"+
 			"header = \"Cache-Control: public, max-age=31536000, immutable\"\n",
-		presignedURL, safeFinalPath, contentType,
+		presignedURL, safeFinalPath,
 	)
 
 	configPath := filepath.Join(CurlScriptsDir, filename+".txt")
