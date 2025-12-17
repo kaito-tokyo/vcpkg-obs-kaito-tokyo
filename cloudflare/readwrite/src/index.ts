@@ -295,7 +295,7 @@ export async function handleSigstore(
 
 			return new Response(null, {
 				status: 307,
-				headers: { "Location": presignedUrl },
+				headers: { Location: presignedUrl },
 			});
 		}
 
