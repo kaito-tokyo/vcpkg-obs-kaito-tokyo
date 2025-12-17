@@ -123,6 +123,7 @@ jobs:
             -X PUT \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
+            -H "Cache-Control: public, max-age=31536000, immutable" \
             -T ./attestation.jsonl \
             "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
 
@@ -232,6 +233,7 @@ jobs:
             -X PUT \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
+            -H "Cache-Control: public, max-age=31536000, immutable" \
             -T ./attestation.jsonl \
             "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
 
@@ -342,6 +344,7 @@ jobs:
             -X PUT \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
+            -H "Cache-Control: public, max-age=31536000, immutable" \
             -T ./attestation.jsonl \
             "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
 
@@ -451,5 +454,6 @@ jobs:
             -X PUT \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/x-ndjson" \
+            -H "Cache-Control: public, max-age=31536000, immutable" \
             -T ./attestation.jsonl \
             "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"

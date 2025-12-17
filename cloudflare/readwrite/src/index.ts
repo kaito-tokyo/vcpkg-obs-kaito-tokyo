@@ -287,7 +287,7 @@ export async function handleSigstore(
 				new PutObjectCommand({
 					Bucket: R2_BUCKET_NAME,
 					Key: key,
-					CacheControl: "public, max-age=0, s-maxage=31536000, immutable",
+					CacheControl: "public, max-age=31536000, immutable",
 					ContentType: "application/x-ndjson",
 				}),
 				{ expiresIn: 3600 },
