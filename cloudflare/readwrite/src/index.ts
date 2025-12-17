@@ -265,7 +265,7 @@ export async function handleSigstore(
 	const key = url.pathname.slice(1);
 
 	switch (request.method) {
-		case "POST": {
+		case "PUT": {
 			const s3client = new S3Client({
 				region: "auto",
 				endpoint: R2_ENDPOINT,
@@ -293,16 +293,16 @@ export async function handleSigstore(
 				{ expiresIn: 3600 },
 			);
 
-			return new Response(JSON.stringify({ presignedUrl }), {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
+			return new Response(null, {
+				status: 307,
+				headers: { Location: presignedUrl },
 			});
 		}
 
 		default: {
 			return new Response("Method Not Allowed", {
 				status: 405,
-				headers: { Allow: "POST" },
+				headers: { Allow: "PUT" },
 			});
 		}
 	}
