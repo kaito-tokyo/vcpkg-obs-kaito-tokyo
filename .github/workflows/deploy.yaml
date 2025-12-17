@@ -132,10 +132,7 @@ jobs:
         if: steps.check-artifacts.outputs.exists == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
-        run: |
-          ls vcpkg_curlscripts
-          cat vcpkg_curlscripts/*
-          cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
+        run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
 
   deploy-macos-x64:
     name: Deploy on macOS x64
@@ -252,10 +249,7 @@ jobs:
         if: steps.check-artifacts.outputs.exists == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
-        run: |
-          ls vcpkg_curlscripts
-          cat vcpkg_curlscripts/*
-          cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
+        run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
 
   deploy-windows:
     name: Deploy on Windows
@@ -372,10 +366,7 @@ jobs:
         if: steps.check-artifacts.outputs.exists == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
-        run: |
-          ls vcpkg_curlscripts
-          cat vcpkg_curlscripts/*
-          cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
+        run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
 
   deploy-ubuntu:
     name: Deploy on Ubuntu
@@ -492,7 +483,4 @@ jobs:
         if: steps.check-artifacts.outputs.exists == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
-        run: |
-          ls vcpkg_curlscripts
-          cat vcpkg_curlscripts/*
-          cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
+        run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
