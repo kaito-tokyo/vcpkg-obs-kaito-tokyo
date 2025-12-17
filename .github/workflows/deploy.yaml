@@ -7,12 +7,9 @@ on:
     - cron: "23 9 * * *" # Every day at 09:23 UTC
   workflow_dispatch:
 
-defaults:
-  run:
-    shell: bash
-
 env:
   VCPKG_BINARY_SOURCES: clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite
+  ATTESTATION_SHORT_HASH_LENGTH: 8
 
 permissions:
   id-token: write
@@ -20,11 +17,11 @@ permissions:
   contents: read
 
 jobs:
-  DeployOnMacOSArm64:
+  deploy-macos-arm64:
+    name: Deploy on macOS arm64
+
     runs-on: macos-15
-
     timeout-minutes: 180
-
     environment: production
 
     steps:
@@ -37,22 +34,28 @@ jobs:
           go-version: "1.25.5"
 
       - name: Start ciproxy
+        shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
+        env:
+          MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
         run: |
           go build
-          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
+          MASTER_TOKEN="$MASTER_TOKEN" PORT=8080 ./ciproxy &
           PID=$!
           echo "Proxy started with PID: $PID"
           echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
           sleep 3
 
       - name: Set up vcpkg
+        shell: bash
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
+        shell: bash
         run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs
 
       - name: Stop ciproxy
+        shell: bash
         run: |
           if [ -z "$CIPROXY_PID" ]; then
             echo "CIPROXY_PID is not set. Aborting."
@@ -76,16 +79,56 @@ jobs:
 
           echo "Ciproxy stopped."
 
+      - name: Check if new artifacts exist
+        id: check-artifacts
+        shell: bash
+        run: |
+          if [[ -d ciproxy/vcpkg_artifacts ]] && [ -n "$(ls -A ciproxy/vcpkg_artifacts)" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Attest build artifacts
+        if: steps.check-artifacts.outputs.exists == 'true'
+        id: attest
         uses: actions/attest-build-provenance@v3
         with:
           subject-path: ciproxy/vcpkg_artifacts/*
 
-  DeployOnMacOSX64:
+      - name: Upload attestation in JSONL format
+        if: steps.check-artifacts.outputs.exists == 'true'
+        shell: bash
+        env:
+          MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+          JOB_ID: ${{ github.job }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          jq -c . "$BUNDLE_PATH" | tee attestation.jsonl
+
+          FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
+          SHORT_HASH=${FULL_HASH:0:${ATTESTATION_SHORT_HASH_LENGTH:?}}
+
+          FILENAME="$OWNER@$REPO@$RUN_ID@$ATTEMPT@$JOB_ID@$SHORT_HASH.jsonl"
+
+          ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
+          printf "::add-mask::%s\n" "$ACCESS_TOKEN"
+
+          curl -fsSL \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/x-ndjson" \
+            -T ./attestation.jsonl \
+            "https://vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
+
+  deploy-macos-x64:
+    name: Deploy on macOS x64
+
     runs-on: macos-15
-
     timeout-minutes: 180
-
     environment: production
 
     steps:
@@ -98,22 +141,28 @@ jobs:
           go-version: "1.25.5"
 
       - name: Start ciproxy
+        shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
+        env:
+          MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
         run: |
           go build
-          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
+          MASTER_TOKEN="$MASTER_TOKEN" PORT=8080 ./ciproxy &
           PID=$!
           echo "Proxy started with PID: $PID"
           echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
           sleep 3
 
       - name: Set up vcpkg
+        shell: bash
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
+        shell: bash
         run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs
 
       - name: Stop ciproxy
+        shell: bash
         run: |
           if [ -z "$CIPROXY_PID" ]; then
             echo "CIPROXY_PID is not set. Aborting."
@@ -137,14 +186,56 @@ jobs:
 
           echo "Ciproxy stopped."
 
-      - name: list artifacts
-        run: ls -la ciproxy/vcpkg_artifacts
+      - name: Check if new artifacts exist
+        id: check-artifacts
+        shell: bash
+        run: |
+          if [[ -d ciproxy/vcpkg_artifacts ]] && [ -n "$(ls -A ciproxy/vcpkg_artifacts)" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
-  DeployOnWindows:
+      - name: Attest build artifacts
+        if: steps.check-artifacts.outputs.exists == 'true'
+        id: attest
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ciproxy/vcpkg_artifacts/*
+
+      - name: Upload attestation in JSONL format
+        if: steps.check-artifacts.outputs.exists == 'true'
+        shell: bash
+        env:
+          MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+          JOB_ID: ${{ github.job }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          jq -c . "$BUNDLE_PATH" | tee attestation.jsonl
+
+          FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
+          SHORT_HASH=${FULL_HASH:0:${ATTESTATION_SHORT_HASH_LENGTH:?}}
+
+          FILENAME="$OWNER@$REPO@$RUN_ID@$ATTEMPT@$JOB_ID@$SHORT_HASH.jsonl"
+
+          ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
+          printf "::add-mask::%s\n" "$ACCESS_TOKEN"
+
+          curl -fsSL \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/x-ndjson" \
+            -T ./attestation.jsonl \
+            "https://vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
+
+  deploy-windows:
+    name: Deploy on Windows
+
     runs-on: windows-2022
-
     timeout-minutes: 180
-
     environment: production
 
     steps:
@@ -157,22 +248,28 @@ jobs:
           go-version: "1.25.5"
 
       - name: Start ciproxy
+        shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
+        env:
+          MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
         run: |
           go build
-          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
+          MASTER_TOKEN="$MASTER_TOKEN" PORT=8080 ./ciproxy.exe &
           PID=$!
           echo "Proxy started with PID: $PID"
           echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
           sleep 3
 
       - name: Set up vcpkg
+        shell: bash
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
+        shell: bash
         run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs
 
       - name: Stop ciproxy
+        shell: bash
         run: |
           if [ -z "$CIPROXY_PID" ]; then
             echo "CIPROXY_PID is not set. Aborting."
@@ -196,14 +293,56 @@ jobs:
 
           echo "Ciproxy stopped."
 
-      - name: list artifacts
-        run: ls -la ciproxy/vcpkg_artifacts
+      - name: Check if new artifacts exist
+        id: check-artifacts
+        shell: bash
+        run: |
+          if [[ -d ciproxy/vcpkg_artifacts ]] && [ -n "$(ls -A ciproxy/vcpkg_artifacts)" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
-  DeployOnUbuntu:
+      - name: Attest build artifacts
+        if: steps.check-artifacts.outputs.exists == 'true'
+        id: attest
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ciproxy/vcpkg_artifacts/*
+
+      - name: Upload attestation in JSONL format
+        if: steps.check-artifacts.outputs.exists == 'true'
+        shell: bash
+        env:
+          MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+          JOB_ID: ${{ github.job }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          jq -c . "$BUNDLE_PATH" | tee attestation.jsonl
+
+          FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
+          SHORT_HASH=${FULL_HASH:0:${ATTESTATION_SHORT_HASH_LENGTH:?}}
+
+          FILENAME="$OWNER@$REPO@$RUN_ID@$ATTEMPT@$JOB_ID@$SHORT_HASH.jsonl"
+
+          ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
+          printf "::add-mask::%s\n" "$ACCESS_TOKEN"
+
+          curl -fsSL \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/x-ndjson" \
+            -T ./attestation.jsonl \
+            "https://vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
+
+  deploy-ubuntu:
+    name: Deploy on Ubuntu
+
     runs-on: ubuntu-24.04
-
-    timeout-minutes: 60
-
+    timeout-minutes: 180
     environment: production
 
     steps:
@@ -216,22 +355,28 @@ jobs:
           go-version: "1.25.5"
 
       - name: Start ciproxy
+        shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
+        env:
+          MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
         run: |
           go build
-          MASTER_TOKEN="${{ secrets.MASTER_TOKEN }}" PORT=8080 nohup ./ciproxy &
+          MASTER_TOKEN="$MASTER_TOKEN" PORT=8080 ./ciproxy &
           PID=$!
           echo "Proxy started with PID: $PID"
           echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
           sleep 3
 
       - name: Set up vcpkg
+        shell: bash
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Build
+        shell: bash
         run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs
 
       - name: Stop ciproxy
+        shell: bash
         run: |
           if [ -z "$CIPROXY_PID" ]; then
             echo "CIPROXY_PID is not set. Aborting."
@@ -255,5 +400,47 @@ jobs:
 
           echo "Ciproxy stopped."
 
-      - name: list artifacts
-        run: ls -la ciproxy/vcpkg_artifacts
+      - name: Check if new artifacts exist
+        id: check-artifacts
+        shell: bash
+        run: |
+          if [[ -d ciproxy/vcpkg_artifacts ]] && [ -n "$(ls -A ciproxy/vcpkg_artifacts)" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Attest build artifacts
+        if: steps.check-artifacts.outputs.exists == 'true'
+        id: attest
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ciproxy/vcpkg_artifacts/*
+
+      - name: Upload attestation in JSONL format
+        if: steps.check-artifacts.outputs.exists == 'true'
+        shell: bash
+        env:
+          MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+          JOB_ID: ${{ github.job }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          jq -c . "$BUNDLE_PATH" | tee attestation.jsonl
+
+          FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
+          SHORT_HASH=${FULL_HASH:0:${ATTESTATION_SHORT_HASH_LENGTH:?}}
+
+          FILENAME="$OWNER@$REPO@$RUN_ID@$ATTEMPT@$JOB_ID@$SHORT_HASH.jsonl"
+
+          ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
+          printf "::add-mask::%s\n" "$ACCESS_TOKEN"
+
+          curl -fsSL \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/x-ndjson" \
+            -T ./attestation.jsonl \
+            "https://vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
