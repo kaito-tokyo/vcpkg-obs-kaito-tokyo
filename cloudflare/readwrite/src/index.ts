@@ -319,7 +319,6 @@ export async function handleSigstoreCurl(
 	const contentType = "text/plain";
 	const cacheControl = "no-store, no-cache, must-revalidate";
 	switch (request.method) {
-
 		case "GET": {
 			const list = await env.R2_BUCKET.list({ prefix: "_sigstore/" });
 			const configLines = list.objects.flatMap(({ key }) => {
