@@ -86,6 +86,7 @@ jobs:
         run: |
           if [[ -d ciproxy/vcpkg_artifacts ]] && [ -n "$(ls -A ciproxy/vcpkg_artifacts)" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
+            ls -lA ciproxy/vcpkg_artifacts
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -131,7 +132,10 @@ jobs:
         if: steps.check-artifacts.outputs.exists == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
-        run: cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
+        run: |
+          ls vcpkg_curlscripts
+          cat vcpkg_curlscripts/*
+          cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
 
   deploy-macos-x64:
     name: Deploy on macOS x64
@@ -202,6 +206,7 @@ jobs:
         run: |
           if [[ -d ciproxy/vcpkg_artifacts ]] && [ -n "$(ls -A ciproxy/vcpkg_artifacts)" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
+            ls -lA ciproxy/vcpkg_artifacts
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -247,7 +252,10 @@ jobs:
         if: steps.check-artifacts.outputs.exists == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
-        run: cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
+        run: |
+          ls vcpkg_curlscripts
+          cat vcpkg_curlscripts/*
+          cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
 
   deploy-windows:
     name: Deploy on Windows
@@ -364,7 +372,10 @@ jobs:
         if: steps.check-artifacts.outputs.exists == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
-        run: cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
+        run: |
+          ls vcpkg_curlscripts
+          cat vcpkg_curlscripts/*
+          cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
 
   deploy-ubuntu:
     name: Deploy on Ubuntu
@@ -435,6 +446,7 @@ jobs:
         run: |
           if [[ -d ciproxy/vcpkg_artifacts ]] && [ -n "$(ls -A ciproxy/vcpkg_artifacts)" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
+            ls -lA ciproxy/vcpkg_artifacts
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -480,4 +492,7 @@ jobs:
         if: steps.check-artifacts.outputs.exists == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}/ciproxy
-        run: cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
+        run: |
+          ls vcpkg_curlscripts
+          cat vcpkg_curlscripts/*
+          cat vcpkg_curlscripts/* | curl --http2 -Z -fsS -K -
