@@ -150,6 +150,7 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	req.ContentLength = r.ContentLength
+	req.Header.Set("Content-Type", r.Header.Get("Content-Type"))
 	req.Header.Set("Cache-Control", "public, max-age=31536000, immutable")
 
 	client := &http.Client{}
