@@ -337,6 +337,7 @@ export async function handleSigstoreCurl(
 				},
 			});
 		}
+
 		default: {
 			return new Response("Method Not Allowed", {
 				status: 405,
