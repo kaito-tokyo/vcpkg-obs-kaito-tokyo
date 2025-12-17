@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	ArtifactDir = "vcpkg_artifacts"
-	TempDir     = "vcpkg_artifacts_tmp"
+	ArtifactDir    = "vcpkg_artifacts"
+	CurlScriptsDir = "vcpkg_curlscripts"
+	TempDir        = "vcpkg_artifacts_tmp"
 )
 
 func getAccessToken(masterToken string) (string, error) {
@@ -132,49 +133,47 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 
 	tempFile, err := os.Create(tempPath)
 	if err != nil {
+		os.Remove(tempPath)
 		http.Error(w, "Failed to create temp file", http.StatusInternalServerError)
 		return
 	}
 
-	defer func() {
-		tempFile.Close()
-		os.Remove(tempPath)
-	}()
-
-	teeBody := io.TeeReader(r.Body, tempFile)
-
-	req, err := http.NewRequest(http.MethodPut, presignedURL, teeBody)
-	if err != nil {
-		http.Error(w, "Error creating R2 request", http.StatusInternalServerError)
-		return
-	}
-
-	req.ContentLength = r.ContentLength
-	req.Header.Set("Content-Type", r.Header.Get("Content-Type"))
-	req.Header.Set("Cache-Control", "public, max-age=31536000, immutable")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		http.Error(w, "R2 transfer failed", http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		http.Error(w, "R2 returned error status", resp.StatusCode)
-		return
-	}
-
+	_, err = io.Copy(tempFile, r.Body)
 	tempFile.Close()
+	if err != nil {
+		os.Remove(tempPath)
+		http.Error(w, "Failed to write file", http.StatusInternalServerError)
+		return
+	}
 
 	if err := os.Rename(tempPath, finalPath); err != nil {
+		os.Remove(tempPath)
 		http.Error(w, "Failed to commit artifact", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	entry := fmt.Sprintf(
+		"url = \"%s\"\n"+
+			"upload-file = \"%s\"\n"+
+			"header = \"Content-Type: %s\"\n"+
+			"header = \"Cache-Control: public, max-age=31536000, immutable\"\n"+
+			"next\n",
+		presignedURL, finalPath, contentType,
+	)
+
+	configPath := filepath.Join(CurlScriptsDir, filename+".txt")
+	if err := os.WriteFile(configPath, []byte(entry), 0644); err != nil {
+		fmt.Printf("Failed to write config file: %v\n", err)
+		http.Error(w, "Failed to write upload config", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s CIProxyServer) handleRedirect(w http.ResponseWriter, r *http.Request) {
