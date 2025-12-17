@@ -15,6 +15,12 @@
 			"custom_domain": true,
 		},
 	],
+	"r2_buckets": [
+		{
+			"bucket_name": "vcpkg-obs-kaito-tokyo",
+			"binding": "R2_BUCKET",
+		},
+	],
 	"observability": {
 		"logs": {
 			"enabled": true,

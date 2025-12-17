@@ -20,6 +20,9 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import keys from "../keys.json";
 
 const BINARYCACHE_PREFIX = "/binarycache/";
+const SIGSTORE_PREFIX = "/_sigstore/";
+const SIGSTORE_PATH_REGEX =
+	/^_sigstore\/(kaito-tokyo@vcpkg-obs-kaito-tokyo@\d+@\d+@[-_a-zA-Z0-9]+@[0-9a-f]{8}\.jsonl)$/;
 
 const ISSUER = "https://vcpkg-obs.kaito.tokyo";
 const TYPE_CLAIM = `${ISSUER}/type`;
@@ -186,12 +189,15 @@ export async function verifyAccessToken(
 	}
 }
 
-async function generatePresignedUrl(
-	s3client: S3Client,
-	command: GetObjectCommand | PutObjectCommand,
-	expiresIn: number,
-): Promise<string> {
-	return getSignedUrl(s3client, command, { expiresIn });
+export async function verifyAuthorizationHeader(
+	request: Request,
+	env: Env,
+): Promise<JWTPayload | undefined> {
+	const authorization = request.headers.get("authorization");
+	if (authorization && authorization.startsWith("Bearer ")) {
+		const accessToken = authorization.slice("Bearer ".length);
+		return verifyAccessToken(JSON.parse(env.SECRET_KEY_JSON), accessToken);
+	}
 }
 
 export async function handleBinaryCache(
@@ -199,16 +205,7 @@ export async function handleBinaryCache(
 	env: Env,
 	url: URL,
 ): Promise<Response> {
-	const authorization = request.headers.get("authorization");
-	if (!authorization || !authorization.startsWith("Bearer ")) {
-		return new Response("Unauthorized", { status: 401 });
-	}
-	const accessToken = authorization.slice("Bearer ".length);
-
-	const jwtPayload = await verifyAccessToken(
-		JSON.parse(env.SECRET_KEY_JSON),
-		accessToken,
-	);
+	const jwtPayload = await verifyAuthorizationHeader(request, env);
 	if (!jwtPayload) {
 		console.error("Access token verification failed");
 		return new Response("Unauthorized", { status: 401 });
@@ -237,6 +234,8 @@ export async function handleBinaryCache(
 					Bucket: R2_BUCKET_NAME,
 					Key: key,
 					CacheControl: "public, max-age=31536000, immutable",
+					ContentType:
+						request.headers.get("content-type") || "application/octet-stream",
 				}),
 				{ expiresIn: 3600 },
 			);
@@ -256,6 +255,84 @@ export async function handleBinaryCache(
 	}
 }
 
+export async function handleSigstore(
+	request: Request,
+	env: Env,
+	url: URL,
+): Promise<Response> {
+	const jwtPayload = await verifyAuthorizationHeader(request, env);
+	if (!jwtPayload) {
+		console.error("Access token verification failed");
+		return new Response("Unauthorized", { status: 401 });
+	}
+
+	const key = url.pathname.slice(1);
+
+	switch (request.method) {
+		case "POST": {
+			const s3client = new S3Client({
+				region: "auto",
+				endpoint: R2_ENDPOINT,
+				credentials: {
+					accessKeyId: env.R2_ACCESS_KEY_ID,
+					secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+				},
+			});
+
+			if (!SIGSTORE_PATH_REGEX.test(key)) {
+				console.error(`Invalid path requested`);
+				return new Response("Bad Request: Invalid filename format", {
+					status: 400,
+				});
+			}
+
+			const presignedUrl = await getSignedUrl(
+				s3client,
+				new PutObjectCommand({
+					Bucket: R2_BUCKET_NAME,
+					Key: key,
+					CacheControl: "public, max-age=0, s-maxage=31536000, immutable",
+					ContentType: "application/x-ndjson",
+				}),
+				{ expiresIn: 3600 },
+			);
+
+			return new Response(JSON.stringify({ presignedUrl }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+
+		default: {
+			return new Response("Method Not Allowed", {
+				status: 405,
+				headers: { Allow: "POST" },
+			});
+		}
+	}
+}
+
+export async function handleSigstoreCurl(env: Env): Promise<Response> {
+	const list = await env.R2_BUCKET.list({ prefix: "_sigstore/" });
+	const configLines = list.objects.flatMap(({ key }) => {
+		if (!key) return [];
+
+		const matches = SIGSTORE_PATH_REGEX.exec(key);
+		if (matches === null || matches.length !== 1) return [];
+
+		return [
+			`url = "https:://vcpkg-obs.kaito.tokyo/${key}"`,
+			`output = "${matches[1]}"`,
+		];
+	});
+	return new Response(configLines.join("\n"), {
+		headers: {
+			"Content-Type": "text/plain",
+			"Cache-Control": "no-store, no-cache, must-revalidate",
+		},
+	});
+}
+
 export default {
 	async fetch(
 		request: Request,
@@ -263,17 +340,23 @@ export default {
 		ctx: ExecutionContext,
 	): Promise<Response> {
 		const url = new URL(request.url);
+		const { pathname } = url;
 
-		if (url.pathname.startsWith(BINARYCACHE_PREFIX)) {
+		if (pathname.startsWith(BINARYCACHE_PREFIX)) {
 			return handleBinaryCache(request, env, url);
-		}
-
-		switch (url.pathname) {
-			case "/token": {
-				return handleToken(request, env);
-			}
-			default: {
-				return new Response("Not Found", { status: 404 });
+		} else if (pathname.startsWith(SIGSTORE_PREFIX)) {
+			return handleSigstore(request, env, url);
+		} else {
+			switch (pathname) {
+				case "/token": {
+					return handleToken(request, env);
+				}
+				case "/sigstore/curl": {
+					return handleSigstoreCurl(env);
+				}
+				default: {
+					return new Response("Not Found", { status: 404 });
+				}
 			}
 		}
 	},
