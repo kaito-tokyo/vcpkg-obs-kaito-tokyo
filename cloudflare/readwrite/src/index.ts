@@ -10,11 +10,7 @@ import { createLocalJWKSet } from "jose/jwks/local";
 import type { JWTPayload } from "jose";
 import { v7 as uuidv7 } from "uuid";
 
-import {
-	S3Client,
-	GetObjectCommand,
-	PutObjectCommand,
-} from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import keys from "../keys.json";
@@ -218,7 +214,7 @@ export async function handleBinaryCache(
 	}
 
 	switch (request.method) {
-		case "PUT": {
+		case "POST": {
 			const s3client = new S3Client({
 				region: "auto",
 				endpoint: R2_ENDPOINT,
