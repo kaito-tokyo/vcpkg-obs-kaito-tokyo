@@ -304,6 +304,7 @@ jobs:
         run: |
           if [[ -d ciproxy/vcpkg_artifacts ]] && [ -n "$(ls -A ciproxy/vcpkg_artifacts)" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
+            ls -lA ciproxy/vcpkg_artifacts
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
