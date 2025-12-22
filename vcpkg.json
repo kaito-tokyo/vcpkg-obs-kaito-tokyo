@@ -3,16 +3,6 @@
   "dependencies": [
     "backward-cpp",
     {
-      "name": "boost-stacktrace",
-      "default-features": false,
-      "platform": "osx"
-    },
-    {
-      "name": "boost-stacktrace",
-      "platform": "!osx"
-    },
-    "boost-thread",
-    {
       "name": "cpp-httplib",
       "default-features": false,
       "features": [
