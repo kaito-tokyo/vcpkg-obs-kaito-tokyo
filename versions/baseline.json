@@ -8,6 +8,10 @@
       "baseline": "1.6.53",
       "port-version": 0
     },
+    "ncnn": {
+      "baseline": "20250916",
+      "port-version": 0
+    },
     "openfst": {
       "baseline": "1.8.0",
       "port-version": 0
