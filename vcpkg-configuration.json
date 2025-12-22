@@ -2,17 +2,18 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
   "default-registry": {
     "kind": "git",
-    "baseline": "cfcbdb245f1179a5a493890a0b69531d66969e62",
+    "baseline": "b8927a1f9dd394496414668e1d2f94b2559d45a8",
     "repository": "https://github.com/microsoft/vcpkg"
   },
   "registries": [
     {
       "kind": "git",
-      "baseline": "901fdb51caca7b97a3fb37810642dc28631ece49",
+      "baseline": "7a1514dd99782e3cc18a6659850183bef7321433",
       "repository": "https://github.com/kaito-tokyo/vcpkg-obs-kaito-tokyo",
       "packages": [
-        "libpng",
+        "ncnn",
         "kaldi",
+        "libpng",
         "openfst",
         "tesseract",
         "vosk",
