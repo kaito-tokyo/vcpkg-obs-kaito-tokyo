@@ -14,6 +14,12 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         vulkan NCNN_SYSTEM_GLSLANG
 )
 
+if(MSVC)
+    set(OMP_OPTIONS -DNCNN_SIMPLEOMP=OFF)
+else()
+    set(OMP_OPTIONS -DNCNN_SIMPLEOMP=ON)
+endif()
+
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
@@ -23,7 +29,7 @@ vcpkg_cmake_configure(
         -DNCNN_BUILD_BENCHMARK=OFF
         -DNCNN_SHARED_LIB=${BUILD_SHARED}
 		-DNCNN_VERSION="${VERSION}"
-		-DNCNN_SIMPLEOMP=ON
+		${OMP_OPTIONS}
 )
 
 vcpkg_cmake_install()
