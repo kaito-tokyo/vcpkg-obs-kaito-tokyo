@@ -28,7 +28,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general]
+        feature: [general, ncnn, opencv, tesseract]
 
     steps:
       - name: Checkout
@@ -49,7 +49,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general]
+        feature: [general, ncnn, opencv, tesseract]
 
     steps:
       - name: Checkout
@@ -73,7 +73,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general]
+        feature: [general, ncnn, opencv, tesseract]
 
     steps:
       - name: Checkout
@@ -94,7 +94,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general]
+        feature: [general, ncnn, opencv, tesseract]
 
     steps:
       - name: Checkout
@@ -118,7 +118,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general]
+        feature: [general, ncnn, opencv, tesseract]
 
     steps:
       - name: Checkout
@@ -139,7 +139,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general]
+        feature: [general, ncnn, opencv, tesseract]
 
     steps:
       - name: Checkout
@@ -160,7 +160,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general]
+        feature: [general, ncnn, opencv, tesseract]
 
     steps:
       - name: Checkout
@@ -181,7 +181,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general]
+        feature: [general, ncnn, opencv, tesseract]
 
     steps:
       - name: Checkout
