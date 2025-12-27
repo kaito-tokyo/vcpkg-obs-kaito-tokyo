@@ -191,7 +191,10 @@ jobs:
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        run: sudo apt install autoconf autoconf-archive automake libtool libltdl-dev libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-devlibxkbcommon-x11-dev libegl1-mesa-dev
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get -y --no-install-recommends install autoconf autoconf-archive automake libtool libltdl-dev libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-devlibxkbcommon-x11-dev libegl1-mesa-dev
 
       - name: Build
         env:
