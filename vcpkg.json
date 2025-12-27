@@ -54,16 +54,7 @@
   "features": {
     "asan": {
       "description": "Build with AddressSanitizer",
-      "dependencies": [
-        {
-          "name": "qtbase",
-          "default-features": false,
-          "features": [
-            "concurrent",
-            "network"
-          ]
-        }
-      ]
+      "dependencies": []
     }
   }
 }
