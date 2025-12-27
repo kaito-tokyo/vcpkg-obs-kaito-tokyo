@@ -1,54 +1,86 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "dependencies": [
-    "backward-cpp",
-    {
-      "name": "cpp-httplib",
-      "default-features": false,
-      "features": [
-        "zlib"
-      ]
-    },
-    {
-      "name": "curl",
-      "default-features": false,
-      "features": [
-        "ssl"
-      ],
-      "platform": "(windows & !uwp) | mingw"
-    },
-    {
-      "name": "curl",
-      "default-features": false,
-      "features": [
-        "wolfssl"
-      ],
-      "platform": "(uwp | !windows) & !mingw"
-    },
-    "fmt",
-    "gtest",
-    {
-      "name": "libuv",
-      "platform": "windows | android"
-    },
-    "ncnn",
-    "nlohmann-json",
-    {
-      "name": "opencv4",
-      "default-features": false,
-      "features": [
-        "jpeg",
-        "png",
-        "tiff",
-        "webp"
-      ]
-    },
-    "tesseract",
-    {
-      "name": "uwebsockets",
-      "features": [
-        "zlib"
-      ]
-    }
-  ]
+  "features": {
+		"general": {
+			"description": "General dependencies",
+			"dependencies": [
+				{
+					"name": "cpp-httplib",
+					"default-features": false,
+					"features": [
+						"zlib"
+					]
+				},
+				{
+					"name": "curl",
+					"default-features": false,
+					"features": [
+						"ssl"
+					],
+					"platform": "(windows & !uwp) | mingw"
+				},
+				{
+					"name": "curl",
+					"default-features": false,
+					"features": [
+						"wolfssl"
+					],
+					"platform": "(uwp | !windows) & !mingw"
+				},
+				"fmt",
+				"gtest",
+				{
+					"name": "libuv",
+					"platform": "windows | android"
+				},
+				"nlohmann-json",
+				{
+					"name": "uwebsockets",
+					"features": [
+						"zlib"
+					]
+				}
+			]
+		},
+		"opencv": {
+			"description": "OpenCV related dependencies",
+			"dependencies": [
+				{
+					"name": "opencv4",
+					"default-features": false,
+					"features": [
+						"jpeg",
+						"png",
+						"tiff",
+						"webp"
+					]
+				}
+			]
+		},
+		"tesseract": {
+			"description": "Tesseract OCR related dependencies",
+			"dependencies": [
+				"tesseract"
+			]
+		},
+		"ncnn": {
+			"description": "NCNN related dependencies",
+			"dependencies": [
+				"ncnn"
+			]
+		},
+		"qt": {
+			"description": "Qt related dependencies",
+			"dependencies": [
+				{
+					"name": "qtbase",
+					"default-features": false,
+					"features": [
+						"network",
+						"concurrent"
+					]
+				}
+			]
+		}
+  }
 }
