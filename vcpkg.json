@@ -53,8 +53,7 @@
   ],
   "features": {
     "asan": {
-      "description": "Build with AddressSanitizer",
-      "dependencies": []
+      "description": "Build with AddressSanitizer"
     }
   }
 }
