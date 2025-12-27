@@ -37,6 +37,21 @@ jobs:
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs
 
+  BuildOnMacOSArm64Asan:
+    runs-on: macos-15
+
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs-asan --x-feature=asan
+
   BuildOnMacOSX64:
     runs-on: macos-15
 
@@ -51,6 +66,21 @@ jobs:
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs
+
+  BuildOnMacOSX64Asan:
+    runs-on: macos-15
+
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs-asan --x-feature=asan
 
   BuildOnWindows:
     runs-on: windows-2022
@@ -67,6 +97,21 @@ jobs:
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs
 
+  BuildOnWindowsAsan:
+    runs-on: windows-2022
+
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs-asan --x-feature=asan
+
   BuildOnUbuntu:
     runs-on: ubuntu-24.04
 
@@ -81,3 +126,18 @@ jobs:
 
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs
+
+  BuildOnUbuntuAsan:
+    runs-on: ubuntu-24.04
+
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up vcpkg
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs-asan --x-feature=asan

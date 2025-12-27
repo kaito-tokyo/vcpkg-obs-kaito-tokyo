@@ -50,5 +50,13 @@
         "zlib"
       ]
     }
-  ]
+  ],
+  "features": {
+    "asan": {
+      "description": "Build with AddressSanitizer",
+      "dependencies": [
+        "qtbase"
+      ]
+    }
+  }
 }
