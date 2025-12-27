@@ -151,7 +151,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general, ncnn, opencv, tesseract]
+        feature: [general, ncnn, opencv, tesseract, qt]
 
     steps:
       - name: Checkout
@@ -404,7 +404,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general, ncnn, opencv, tesseract]
+        feature: [general, ncnn, opencv, tesseract, qt]
 
     steps:
       - name: Checkout
@@ -657,7 +657,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general, ncnn, opencv, tesseract]
+        feature: [general, ncnn, opencv, tesseract, qt]
 
     steps:
       - name: Checkout
@@ -907,7 +907,7 @@ jobs:
 
     strategy:
       matrix:
-        feature: [general, ncnn, opencv, tesseract]
+        feature: [general, ncnn, opencv, tesseract, qt]
 
     steps:
       - name: Checkout
@@ -937,7 +937,10 @@ jobs:
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        run: sudo apt install autoconf autoconf-archive automake libtool
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get -y --no-install-recommends install autoconf autoconf-archive automake libtool
 
       - name: Build
         shell: bash
