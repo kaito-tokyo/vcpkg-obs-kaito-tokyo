@@ -145,5 +145,8 @@ jobs:
       - name: Set up vcpkg
         run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
+      - name: Install dependencies
+        run: sudo apt install autoconf autoconf-archive automake libtool
+
       - name: Build
         run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs-asan --x-feature=asan
