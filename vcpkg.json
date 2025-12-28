@@ -4,6 +4,7 @@
     "general": {
       "description": "General dependencies",
       "dependencies": [
+        "abseil",
         {
           "name": "cpp-httplib",
           "default-features": false,
