@@ -34,6 +34,7 @@
         },
         "nlohmann-json",
         "quickjs-ng",
+        "sqlite3",
         {
           "name": "uwebsockets",
           "features": [
