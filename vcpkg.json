@@ -35,6 +35,7 @@
         },
         "nlohmann-json",
         "quickjs-ng",
+        "simd",
         "sqlite3",
         {
           "name": "uwebsockets",
