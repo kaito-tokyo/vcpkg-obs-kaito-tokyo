@@ -14,9 +14,16 @@ set(LOCAL_C_FLAGS_RELEASE "${VCPKG_COMBINED_C_FLAGS_RELEASE}")
 set(LOCAL_C_FLAGS_DEBUG "${VCPKG_COMBINED_C_FLAGS_DEBUG}")
 
 if(VCPKG_TARGET_IS_LINUX)
-  message(STATUS "Applying workaround for wolfSSL stringop-overflow warning on Linux.")
-  set(LOCAL_C_FLAGS_RELEASE "${LOCAL_C_FLAGS_RELEASE} -Wno-error=stringop-overflow")
-  set(LOCAL_C_FLAGS_DEBUG "${LOCAL_C_FLAGS_DEBUG} -Wno-error=stringop-overflow")
+    message(
+        STATUS
+        "Applying workaround for wolfSSL stringop-overflow warning on Linux."
+    )
+    set(LOCAL_C_FLAGS_RELEASE
+        "${LOCAL_C_FLAGS_RELEASE} -Wno-error=stringop-overflow"
+    )
+    set(LOCAL_C_FLAGS_DEBUG
+        "${LOCAL_C_FLAGS_DEBUG} -Wno-error=stringop-overflow"
+    )
 endif()
 
 vcpkg_cmake_configure(
@@ -26,6 +33,7 @@ vcpkg_cmake_configure(
       -DWOLFSSL_EXAMPLES=no
       -DWOLFSSL_CRYPT_TESTS=no
       -DWOLFSSL_CURL=yes
+			-DWOLFSSL_OLD_NAMES=no
     OPTIONS_RELEASE
       -DCMAKE_C_FLAGS=${LOCAL_C_FLAGS_RELEASE}
     OPTIONS_DEBUG
@@ -38,10 +46,10 @@ vcpkg_copy_pdbs()
 vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/wolfssl)
 
 if(VCPKG_TARGET_IS_IOS OR VCPKG_TARGET_IS_OSX)
-  vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/wolfssl.pc" "Libs.private: " "Libs.private: -framework CoreFoundation -framework Security ")
-  if(NOT VCPKG_BUILD_TYPE)
-    vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/wolfssl.pc" "Libs.private: " "Libs.private: -framework CoreFoundation -framework Security ")
-  endif()
+    vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/wolfssl.pc" "Libs.private: " "Libs.private: -framework CoreFoundation -framework Security ")
+    if(NOT VCPKG_BUILD_TYPE)
+        vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/wolfssl.pc" "Libs.private: " "Libs.private: -framework CoreFoundation -framework Security ")
+    endif()
 endif()
 vcpkg_fixup_pkgconfig()
 
