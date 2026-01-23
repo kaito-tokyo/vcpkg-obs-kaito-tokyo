@@ -42,30 +42,6 @@ jobs:
           FEATURE: ${{ matrix.feature }}
         run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs --x-feature=$FEATURE
 
-  build-macos-arm64-asan:
-    runs-on: macos-15
-
-    timeout-minutes: 180
-
-    strategy:
-      matrix:
-        feature: [general, ncnn, opencv, tesseract, qt]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up vcpkg
-        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
-
-      - name: Install dependencies
-        run: brew install autoconf autoconf-archive automake libtool
-
-      - name: Build
-        env:
-          FEATURE: ${{ matrix.feature }}
-        run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs-asan --x-feature=$FEATURE
-
   build-macos-x64:
     runs-on: macos-15
 
@@ -86,30 +62,6 @@ jobs:
         env:
           FEATURE: ${{ matrix.feature }}
         run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs --x-feature=$FEATURE
-
-  build-macos-x64-asan:
-    runs-on: macos-15
-
-    timeout-minutes: 180
-
-    strategy:
-      matrix:
-        feature: [general, ncnn, opencv, tesseract, qt]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up vcpkg
-        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
-
-      - name: Install dependencies
-        run: brew install autoconf autoconf-archive automake libtool
-
-      - name: Build
-        env:
-          FEATURE: ${{ matrix.feature }}
-        run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs-asan --x-feature=$FEATURE
 
   build-windows:
     runs-on: windows-2022
@@ -132,27 +84,6 @@ jobs:
           FEATURE: ${{ matrix.feature }}
         run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs --x-feature=$FEATURE
 
-  build-windows-asan:
-    runs-on: windows-2022
-
-    timeout-minutes: 180
-
-    strategy:
-      matrix:
-        feature: [general, ncnn, opencv, tesseract, qt]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up vcpkg
-        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
-
-      - name: Build
-        env:
-          FEATURE: ${{ matrix.feature }}
-        run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs-asan --x-feature=$FEATURE
-
   build-ubuntu:
     runs-on: ubuntu-24.04
 
@@ -173,30 +104,3 @@ jobs:
         env:
           FEATURE: ${{ matrix.feature }}
         run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs --x-feature=$FEATURE
-
-  build-ubuntu-asan:
-    runs-on: ubuntu-24.04
-
-    timeout-minutes: 180
-
-    strategy:
-      matrix:
-        feature: [general, ncnn, opencv, tesseract, qt]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up vcpkg
-        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get -y --no-install-recommends install autoconf autoconf-archive automake libtool
-
-      - name: Build
-        env:
-          FEATURE: ${{ matrix.feature }}
-        run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs-asan --x-feature=$FEATURE
