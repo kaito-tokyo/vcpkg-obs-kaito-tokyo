@@ -157,7 +157,7 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 		"url = \"%s\"\n"+
 			"upload-file = \"%s\"\n"+
 			"header = \"Content-Type: application/zip\"\n"+
-			"header = \"Cache-Control: public, max-age=31536000, immutable\"\n",
+			"header = \"Cache-Control: public, max-age=86400\"\n",
 		presignedURL, safeFinalPath,
 	)
 

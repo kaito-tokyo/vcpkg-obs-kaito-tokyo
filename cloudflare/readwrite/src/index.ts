@@ -229,7 +229,7 @@ export async function handleBinaryCache(
 				new PutObjectCommand({
 					Bucket: R2_BUCKET_NAME,
 					Key: key,
-					CacheControl: "public, max-age=31536000, immutable",
+					CacheControl: "public, max-age=86400",
 					ContentType: "application/zip",
 				}),
 				{ expiresIn: 3600 },
@@ -286,7 +286,7 @@ export async function handleSigstore(
 				new PutObjectCommand({
 					Bucket: R2_BUCKET_NAME,
 					Key: key,
-					CacheControl: "public, max-age=31536000, immutable",
+					CacheControl: "public, max-age=86400",
 					ContentType: "application/x-ndjson",
 				}),
 				{ expiresIn: 3600 },
