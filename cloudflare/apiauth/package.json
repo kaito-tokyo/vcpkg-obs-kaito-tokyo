@@ -7,6 +7,6 @@
 		"uuid": "^13.0.0"
 	},
 	"devDependencies": {
-		"wrangler": "^4.56.0"
+		"wrangler": "^4.60.0"
 	}
 }
