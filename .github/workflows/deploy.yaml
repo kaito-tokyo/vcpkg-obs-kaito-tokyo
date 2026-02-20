@@ -552,6 +552,7 @@ jobs:
         with:
           repository: microsoft/vcpkg
           ref: "2025.08.27"
+          path: vcpkg
 
       - name: Set up vcpkg
         shell: bash
@@ -682,6 +683,7 @@ jobs:
         with:
           repository: microsoft/vcpkg
           ref: "2025.08.27"
+          path: vcpkg
 
       - name: Set up vcpkg
         shell: bash
@@ -812,6 +814,7 @@ jobs:
         with:
           repository: microsoft/vcpkg
           ref: "2025.08.27"
+          path: vcpkg
 
       - name: Set up vcpkg
         shell: bash
@@ -942,6 +945,7 @@ jobs:
         with:
           repository: microsoft/vcpkg
           ref: "2025.08.27"
+          path: vcpkg
 
       - name: Set up vcpkg
         shell: bash
