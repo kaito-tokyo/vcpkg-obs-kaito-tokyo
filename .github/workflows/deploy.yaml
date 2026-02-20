@@ -547,14 +547,24 @@ jobs:
           echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
           sleep 3
 
+      - name: Checkout vcpkg
+        uses: actions/checkout@v6
+        with:
+          repository: microsoft/vcpkg
+          ref: "2025.08.27"
+
       - name: Set up vcpkg
         shell: bash
-        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+        run: |
+          VCPKG_ROOT="$GITHUB_WORKSPACE/vcpkg"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics -skipDependencyChecks
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          echo "$VCPKG_ROOT" >> "$GITHUB_PATH"
 
       - name: Build
         shell: bash
         working-directory: ${{ github.workspace }}/onnxruntime
-        run: $VCPKG_ROOT/vcpkg install --x-feature=tests --x-feature=coreml-ep --overlay-triplets=nortti --triplet=arm64-osx
+        run: vcpkg install --x-feature=tests --x-feature=coreml-ep --overlay-triplets=nortti --triplet=arm64-osx
 
       - name: Stop ciproxy
         shell: bash
@@ -667,14 +677,24 @@ jobs:
           echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
           sleep 3
 
+      - name: Checkout vcpkg
+        uses: actions/checkout@v6
+        with:
+          repository: microsoft/vcpkg
+          ref: "2025.08.27"
+
       - name: Set up vcpkg
         shell: bash
-        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+        run: |
+          VCPKG_ROOT="$GITHUB_WORKSPACE/vcpkg"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics -skipDependencyChecks
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          echo "$VCPKG_ROOT" >> "$GITHUB_PATH"
 
       - name: Build
         shell: bash
         working-directory: ${{ github.workspace }}/onnxruntime
-        run: $VCPKG_ROOT/vcpkg install --x-feature=tests --x-feature=coreml-ep --overlay-triplets=nortti --triplet=x64-osx
+        run: vcpkg install --x-feature=tests --x-feature=coreml-ep --overlay-triplets=nortti --triplet=x64-osx
 
       - name: Stop ciproxy
         shell: bash
@@ -787,14 +807,24 @@ jobs:
           echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
           sleep 3
 
+      - name: Checkout vcpkg
+        uses: actions/checkout@v6
+        with:
+          repository: microsoft/vcpkg
+          ref: "2025.08.27"
+
       - name: Set up vcpkg
         shell: bash
-        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+        run: |
+          VCPKG_ROOT="$GITHUB_WORKSPACE/vcpkg"
+          "$VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+          echo "VCPKG_ROOT=$(cygpath -w $VCPKG_ROOT)" >> "$GITHUB_ENV"
+          echo "$(cygpath -w $VCPKG_ROOT)" >> "$GITHUB_PATH"
 
       - name: Build
         shell: bash
         working-directory: ${{ github.workspace }}/onnxruntime
-        run: $VCPKG_ROOT/vcpkg install --x-feature=tests --overlay-triplets=nortti --triplet=x64-windows-static-md
+        run: vcpkg install --x-feature=tests --overlay-triplets=nortti --triplet=x64-windows-static-md
 
       - name: Stop ciproxy
         shell: bash
@@ -907,14 +937,24 @@ jobs:
           echo "CIPROXY_PID=$PID" >> $GITHUB_ENV
           sleep 3
 
+      - name: Checkout vcpkg
+        uses: actions/checkout@v6
+        with:
+          repository: microsoft/vcpkg
+          ref: "2025.08.27"
+
       - name: Set up vcpkg
         shell: bash
-        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+        run: |
+          VCPKG_ROOT="$GITHUB_WORKSPACE/vcpkg"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics -skipDependencyChecks
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          echo "$VCPKG_ROOT" >> "$GITHUB_PATH"
 
       - name: Build
         shell: bash
         working-directory: ${{ github.workspace }}/onnxruntime
-        run: $VCPKG_ROOT/vcpkg install --x-feature=tests --overlay-triplets=nortti --triplet=x64-linux
+        run: vcpkg install --x-feature=tests --overlay-triplets=nortti --triplet=x64-linux
 
       - name: Stop ciproxy
         shell: bash
