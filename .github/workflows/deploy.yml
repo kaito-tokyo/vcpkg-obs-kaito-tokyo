@@ -225,7 +225,7 @@ jobs:
       - name: Attest build artifacts
         if: steps.check-artifacts.outputs.exists == 'true'
         id: attest
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ciproxy/vcpkg_artifacts/*
 
@@ -350,7 +350,7 @@ jobs:
       - name: Attest build artifacts
         if: steps.check-artifacts.outputs.exists == 'true'
         id: attest
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ciproxy/vcpkg_artifacts/*
 
@@ -475,7 +475,7 @@ jobs:
       - name: Attest build artifacts
         if: steps.check-artifacts.outputs.exists == 'true'
         id: attest
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ciproxy/vcpkg_artifacts/*
 
@@ -606,7 +606,7 @@ jobs:
       - name: Attest build artifacts
         if: steps.check-artifacts.outputs.exists == 'true'
         id: attest
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ciproxy/vcpkg_artifacts/*
 
@@ -737,7 +737,7 @@ jobs:
       - name: Attest build artifacts
         if: steps.check-artifacts.outputs.exists == 'true'
         id: attest
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ciproxy/vcpkg_artifacts/*
 
@@ -868,7 +868,7 @@ jobs:
       - name: Attest build artifacts
         if: steps.check-artifacts.outputs.exists == 'true'
         id: attest
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ciproxy/vcpkg_artifacts/*
 
@@ -999,7 +999,7 @@ jobs:
       - name: Attest build artifacts
         if: steps.check-artifacts.outputs.exists == 'true'
         id: attest
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ciproxy/vcpkg_artifacts/*
 
