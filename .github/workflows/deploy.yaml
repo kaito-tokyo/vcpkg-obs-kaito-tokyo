@@ -30,10 +30,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v6.3.0
         with:
           go-version-file: ciproxy/go.mod
           cache: false
@@ -100,7 +100,7 @@ jobs:
       - name: Attest build artifacts
         if: steps.check-artifacts.outputs.exists == 'true'
         id: attest
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4.1.0
         with:
           subject-path: ciproxy/vcpkg_artifacts/*
 
