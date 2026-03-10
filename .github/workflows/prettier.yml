@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version-file: ${{ github.workspace }}/cloudflare/.node-version
+          node-version-file: cloudflare/.node-version
 
       - name: Run Prettier
         working-directory: ${{ github.workspace }}/cloudflare
