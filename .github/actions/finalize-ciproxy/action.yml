@@ -1,0 +1,107 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Finalize ciproxy
+author: Kaito Udagawa <umireon@kaito.tokyo>
+description: Stop ciproxy for vcpkg binary caching and upload packages to the storage
+
+inputs:
+  master-token:
+    description: "Long-term master token"
+    required: true
+  ciproxy-dir:
+    description: "Directory of ciproxy"
+    required: true
+  ciproxy-pid:
+    description: "PID of the running ciproxy"
+    required: true
+  short-hash-length:
+    description: "Length of the short hash to be used in the filename"
+    required: false
+    default: "8"
+
+runs:
+  using: composite
+  steps:
+    - id: stop
+      shell: bash
+      working-directory: ${{ inputs.ciproxy-dir }}
+      env:
+        CIPROXY_PID: ${{ inputs.ciproxy-pid }}
+      run: |
+        set -euo pipefail
+
+        echo "Sending SIGTERM to ciproxy (PID: $CIPROXY_PID)..."
+        kill -15 $CIPROXY_PID || true
+
+        count=0
+        while kill -0 $CIPROXY_PID 2>/dev/null; do
+          echo "Waiting for process $CIPROXY_PID to exit..."
+          sleep 1
+          count=$((count+1))
+          if [ $count -ge 10 ]; then
+            echo "Timeout reached. Force killing..."
+            kill -9 $CIPROXY_PID || true
+            break
+          fi
+        done
+
+        echo "Ciproxy stopped."
+
+    - id: check-artifacts
+      shell: bash
+      working-directory: ${{ inputs.ciproxy-dir }}
+      run: |
+        set -euo pipefail
+
+        if [[ -d vcpkg_artifacts ]] && [ -n "$(ls -A vcpkg_artifacts)" ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+          ls -lA vcpkg_artifacts
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+    
+    - id: attest
+      if: steps.check-artifacts.outputs.exists == 'true'
+      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+      with:
+        subject-path: ciproxy/vcpkg_artifacts/*
+
+    - if: steps.check-artifacts.outputs.exists == 'true'
+      shell: bash
+      working-directory: ${{ inputs.ciproxy-dir }}
+      env:
+        MASTER_TOKEN: ${{ inputs.master-token }}
+        JOB_ID: ${{ github.job }}
+        BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        SHORT_HASH_LENGTH: ${{ inputs.short-hash-length }}
+      run: |
+        set -euo pipefail
+
+        jq -c . "$BUNDLE_PATH" > attestation.jsonl
+
+        FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
+        SHORT_HASH=${FULL_HASH:0:$SHORT_HASH_LENGTH}
+        FILENAME="${GITHUB_REPOSITORY///@}@$GITHUB_RUN_ID@$GITHUB_RUN_ATTEMPT@$GITHUB_JOB@$SHORT_HASH.jsonl"
+        echo "Uploading $FILENAME"
+
+        ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
+        printf "::add-mask::%s\n" "$ACCESS_TOKEN"
+
+        curl -fsSL \
+          -X PUT \
+          -H "Authorization: Bearer $ACCESS_TOKEN" \
+          -H "Content-Type: application/x-ndjson" \
+          -H "Cache-Control: public, max-age=86400" \
+          -T ./attestation.jsonl \
+          "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
+
+    - if: steps.check-artifacts.outputs.exists == 'true'
+      shell: bash
+      working-directory: ${{ inputs.ciproxy-dir }}
+      run: |
+        set -euo pipefail
+
+        cat vcpkg_curlscripts/*
+        awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fsS -K -

@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Start ciproxy
+author: Kaito Udagawa <umireon@kaito.tokyo>
+description: Start ciproxy for vcpkg binary caching
+
+inputs:
+  master-token:
+    description: "Long-term master token"
+    required: true
+  ciproxy-dir:
+    description: "Directory of ciproxy"
+    required: true
+  port:
+    description: "Port to listen on"
+    required: true
+
+outputs:
+  ciproxy-pid:
+    description: "PID of the started ciproxy"
+    value: ${{ steps.start.outputs.ciproxy-pid }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      with:
+        go-version-file: ${{ inputs.ciproxy-dir }}/go.mod
+        cache: false
+
+    - id: start
+      shell: bash
+      working-directory: ${{ inputs.ciproxy-dir }}
+      env:
+        MASTER_TOKEN: ${{ inputs.master-token }}
+        EXE: ${{ runner.os == 'Windows' && '.exe' || '' }}
+        PORT: ${{ inputs.port }}
+      run: |
+        go build
+        "./ciproxy$EXE" &
+        CIPROXY_PID=$!
+        echo "Ciproxy started with PID: $CIPROXY_PID"
+        echo "ciproxy-pid=$CIPROXY_PID" >> "$GITHUB_OUTPUT"
+        sleep 3

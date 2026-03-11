@@ -1,0 +1,90 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Build ONNX Runtime vcpkg
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: 17 2 * * *
+  workflow_dispatch:
+
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CIPROXY_PORT: 8080
+  VCPKG_BINARY_SOURCES: clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite
+
+jobs:
+  build-ort-vcpkg-arm64:
+    name: Build vcpkg of ONNX Runtime for macOS arm64
+
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    permissions:
+      contents: read
+
+    env:
+      HOMEBREW_NO_ANALYTICS: 1
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_ENV_HINTS: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start ciproxy
+        id: start-ciproxy
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: ./.github/actions/start-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          port: ${{ env.CIPROXY_PORT }}
+
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/onnxruntime
+          submodules: recursive
+
+      # flatbuffers package is required to build ONNX Runtime with reduced operator config file
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Build vcpkg of ONNX Runtime (macOS arm64)
+        shell: bash
+        run: |
+          python3 ./tools/ci_build/build.py \
+            --update \
+            --build_dir ./.deps_vendor/ort_arm64 \
+            --config Release \
+            --parallel \
+            --compile_no_warning_as_error \
+            --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            --use_vcpkg \
+            --skip_submodule_sync \
+            --skip_tests \
+            --disable_rtti \
+            --apple_deploy_target 12.0 \
+            --use_coreml
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
