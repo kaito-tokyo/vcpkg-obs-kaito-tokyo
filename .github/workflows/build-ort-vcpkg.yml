@@ -20,7 +20,7 @@ concurrency:
 
 env:
   CIPROXY_PORT: 8080
-  VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}"
+  VCPKG_BINARY_SOURCES: clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite
 
 jobs:
   build-ort-vcpkg-arm64:
