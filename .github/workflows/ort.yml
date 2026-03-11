@@ -57,6 +57,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: microsoft/onnxruntime
+          path: .deps_vendor/onnxruntime
           submodules: recursive
 
       # flatbuffers package is required to build ONNX Runtime with reduced operator config file
@@ -68,7 +69,7 @@ jobs:
       - name: Build vcpkg of ONNX Runtime (macOS arm64)
         shell: bash
         run: |
-          python3 ./tools/ci_build/build.py \
+          python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py \
             --update \
             --build_dir ./.deps_vendor/ort_arm64 \
             --config Release \
