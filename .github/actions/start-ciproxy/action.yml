@@ -39,7 +39,7 @@ runs:
         PORT: ${{ inputs.port }}
       run: |
         go build
-        "./ciproxy$EXE" &
+        MASTER_TOKEN="$MASTER_TOKEN" ./ciproxy$EXE" &
         CIPROXY_PID=$!
         echo "Ciproxy started with PID: $CIPROXY_PID"
         echo "ciproxy-pid=$CIPROXY_PID" >> "$GITHUB_OUTPUT"
