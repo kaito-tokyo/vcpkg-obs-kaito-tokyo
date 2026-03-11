@@ -30,15 +30,18 @@ jobs:
 
     strategy:
       matrix:
-        ort-version: [v1.24.1]
         include:
           - runs-on: windows-2022
+            ort-version: v1.24.1
             buildpy-additional-args: --build_dir ./.deps_vendor/ort_x64
           - runs-on: macos-15
+            ort-version: v1.24.1
             buildpy-additional-args: --build_dir ./.deps_vendor/ort_arm64 --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 --osx_arch arm64 --apple_deploy_target 12.0 --use_coreml
           - runs-on: macos-15
+            ort-version: v1.24.1
             buildpy-additional-args: --build_dir ./.deps_vendor/ort_x86_64 --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 --osx_arch x86_64 --apple_deploy_target 12.0 --use_coreml
           - runs-on: ubuntu-24.04
+            ort-version: v1.24.1
             buildpy-additional-args: --build_dir ./.deps_vendor/ort_x86_64
 
     runs-on: ${{ matrix.runs-on }}
