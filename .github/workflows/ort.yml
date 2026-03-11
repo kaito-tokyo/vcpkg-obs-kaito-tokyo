@@ -82,15 +82,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build vcpkg of ONNX Runtime (macOS arm64)
+      - name: Build vcpkg of ONNX Runtime
         shell: bash
         run: |
+          set -euo pipefail
+
+          printf 'macro(install)\nendmacro()\n' > "$GITHUB_WORKSPACE/no_install.cmake"
+
           python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py \
             --update \
             --config Release \
             --parallel \
             --compile_no_warning_as_error \
-            --cmake_extra_defines CMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            --cmake_extra_defines \
+            CMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            CMAKE_PROJECT_INCLUDE_BEFORE="$GITHUB_WORKSPACE/no_install.cmake" \
             --use_vcpkg \
             --skip_submodule_sync \
             --skip_tests \
