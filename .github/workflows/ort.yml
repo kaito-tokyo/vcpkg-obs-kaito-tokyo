@@ -25,8 +25,8 @@ env:
   VCPKG_BINARY_SOURCES: clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite
 
 jobs:
-  build-ort-vcpkg-arm64:
-    name: Build vcpkg in ORT for macOS arm64
+  build-ort-vcpkg:
+    name: Build vcpkg in ORT
 
     strategy:
       matrix:
