@@ -1,93 +1,55 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "features": {
-    "general": {
-      "description": "General dependencies",
-      "dependencies": [
-        "abseil",
-        {
-          "name": "cpp-httplib",
-          "default-features": false,
-          "features": [
-            "zlib"
-          ]
-        },
-        {
-          "name": "curl",
-          "default-features": false,
-          "features": [
-            "ssl"
-          ],
-          "platform": "(windows & !uwp) | mingw"
-        },
-        {
-          "name": "curl",
-          "default-features": false,
-          "features": [
-            "wolfssl"
-          ],
-          "platform": "(uwp | !windows) & !mingw"
-        },
-        "fmt",
-        {
-          "name": "libuv",
-          "platform": "windows | android"
-        },
-        "nlohmann-json",
-        "quickjs-ng",
-        "sqlite3",
-        {
-          "name": "uwebsockets",
-          "features": [
-            "zlib"
-          ]
-        }
+  "dependencies": [
+    "abseil",
+    {
+      "name": "cpp-httplib",
+      "default-features": false,
+      "features": [
+        "zlib"
       ]
     },
-    "ncnn": {
-      "description": "NCNN related dependencies",
-      "dependencies": [
-        "ncnn"
+    {
+      "name": "curl",
+      "default-features": false,
+      "features": [
+        "ssl"
+      ],
+      "platform": "(windows & !uwp) | mingw"
+    },
+    {
+      "name": "curl",
+      "default-features": false,
+      "features": [
+        "wolfssl"
+      ],
+      "platform": "(uwp | !windows) & !mingw"
+    },
+    "fmt",
+    {
+      "name": "libuv",
+      "platform": "windows | android"
+    },
+    "ncnn",
+    "nlohmann-json",
+    {
+      "name": "opencv4",
+      "default-features": false,
+      "features": [
+        "jpeg",
+        "png",
+        "tiff",
+        "webp"
       ]
     },
-    "opencv": {
-      "description": "OpenCV related dependencies",
-      "dependencies": [
-        {
-          "name": "opencv4",
-          "default-features": false,
-          "features": [
-            "jpeg",
-            "png",
-            "tiff",
-            "webp"
-          ]
-        }
-      ]
-    },
-    "qt": {
-      "description": "Qt related dependencies",
-      "dependencies": [
-        {
-          "name": "qtbase",
-          "host": true,
-          "default-features": false
-        },
-        {
-          "name": "qtbase",
-          "default-features": false,
-          "features": [
-            "concurrent",
-            "network"
-          ]
-        }
-      ]
-    },
-    "tesseract": {
-      "description": "Tesseract OCR related dependencies",
-      "dependencies": [
-        "tesseract"
+    "quickjs-ng",
+    "sqlite3",
+    "tesseract",
+    {
+      "name": "uwebsockets",
+      "features": [
+        "zlib"
       ]
     }
-  }
+  ]
 }

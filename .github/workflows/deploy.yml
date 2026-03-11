@@ -24,10 +24,6 @@ jobs:
     timeout-minutes: 180
     environment: production
 
-    strategy:
-      matrix:
-        feature: [general, ncnn, opencv, tesseract]
-
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -57,9 +53,7 @@ jobs:
 
       - name: Build
         shell: bash
-        env:
-          FEATURE: ${{ matrix.feature }}
-        run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs --x-feature=$FEATURE
+        run: $VCPKG_ROOT/vcpkg install --triplet arm64-osx-obs
 
       - name: Stop ciproxy
         shell: bash
@@ -149,10 +143,6 @@ jobs:
     timeout-minutes: 180
     environment: production
 
-    strategy:
-      matrix:
-        feature: [general, ncnn, opencv, tesseract]
-
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -182,9 +172,7 @@ jobs:
 
       - name: Build
         shell: bash
-        env:
-          FEATURE: ${{ matrix.feature }}
-        run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs --x-feature=$FEATURE
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-osx-obs
 
       - name: Stop ciproxy
         shell: bash
@@ -274,10 +262,6 @@ jobs:
     timeout-minutes: 180
     environment: production
 
-    strategy:
-      matrix:
-        feature: [general, ncnn, opencv, tesseract]
-
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -307,9 +291,7 @@ jobs:
 
       - name: Build
         shell: bash
-        env:
-          FEATURE: ${{ matrix.feature }}
-        run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs --x-feature=$FEATURE
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static-md-obs
 
       - name: Stop ciproxy
         shell: bash
@@ -399,10 +381,6 @@ jobs:
     timeout-minutes: 180
     environment: production
 
-    strategy:
-      matrix:
-        feature: [general, ncnn, opencv, tesseract]
-
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -432,9 +410,7 @@ jobs:
 
       - name: Build
         shell: bash
-        env:
-          FEATURE: ${{ matrix.feature }}
-        run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs --x-feature=$FEATURE
+        run: $VCPKG_ROOT/vcpkg install --triplet x64-linux-obs
 
       - name: Stop ciproxy
         shell: bash
