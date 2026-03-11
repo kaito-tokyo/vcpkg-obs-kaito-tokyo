@@ -28,7 +28,20 @@ jobs:
   build-ort-vcpkg-arm64:
     name: Build vcpkg in ORT for macOS arm64
 
-    runs-on: macos-15
+    strategy:
+      matrix:
+        ort-version: [v1.24.1]
+        include:
+          - runs-on: windows-2022
+            buildpy-additional-args: --build_dir ./.deps_vendor/ort_x64
+          - runs-on: macos-15
+            buildpy-additional-args: --build_dir ./.deps_vendor/ort_arm64 --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 --osx_arch arm64 --apple_deploy_target 12.0 --use_coreml
+          - runs-on: macos-15
+            buildpy-additional-args: --build_dir ./.deps_vendor/ort_x86_64 --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 --osx_arch x86_64 --apple_deploy_target 12.0 --use_coreml
+          - runs-on: ubuntu-24.04
+            buildpy-additional-args: --build_dir ./.deps_vendor/ort_x86_64
+
+    runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 60
     environment: production
 
@@ -58,10 +71,10 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: microsoft/onnxruntime
+          ref: ${{ matrix.ort-version }}
           path: .deps_vendor/onnxruntime
           submodules: recursive
 
-      # flatbuffers package is required to build ONNX Runtime with reduced operator config file
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -72,17 +85,15 @@ jobs:
         run: |
           python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py \
             --update \
-            --build_dir ./.deps_vendor/ort_arm64 \
             --config Release \
             --parallel \
             --compile_no_warning_as_error \
-            --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            --cmake_extra_defines CMAKE_POLICY_VERSION_MINIMUM=3.5 \
             --use_vcpkg \
             --skip_submodule_sync \
             --skip_tests \
             --disable_rtti \
-            --apple_deploy_target 12.0 \
-            --use_coreml
+            ${{ matrix.buildpy-additional-args }}
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
