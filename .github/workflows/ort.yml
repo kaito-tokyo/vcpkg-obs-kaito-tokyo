@@ -31,6 +31,7 @@ env:
 jobs:
   build-ort-vcpkg:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: Windows x64 v1.24.1

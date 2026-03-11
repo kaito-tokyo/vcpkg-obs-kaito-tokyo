@@ -83,7 +83,7 @@ runs:
 
         FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
         SHORT_HASH=${FULL_HASH:0:$SHORT_HASH_LENGTH}
-        FILENAME="${GITHUB_REPOSITORY///@}@$GITHUB_RUN_ID@$GITHUB_RUN_ATTEMPT@$GITHUB_JOB@$SHORT_HASH.jsonl"
+        FILENAME="${GITHUB_REPOSITORY/\//@}@$GITHUB_RUN_ID@$GITHUB_RUN_ATTEMPT@$GITHUB_JOB@$SHORT_HASH.jsonl"
         echo "Uploading $FILENAME"
 
         ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
