@@ -26,7 +26,7 @@ env:
 
 jobs:
   build-ort-vcpkg-arm64:
-    name: Build vcpkg of ONNX Runtime for macOS arm64
+    name: Build vcpkg in ORT for macOS arm64
 
     runs-on: macos-15
     timeout-minutes: 60
