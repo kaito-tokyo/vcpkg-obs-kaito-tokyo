@@ -26,23 +26,27 @@ env:
 
 jobs:
   build-ort-vcpkg:
-    name: Build vcpkg in ORT
-
     strategy:
       matrix:
         include:
-          - runs-on: windows-2022
+          - name: Windows x64 v1.24.1
+            runs-on: windows-2022
             ort-version: v1.24.1
             buildpy-additional-args: --build_dir ./.deps_vendor/ort_x64
-          - runs-on: macos-15
+          - name: macOS arm64 v1.24.1
+            runs-on: macos-15
             ort-version: v1.24.1
             buildpy-additional-args: --build_dir ./.deps_vendor/ort_arm64 --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 --osx_arch arm64 --apple_deploy_target 12.0 --use_coreml
-          - runs-on: macos-15
+          - name: macOS x86_64 v1.24.1
+            runs-on: macos-15
             ort-version: v1.24.1
             buildpy-additional-args: --build_dir ./.deps_vendor/ort_x86_64 --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 --osx_arch x86_64 --apple_deploy_target 12.0 --use_coreml
-          - runs-on: ubuntu-24.04
+          - name: Ubuntu x86_64 v1.24.1
+            runs-on: ubuntu-24.04
             ort-version: v1.24.1
             buildpy-additional-args: --build_dir ./.deps_vendor/ort_x86_64
+
+    name: Build vcpkg in ORT (${{ matrix.name }})
 
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 60
