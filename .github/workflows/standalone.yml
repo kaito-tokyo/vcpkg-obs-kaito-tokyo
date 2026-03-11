@@ -1,0 +1,79 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Standalone
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: 23 9 * * *
+  workflow_dispatch:
+
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CIPROXY_PORT: "8080"
+  HOMEBREW_NO_ANALYTICS: "1"
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_ENV_HINTS: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  VCPKG_BINARY_SOURCES: clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite
+
+jobs:
+  build-ort-vcpkg:
+    strategy:
+      matrix:
+        include:
+          - name: Windows x64
+            runs-on: windows-2022
+            vcpkg-target-triplet: x64-windows-static-md-obs
+          - name: macOS arm64
+            runs-on: macos-15
+            vcpkg-target-triplet: arm64-osx-obs
+          - name: macOS x86_64
+            runs-on: macos-15
+            vcpkg-target-triplet: x64-osx-obs
+          - name: Ubuntu x86_64
+            runs-on: ubuntu-24.04
+            vcpkg-target-triplet: x64-linux-obs
+
+    name: Build vcpkg (${{ matrix.name }})
+
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 180
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start ciproxy
+        id: start-ciproxy
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: ./.github/actions/start-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          port: ${{ env.CIPROXY_PORT }}
+      
+      - name: Install dependencies from vcpkg
+        shell: bash
+        env:
+          VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg-target-triplet }}
+        run: VCPKG_ROOT="$VCPKG_INSTALLATION_ROOT" "$VCPKG_INSTALLATION_ROOT/vcpkg" install --triplet arm64-osx-obs
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
