@@ -74,17 +74,17 @@ jobs:
       - name: Build vcpkg of ONNX Runtime
         shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
         run: |
-          python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py \
-            --update \
-            --config Release \
-            --parallel \
-            --compile_no_warning_as_error \
-            --cmake_extra_defines \
-            CMAKE_POLICY_VERSION_MINIMUM=3.5 \
-            --use_vcpkg \
-            --skip_submodule_sync \
-            --skip_tests \
-            --disable_rtti \
+          python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
+            --update `
+            --config Release `
+            --parallel `
+            --compile_no_warning_as_error `
+            --cmake_extra_defines `
+            CMAKE_POLICY_VERSION_MINIMUM=3.5 `
+            --use_vcpkg `
+            --skip_submodule_sync `
+            --skip_tests `
+            --disable_rtti `
             ${{ matrix.buildpy-additional-args }}
 
       - name: Finalize ciproxy
