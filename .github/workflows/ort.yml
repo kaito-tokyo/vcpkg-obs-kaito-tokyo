@@ -148,24 +148,23 @@ jobs:
       - name: Build vcpkg of ONNX Runtime
         shell: env BASH_ENV=.github/scripts/clean-env-macos.bash bash --noprofile --norc -euo pipefail {0}
         env:
-          ARCH: ${{ matrix.arch }}
           PATH: "/usr/bin:/bin:/usr/sbin:/sbin"
         run: |
           python ./.deps_vendor/onnxruntime/tools/ci_build/build.py \
-            --build_dir "./.deps_vendor/ort_$ARCH" \
+            --build_dir "./.deps_vendor/ort_${{ matrix.arch }}" \
             --update \
             --config Release \
             --parallel \
             --compile_no_warning_as_error \
             --cmake_extra_defines \
             CMAKE_POLICY_VERSION_MINIMUM=3.5 \
-            CMAKE_OSX_ARCHITECTURES="$ARCH" \
+            CMAKE_OSX_ARCHITECTURES="${{ matrix.arch }}" \
             CMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             --use_vcpkg \
             --skip_submodule_sync \
             --skip_tests \
             --disable_rtti \
-            --osx_arch "$ARCH" \
+            --osx_arch "${{ matrix.arch }}" \
             --apple_deploy_target 12.0 \
             --use_coreml
 
@@ -224,7 +223,7 @@ jobs:
       - name: Build vcpkg of ONNX Runtime
         shell: env BASH_ENV=.github/scripts/clean-env-ubuntu.bash bash --noprofile --norc -euo pipefail {0}
         env:
-          PATH: "/usr/bin:/bin:/usr/sbin:/sbin"
+          PATH: "/usr/local/bin:/usr/bin:/bin"
         run: |
           python ./.deps_vendor/onnxruntime/tools/ci_build/build.py \
             --build_dir "./.deps_vendor/ort_x86_64" \
