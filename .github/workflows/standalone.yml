@@ -137,7 +137,7 @@ jobs:
             printf 'export HOME=%q\n' "$HOME"
             printf 'export PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
             printf 'export VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
-            printf 'export VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
+            printf 'export VCPKG_ROOT=%q\n' "$GITHUB_WORKSPACE/vcpkg"
           ) > .bashenv_vcpkg
 
       - name: Start ciproxy
@@ -188,11 +188,12 @@ jobs:
       - name: Export clean env file for vcpkg (Linux)
         shell: bash -euo pipefail {0}
         run: |
+          env
           (
             printf 'export HOME=%q\n' "$HOME"
             printf 'export PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
             printf 'export VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
-            printf 'export VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
+            printf 'export VCPKG_ROOT=%q\n' "$GITHUB_WORKSPACE/vcpkg"
           ) > .bashenv_vcpkg
 
       - name: Start ciproxy
