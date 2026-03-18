@@ -138,7 +138,7 @@ jobs:
       - name: Install dependencies from vcpkg (${{ matrix.triplet }})
         shell: env BASH_ENV=.github/scripts/clean-env-macos.bash bash --noprofile --norc -euo pipefail {0}
         env:
-          PATH: "/usr/bin:/bin:/usr/sbin:/sbin"
+          PATH: "/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/opt/homebrew/opt/cmake/bin:/usr/bin:/bin:/usr/sbin:/sbin"
           VCPKG_ROOT: vcpkg
         run: '"$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}"'
 
@@ -196,7 +196,7 @@ jobs:
       - name: Install dependencies from vcpkg (linux-x64-obs)
         shell: env BASH_ENV=.github/scripts/clean-env-ubuntu.sh bash --noprofile --norc -euo pipefail {0}
         env:
-          PATH: "/usr/bin:/bin:/usr/sbin:/sbin"
+          PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
           VCPKG_ROOT: vcpkg
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
