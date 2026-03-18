@@ -78,7 +78,7 @@ jobs:
         shell: pwsh -Command ". .github/scripts/Clean-Env.ps1 && . '{0}'"
         env:
           PATH: 'C:/Windows/system32;C:/Windows'
-        run: '& "$VCPKG_ROOT/vcpkg" install --triplet=x64-windows-static-md-obs'
+        run: '& "$Env:VCPKG_ROOT/vcpkg" install --triplet=x64-windows-static-md-obs'
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
