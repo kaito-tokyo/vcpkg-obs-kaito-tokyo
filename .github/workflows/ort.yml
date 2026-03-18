@@ -149,7 +149,7 @@ jobs:
         shell: env BASH_ENV=.github/scripts/clean-env-macos.bash bash --noprofile --norc -euo pipefail {0}
         env:
           ARCH: ${{ matrix.arch }}
-          PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
+          PATH: "/usr/bin:/bin:/usr/sbin:/sbin"
         run: |
           python ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
             --build_dir "./.deps_vendor/ort_$ARCH" \
@@ -224,7 +224,7 @@ jobs:
       - name: Build vcpkg of ONNX Runtime
         shell: env BASH_ENV=.github/scripts/clean-env-ubuntu.bash bash --noprofile --norc -euo pipefail {0}
         env:
-          PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
+          PATH: "/usr/bin:/bin:/usr/sbin:/sbin"
         run: |
           python ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
             --build_dir "./.deps_vendor/ort_x86_64" \
