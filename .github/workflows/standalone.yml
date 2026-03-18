@@ -75,10 +75,11 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
-        shell: pwsh -Command ". .github/scripts/Clean-Env.ps1 && . '{0}'"
+        shell: pwsh -NoProfile -Command ". .github/scripts/Clean-Env.ps1; . '{0}'"
         env:
           PATH: 'C:/Windows/system32;C:/Windows'
-        run: '& "$Env:VCPKG_ROOT/vcpkg" install --triplet=x64-windows-static-md-obs'
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+        run: '& "$Env:VCPKG_ROOT/vcpkg.exe" install --triplet=x64-windows-static-md-obs'
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
