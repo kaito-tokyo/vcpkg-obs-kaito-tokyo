@@ -1,4 +1,5 @@
-$AllowList = @(
+$CleanEnvWindowsAllowList = @(
+	# System
 	"ALLUSERSPROFILE",
 	"APPDATA",
 	"CI",
@@ -33,13 +34,15 @@ $AllowList = @(
 	"USERDOMAIN",
 	"USERNAME",
 	"USERPROFILE",
-	"VCPKG_BINARY_SOURCES",
-	"VCPKG_ROOT",
 	"windir",
+
+	# Workflow-specific
+	"VCPKG_BINARY_SOURCES",
+	"VCPKG_ROOT"
 )
 Get-ChildItem env: | ForEach-Object {
-	if ($AllowList -notcontains $_.Name -and $_.Name -notlike "ACTIONS_*" -and $_.Name -notlike "GITHUB_*" -and $_.Name -notlike "RUNNER_*") {
+	if ($CleanEnvWindowsAllowList -notcontains $_.Name -and $_.Name -notlike "ACTIONS_*" -and $_.Name -notlike "GITHUB_*" -and $_.Name -notlike "RUNNER_*") {
 		Remove-Item $_.PSPath -Force
 	}
 }
-Remove-Variable AllowList
+Remove-Variable CleanEnvWindowsAllowList -Force

@@ -5,8 +5,11 @@ filter_env_ubuntu() {
 	for name in "${names[@]}"; do
 		[[ "$name" =~ ^(GITHUB_|RUNNER_) ]] && continue
 		case "$name" in
-		CI | HOME | PATH | SHELL | TERM | TMPDIR | USER | LOGNAME | LANG | LC_ALL) ;;
-		DEBIAN_FRONTEND ) ;;
+		# Common
+		CI | HOME | LANG | LC_ALL | LC_CTYPE | LOGNAME | PATH | PSModulePath | SHELL | TERM | TMPDIR | USER | XDG_CONFIG_HOME) ;;
+		# Ubuntu
+		DEBIAN_FRONTEND | ImageOS | ImageVersion | XDG_RUNTIME_DIR) ;;
+		# Workflow-specific
 		VCPKG_BINARY_SOURCES | VCPKG_ROOT) ;;
 		*) unset -v "$name" 2>/dev/null ;;
 		esac

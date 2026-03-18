@@ -3,10 +3,14 @@ filter_env_macos() {
 	local name
 
 	for name in "${names[@]}"; do
+
 		[[ "$name" =~ ^(GITHUB_|RUNNER_) ]] && continue
 		case "$name" in
-		CI | HOME | PATH | SHELL | TERM | TMPDIR | USER | LOGNAME | LANG | LC_ALL) ;;
-		DEVELOPER_DIR | XPC_FLAGS | XPC_SERVICE_NAME) ;;
+		# Common
+		CI | HOME | LANG | LC_ALL | LC_CTYPE | LOGNAME | PATH | PSModulePath | SHELL | TERM | TMPDIR | USER | XDG_CONFIG_HOME) ;;
+		# macOS
+		DEVELOPER_DIR | ImageOS | ImageVersion | XPC_FLAGS | XPC_SERVICE_NAME) ;;
+		# Workflow-specific
 		VCPKG_BINARY_SOURCES | VCPKG_ROOT) ;;
 		*) unset -v "$name" 2>/dev/null ;;
 		esac
