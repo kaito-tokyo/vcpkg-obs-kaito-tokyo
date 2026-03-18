@@ -96,7 +96,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
-        shell: env -i BASH_ENV=.bashenv_vcpkg bash --noprofile --norc -euo pipefail {0}
+        shell: env -i BASH_ENV=.bashenv_vcpkg /bin/bash --noprofile --norc -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-windows-static-md-obs'
 
       - name: Finalize ciproxy
@@ -174,7 +174,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (${{ matrix.triplet }})
-        shell: env -i BASH_ENV=.bashenv_vcpkg bash --noprofile --norc -euo pipefail {0}
+        shell: env -i BASH_ENV=.bashenv_vcpkg /bin/bash --noprofile --norc -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}"'
 
       - name: Finalize ciproxy
@@ -239,7 +239,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (linux-x64-obs)
-        shell: env -i BASH_ENV=.bashenv_vcpkg bash --noprofile --norc -euo pipefail {0}
+        shell: env -i BASH_ENV=.bashenv_vcpkg /bin/bash --noprofile --norc -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy
