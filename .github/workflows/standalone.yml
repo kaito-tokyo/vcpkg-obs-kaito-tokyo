@@ -41,6 +41,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - shell: pwsh -NoProfile -Command ". '{0}'"
+        run: |
+          Get-ChildItem Env:
+
       - name: Set up Go for ciproxy
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
@@ -93,6 +97,10 @@ jobs:
           master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ${{ github.workspace }}/ciproxy
           port: ${{ env.CIPROXY_PORT }}
+
+      - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
+        shell: pwsh -NoProfile -Command ". '{0}'"
+        run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-windows-static-md-obs'
 
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
         shell: pwsh -NoProfile -Command ". '{0}'"
