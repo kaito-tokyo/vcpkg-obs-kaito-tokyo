@@ -46,22 +46,22 @@ jobs:
         run: |
           (
             # System
-            printf 'export SYSTEMROOT="%s"\n' "$SYSTEMROOT"
-            printf 'export SYSTEMDRIVE="%s"\n' "$SYSTEMDRIVE"
-            printf 'export WINDIR="%s"\n' "$WINDIR"
-            printf 'export "ProgramFiles=%s"\n' "$PROGRAMFILES"
             printf 'export "ProgramFiles(x86)=%s"\n' "$PROGRAMFILES_X86_}"
-            printf 'export ProgramW6432="%s"\n' "$ProgramW6432"
+            printf 'export "ProgramFiles=%s"\n' "$PROGRAMFILES"
+            printf 'export LOCALAPPDATA="%s"\n' "$LOCALAPPDATA"
             printf 'export PROCESSOR_ARCHITECTURE="%s"\n' "$PROCESSOR_ARCHITECTURE"
+            printf 'export ProgramW6432="%s"\n' "$ProgramW6432"
+            printf 'export SYSTEMDRIVE="%s"\n' "$SYSTEMDRIVE"
+            printf 'export SYSTEMROOT="%s"\n' "$SYSTEMROOT"
             printf 'export TEMP="%s"\n' "$TEMP"
             printf 'export TMP="%s"\n' "$TMP"
             printf 'export USERPROFILE="%s"\n' "$USERPROFILE"
-            printf 'export LOCALAPPDATA="%s"\n' "$LOCALAPPDATA"
+            printf 'export WINDIR="%s"\n' "$WINDIR"
 
             # Build env
-            printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
-            printf 'export VCPKG_BINARY_SOURCES="%s"\n' "$VCPKG_BINARY_SOURCES"
             printf 'export PATH="%s"\n' "/usr/bin:/c/Windows/system32:/c/Windows"
+            printf 'export VCPKG_BINARY_SOURCES="%s"\n' "$VCPKG_BINARY_SOURCES"
+            printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
           ) > .bashrc_vcpkg
 
       - name: Start ciproxy
