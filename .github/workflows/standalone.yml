@@ -75,7 +75,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
-        shell: pwsh -NoProfile -Command ". .github/scripts/Clean-Env.ps1; . '{0}'"
+        shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
         env:
           PATH: 'C:/Windows/system32;C:/Windows'
           VCPKG_ROOT: ${{ github.workspace }}/vcpkg
@@ -131,21 +131,6 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail {0}
         run: ./vcpkg/bootstrap-vcpkg.sh
 
-      - name: Export clean env file for vcpkg (macOS)
-        shell: bash --noprofile --norc -euo pipefail {0}
-        run: |
-          find /usr/local
-          (
-            printf 'declare -x DEVELOPER_DIR=%q\n' "$DEVELOPER_DIR"
-            printf 'declare -x HOME=%q\n' "$HOME"
-            printf 'declare -x PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
-            printf 'declare -x TMPDIR=%q\n' "$TMPDIR"
-            printf 'declare -x USER=%q\n' "$USER"
-
-            printf 'declare -x VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
-            printf 'declare -x VCPKG_ROOT=%q\n' "$GITHUB_WORKSPACE/vcpkg"
-          ) > .bashenv_vcpkg
-
       - name: Start ciproxy
         id: start-ciproxy
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
@@ -156,7 +141,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (${{ matrix.triplet }})
-        shell: env -i BASH_ENV=.bashenv_vcpkg /bin/bash --noprofile --norc -euo pipefail {0}
+        shell: env BASH_ENV=.github/scripts/clean-env-macos.bash bash --noprofile --norc -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}"'
 
       - name: Finalize ciproxy
@@ -201,16 +186,6 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail {0}
         run: ./vcpkg/bootstrap-vcpkg.sh
 
-      - name: Export clean env file for vcpkg (Linux)
-        shell: bash --noprofile --norc -euo pipefail {0}
-        run: |
-          (
-            printf 'declare -x HOME=%q\n' "$HOME"
-            printf 'declare -x PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
-            printf 'declare -x VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
-            printf 'declare -x VCPKG_ROOT=%q\n' "$GITHUB_WORKSPACE/vcpkg"
-          ) > .bashenv_vcpkg
-
       - name: Start ciproxy
         id: start-ciproxy
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
@@ -221,7 +196,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (linux-x64-obs)
-        shell: env -i BASH_ENV=.bashenv_vcpkg /bin/bash --noprofile --norc -euo pipefail {0}
+        shell: env BASH_ENV=.github/scripts/clean-env-ubuntu.sh bash --noprofile --norc -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy
