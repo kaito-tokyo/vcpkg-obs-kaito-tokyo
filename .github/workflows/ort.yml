@@ -83,7 +83,7 @@ jobs:
             --compile_no_warning_as_error `
             --cmake_extra_defines `
             CMAKE_POLICY_VERSION_MINIMUM=3.5 `
-            CMAKE_PROJECT_INCLUDE_BEFORE="$GITHUB_WORKSPACE/no_install.cmake" `
+            CMAKE_PROJECT_INCLUDE_BEFORE="$env:GITHUB_WORKSPACE/no_install.cmake" `
             --use_vcpkg `
             --skip_submodule_sync `
             --skip_tests `
