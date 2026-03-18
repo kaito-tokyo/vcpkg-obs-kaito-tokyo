@@ -37,7 +37,6 @@ jobs:
           - name: Windows x64 v1.24.1
             runs-on: windows-2022
             ort-version: v1.24.1
-            buildpy-additional-args: --build_dir ./.deps_vendor/ort_x64
 
     name: Build vcpkg in ORT for ${{ matrix.name }}
 
@@ -69,14 +68,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.12"
+          python-version-file: ".python-version"
 
       - name: Build vcpkg of ONNX Runtime
         shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
         env:
           PATH: 'C:/Windows/system32;C:/Windows'
         run: |
+          $env:PATH -split [IO.Path]::PathSeparator
           python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
+            --build_dir ./.deps_vendor/ort_x64 `
             --update `
             --config Release `
             --parallel `
@@ -86,8 +87,7 @@ jobs:
             --use_vcpkg `
             --skip_submodule_sync `
             --skip_tests `
-            --disable_rtti `
-            ${{ matrix.buildpy-additional-args }}
+            --disable_rtti
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
