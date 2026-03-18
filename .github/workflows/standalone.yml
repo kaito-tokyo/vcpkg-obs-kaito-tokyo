@@ -68,7 +68,7 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail {0}
         run: |
           (
-            printf 'export ProgramFiles(x86)=%q\n' "$(cygpath -u "${ProgramFiles(x86)}")"
+            printf 'export ProgramFiles(x86)=%q\n' "$(cygpath -u "$(env | grep "ProgramFiles(x86)" | sed 's/^.*=//')")"
             printf 'export PROGRAMFILES=%q\n' "$(cygpath -u "$PROGRAMFILES")"
             printf 'export LOCALAPPDATA=%q\n' "$(cygpath -u "$LOCALAPPDATA")"
             printf 'export PROCESSOR_ARCHITECTURE=%q\n' "$PROCESSOR_ARCHITECTURE"
