@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: ORT
+name: ORT CI
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
       matrix:
         ort-version: [v1.24.1]
 
-    name: Build vcpkg in ORT for Windows x64
+    name: Build vcpkg in ORT for Windows x64 ${{ matrix.ort-version }}
 
     runs-on: windows-2022
     timeout-minutes: 180
@@ -85,7 +85,141 @@ jobs:
             --skip_submodule_sync `
             --skip_tests `
             --disable_rtti
-          Get-Content "D:\a\vcpkg-obs-kaito-tokyo\vcpkg-obs-kaito-tokyo\.deps_vendor\ort_x64\Release\vcpkg-bootstrap.log"
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ciproxy
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
+
+  build-ort-vcpkg-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+        ort-version: [v1.24.1]
+
+    name: Build vcpkg in ORT for macOS ${{ matrix.arch }} ${{ matrix.ort-version }}
+
+    runs-on: macos-15
+    timeout-minutes: 180
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start ciproxy
+        id: start-ciproxy
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: ./.github/actions/start-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ciproxy
+          port: ${{ env.CIPROXY_PORT }}
+
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ matrix.ort-version }}
+          path: .deps_vendor/onnxruntime
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version-file: ".python-version"
+          pip-install: -r requirements-build.txt
+
+      - name: Build vcpkg of ONNX Runtime
+        shell: env BASH_ENV=.github/scripts/clean-env-macos.bash bash --noprofile --norc -euo pipefail {0}
+        env:
+          ARCH: ${{ matrix.arch }}
+          PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
+        run: |
+          python ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
+            --build_dir "./.deps_vendor/ort_$ARCH" \
+            --update \
+            --config Release \
+            --parallel \
+            --compile_no_warning_as_error \
+            --cmake_extra_defines \
+            CMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            CMAKE_OSX_ARCHITECTURES="$ARCH" \
+            CMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            --use_vcpkg \
+            --skip_submodule_sync \
+            --skip_tests \
+            --disable_rtti \
+            --osx_arch "$ARCH" \
+            --apple_deploy_target 12.0 \
+            --use_coreml
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ciproxy
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
+
+  build-ort-vcpkg-ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        ort-version: [v1.24.1]
+
+    name: Build vcpkg in ORT for Ubuntu x86_64 ${{ matrix.ort-version }}
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start ciproxy
+        id: start-ciproxy
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: ./.github/actions/start-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ciproxy
+          port: ${{ env.CIPROXY_PORT }}
+
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ matrix.ort-version }}
+          path: .deps_vendor/onnxruntime
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version-file: ".python-version"
+          pip-install: -r requirements-build.txt
+
+      - name: Build vcpkg of ONNX Runtime
+        shell: env BASH_ENV=.github/scripts/clean-env-ubuntu.bash bash --noprofile --norc -euo pipefail {0}
+        env:
+          PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
+        run: |
+          python ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
+            --build_dir "./.deps_vendor/ort_x86_64" \
+            --update \
+            --config Release \
+            --parallel \
+            --compile_no_warning_as_error \
+            --cmake_extra_defines \
+            CMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            --use_vcpkg \
+            --skip_submodule_sync \
+            --skip_tests \
+            --disable_rtti
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
