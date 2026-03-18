@@ -63,28 +63,27 @@ jobs:
 
       - name: Run bootstrap-vcpkg.bat
         shell: pwsh
-        run: ./vcpkg/bootstrap-vcpkg.bat
+        run: ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
-      - name: Export clean env file for vcpkg (Windows)
-        shell: bash --noprofile --norc -euo pipefail {0}
-        run: |
-          (
-            PF86=$(printenv "ProgramFiles(x86)" | head -n 1)
-            printf 'declare -x "ProgramFiles(x86)"=%q\n' "$(cygpath -u "$PF86")"            printf 'declare -x PROGRAMFILES=%q\n' "$(cygpath -u "$PROGRAMFILES")"
-            printf 'declare -x LOCALAPPDATA=%q\n' "$(cygpath -u "$LOCALAPPDATA")"
-            printf 'declare -x PROCESSOR_ARCHITECTURE=%q\n' "$PROCESSOR_ARCHITECTURE"
-            printf 'declare -x ProgramW6432=%q\n' "$(cygpath -u "$ProgramW6432")"
-            printf 'declare -x SYSTEMDRIVE=%q\n' "$(cygpath -u "$SYSTEMDRIVE")"
-            printf 'declare -x SYSTEMROOT=%q\n' "$(cygpath -u "$SYSTEMROOT")"
-            printf 'declare -x TEMP=%q\n' "$(cygpath -u "$TEMP")"
-            printf 'declare -x TMP=%q\n' "$(cygpath -u "$TMP")"
-            printf 'declare -x USERPROFILE=%q\n' "$(cygpath -u "$USERPROFILE")"
-            printf 'declare -x WINDIR=%q\n' "$(cygpath -u "$WINDIR")"
+      # - name: Export clean env file for vcpkg (Windows)
+      #   shell: bash --noprofile --norc -euo pipefail {0}
+      #   run: |
+      #       PF86=$(printenv "ProgramFiles(x86)" | head -n 1)
+      #       printf 'declare -x "ProgramFiles(x86)"=%q\n' "$(cygpath -u "$PF86")"            printf 'declare -x PROGRAMFILES=%q\n' "$(cygpath -u "$PROGRAMFILES")"
+      #       printf 'declare -x LOCALAPPDATA=%q\n' "$(cygpath -u "$LOCALAPPDATA")"
+      #       printf 'declare -x PROCESSOR_ARCHITECTURE=%q\n' "$PROCESSOR_ARCHITECTURE"
+      #       printf 'declare -x ProgramW6432=%q\n' "$(cygpath -u "$ProgramW6432")"
+      #       printf 'declare -x SYSTEMDRIVE=%q\n' "$(cygpath -u "$SYSTEMDRIVE")"
+      #       printf 'declare -x SYSTEMROOT=%q\n' "$(cygpath -u "$SYSTEMROOT")"
+      #       printf 'declare -x TEMP=%q\n' "$(cygpath -u "$TEMP")"
+      #       printf 'declare -x TMP=%q\n' "$(cygpath -u "$TMP")"
+      #       printf 'declare -x USERPROFILE=%q\n' "$(cygpath -u "$USERPROFILE")"
+      #       printf 'declare -x WINDIR=%q\n' "$(cygpath -u "$WINDIR")"
 
-            printf 'declare -x PATH=%q\n' "/usr/bin:/c/Windows/system32:/c/Windows"
-            printf 'declare -x VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
-            printf 'declare -x VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
-          ) > .bashenv_vcpkg
+      #       printf 'declare -x PATH=%q\n' "/usr/bin:/c/Windows/system32:/c/Windows"
+      #       printf 'declare -x VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
+      #       printf 'declare -x VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
+      #     ) > .bashenv_vcpkg
 
       - name: Start ciproxy
         id: start-ciproxy
@@ -96,7 +95,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
-        shell: env -i BASH_ENV=.bashenv_vcpkg /bin/bash --noprofile --norc -euo pipefail {0}
+        shell: pwsh -NoProfile -Command ". '{0}'"
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-windows-static-md-obs'
 
       - name: Finalize ciproxy
