@@ -45,6 +45,7 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
 
       - name: Extract vcpkg configuration
         id: vcpkg-configuration
@@ -68,8 +69,8 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail {0}
         run: |
           (
-            printf 'declare -x "ProgramFiles(x86)"=%q\n' "$(cygpath -u "$(printenv "ProgramFiles(x86)" | head -n 1)")")"
-            printf 'declare -x PROGRAMFILES=%q\n' "$(cygpath -u "$PROGRAMFILES")"
+            PF86=$(printenv "ProgramFiles(x86)" | head -n 1)
+            printf 'declare -x "ProgramFiles(x86)"=%q\n' "$(cygpath -u "$PF86")"            printf 'declare -x PROGRAMFILES=%q\n' "$(cygpath -u "$PROGRAMFILES")"
             printf 'declare -x LOCALAPPDATA=%q\n' "$(cygpath -u "$LOCALAPPDATA")"
             printf 'declare -x PROCESSOR_ARCHITECTURE=%q\n' "$PROCESSOR_ARCHITECTURE"
             printf 'declare -x ProgramW6432=%q\n' "$(cygpath -u "$ProgramW6432")"
@@ -84,7 +85,6 @@ jobs:
             printf 'declare -x VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
             printf 'declare -x VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
           ) > .bashenv_vcpkg
-          cat .bashenv_vcpkg
 
       - name: Start ciproxy
         id: start-ciproxy
@@ -129,6 +129,7 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
 
       - name: Extract vcpkg configuration
         id: vcpkg-configuration
@@ -198,6 +199,7 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
 
       - name: Extract vcpkg configuration
         id: vcpkg-configuration
