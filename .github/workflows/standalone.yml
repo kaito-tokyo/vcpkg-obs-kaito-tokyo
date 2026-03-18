@@ -45,23 +45,21 @@ jobs:
         shell: bash -euo pipefail {0}
         run: |
           (
-            # System
-            printf 'export "ProgramFiles(x86)=%s"\n' "$PROGRAMFILES_X86_}"
-            printf 'export "ProgramFiles=%s"\n' "$PROGRAMFILES"
-            printf 'export LOCALAPPDATA="%s"\n' "$LOCALAPPDATA"
-            printf 'export PROCESSOR_ARCHITECTURE="%s"\n' "$PROCESSOR_ARCHITECTURE"
-            printf 'export ProgramW6432="%s"\n' "$ProgramW6432"
-            printf 'export SYSTEMDRIVE="%s"\n' "$SYSTEMDRIVE"
-            printf 'export SYSTEMROOT="%s"\n' "$SYSTEMROOT"
-            printf 'export TEMP="%s"\n' "$TEMP"
-            printf 'export TMP="%s"\n' "$TMP"
-            printf 'export USERPROFILE="%s"\n' "$USERPROFILE"
-            printf 'export WINDIR="%s"\n' "$WINDIR"
+            printf 'export ProgramFiles(x86)=%q\n' "$(cygpath -u "${ProgramFiles(x86)}")"
+            printf 'export PROGRAMFILES=%q\n' "$(cygpath -u "$PROGRAMFILES")"
+            printf 'export LOCALAPPDATA=%q\n' "$(cygpath -u "$LOCALAPPDATA")"
+            printf 'export PROCESSOR_ARCHITECTURE=%q\n' "$PROCESSOR_ARCHITECTURE"
+            printf 'export ProgramW6432=%q\n' "$(cygpath -u "$ProgramW6432")"
+            printf 'export SYSTEMDRIVE=%q\n' "$(cygpath -u "$SYSTEMDRIVE")"
+            printf 'export SYSTEMROOT=%q\n' "$(cygpath -u "$SYSTEMROOT")"
+            printf 'export TEMP=%q\n' "$(cygpath -u "$TEMP")"
+            printf 'export TMP=%q\n' "$(cygpath -u "$TMP")"
+            printf 'export USERPROFILE=%q\n' "$(cygpath -u "$USERPROFILE")"
+            printf 'export WINDIR=%q\n' "$(cygpath -u "$WINDIR")"
 
-            # Build env
-            printf 'export PATH="%s"\n' "/usr/bin:/c/Windows/system32:/c/Windows"
-            printf 'export VCPKG_BINARY_SOURCES="%s"\n' "$VCPKG_BINARY_SOURCES"
-            printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
+            printf 'export PATH=%q\n' "/usr/bin:/c/Windows/system32:/c/Windows"
+            printf 'export VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
+            printf 'export VCPKG_ROOT=%q\n' "$(cygpath -u "$VCPKG_INSTALLATION_ROOT")"
           ) > .bashrc_vcpkg
 
       - name: Start ciproxy
@@ -107,11 +105,11 @@ jobs:
         shell: bash -euo pipefail {0}
         run: |
           (
-            printf 'export DEVELOPER_DIR="%s"\n' "$DEVELOPER_DIR"
-            printf 'export HOME="%s"\n' "$HOME"
-            printf 'export PATH="%s"\n' "/usr/bin:/bin:/usr/sbin:/sbin"
-            printf 'export VCPKG_BINARY_SOURCES="%s"\n' "$VCPKG_BINARY_SOURCES"
-            printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
+            printf 'export DEVELOPER_DIR=%q\n' "$DEVELOPER_DIR"
+            printf 'export HOME=%q\n' "$HOME"
+            printf 'export PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
+            printf 'export VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
+            printf 'export VCPKG_ROOT=%q\n' "$VCPKG_INSTALLATION_ROOT"
           ) > .bashrc_vcpkg
 
       - name: Start ciproxy
@@ -149,10 +147,10 @@ jobs:
         shell: bash -euo pipefail {0}
         run: |
           (
-            printf 'export HOME="%s"\n' "$HOME"
-            printf 'export PATH="%s"\n' "/usr/bin:/bin:/usr/sbin:/sbin"
-            printf 'export VCPKG_BINARY_SOURCES="%s"\n' "$VCPKG_BINARY_SOURCES"
-            printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
+            printf 'export HOME=%q\n' "$HOME"
+            printf 'export PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
+            printf 'export VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
+            printf 'export VCPKG_ROOT=%q\n' "$VCPKG_INSTALLATION_ROOT"
           ) > .bashrc_vcpkg
 
       - name: Start ciproxy
