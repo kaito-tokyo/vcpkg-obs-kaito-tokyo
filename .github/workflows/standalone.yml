@@ -41,6 +41,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ./ciproxy/go.mod
+
       - name: Extract vcpkg configuration
         id: vcpkg-configuration
         uses: ./.github/actions/extract-vcpkg-configuration
@@ -55,8 +60,12 @@ jobs:
           path: vcpkg
           filter: "blob:none"
 
+      - name: Run bootstrap-vcpkg.bat
+        shell: pwsh
+        run: ./vcpkg/bootstrap-vcpkg.bat
+
       - name: Export clean env file for vcpkg (Windows)
-        shell: bash -euo pipefail {0}
+        shell: bash --noprofile --norc -euo pipefail {0}
         run: |
           (
             printf 'export ProgramFiles(x86)=%q\n' "$(cygpath -u "${ProgramFiles(x86)}")"
@@ -86,7 +95,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
-        shell: env -i BASH_ENV=.bashenv_vcpkg bash -euo pipefail {0}
+        shell: env -i BASH_ENV=.bashenv_vcpkg bash --noprofile --norc -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-windows-static-md-obs'
 
       - name: Finalize ciproxy
@@ -115,6 +124,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ./ciproxy/go.mod
+
       - name: Extract vcpkg configuration
         id: vcpkg-configuration
         uses: ./.github/actions/extract-vcpkg-configuration
@@ -129,14 +143,21 @@ jobs:
           path: vcpkg
           filter: "blob:none"
 
+      - name: Run bootstrap-vcpkg.sh
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: ./vcpkg/bootstrap-vcpkg.sh
+
       - name: Export clean env file for vcpkg (macOS)
-        shell: bash -euo pipefail {0}
+        shell: bash --noprofile --norc -euo pipefail {0}
         run: |
-          env
+          find /usr/local
           (
             printf 'export DEVELOPER_DIR=%q\n' "$DEVELOPER_DIR"
             printf 'export HOME=%q\n' "$HOME"
             printf 'export PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
+            printf 'export TMPDIR=%q\n' "$TMPDIR"
+            printf 'export USER=%q\n' "$USER"
+
             printf 'export VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
             printf 'export VCPKG_ROOT=%q\n' "$GITHUB_WORKSPACE/vcpkg"
           ) > .bashenv_vcpkg
@@ -151,7 +172,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (${{ matrix.triplet }})
-        shell: env -i BASH_ENV=.bashenv_vcpkg bash -euo pipefail {0}
+        shell: env -i BASH_ENV=.bashenv_vcpkg bash --noprofile --norc -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}"'
 
       - name: Finalize ciproxy
@@ -172,6 +193,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ./ciproxy/go.mod
+
       - name: Extract vcpkg configuration
         id: vcpkg-configuration
         uses: ./.github/actions/extract-vcpkg-configuration
@@ -186,8 +212,12 @@ jobs:
           path: vcpkg
           filter: "blob:none"
 
+      - name: Run bootstrap-vcpkg.sh
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: ./vcpkg/bootstrap-vcpkg.sh
+
       - name: Export clean env file for vcpkg (Linux)
-        shell: bash -euo pipefail {0}
+        shell: bash --noprofile --norc -euo pipefail {0}
         run: |
           (
             printf 'export HOME=%q\n' "$HOME"
@@ -206,7 +236,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (linux-x64-obs)
-        shell: env -i BASH_ENV=.bashenv_vcpkg bash -euo pipefail {0}
+        shell: env -i BASH_ENV=.bashenv_vcpkg bash --noprofile --norc -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy

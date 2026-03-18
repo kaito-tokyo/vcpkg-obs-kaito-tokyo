@@ -24,14 +24,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - id: stop
-      shell: bash
+    - name: Ensure to stop ciproxy
+      shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.ciproxy-dir }}
       env:
         CIPROXY_PID: ${{ inputs.ciproxy-pid }}
       run: |
-        set -euo pipefail
-
         echo "Sending SIGTERM to ciproxy (PID: $CIPROXY_PID)..."
         kill -15 $CIPROXY_PID || true
 
@@ -49,27 +47,28 @@ runs:
 
         echo "Ciproxy stopped."
 
-    - id: check-artifacts
-      shell: bash
+    - name: Check if vcpkg artifacts exist
+      id: check-artifacts
+      shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.ciproxy-dir }}
       run: |
-        set -euo pipefail
-
         if [[ -d vcpkg_artifacts ]] && [ -n "$(ls -A vcpkg_artifacts)" ]; then
           echo "exists=true" >> "$GITHUB_OUTPUT"
           ls -lA vcpkg_artifacts
         else
           echo "exists=false" >> "$GITHUB_OUTPUT"
         fi
-    
-    - id: attest
+
+    - name: Attest vcpkg artifacts
+      id: attest
       if: steps.check-artifacts.outputs.exists == 'true'
-      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+      uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
       with:
         subject-path: ciproxy/vcpkg_artifacts/*
 
-    - if: steps.check-artifacts.outputs.exists == 'true'
-      shell: bash
+    - name: Upload build provenance of vcpkg artifacts to CDN
+      if: steps.check-artifacts.outputs.exists == 'true'
+      shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.ciproxy-dir }}
       env:
         MASTER_TOKEN: ${{ inputs.master-token }}
@@ -77,8 +76,6 @@ runs:
         BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
         SHORT_HASH_LENGTH: ${{ inputs.short-hash-length }}
       run: |
-        set -euo pipefail
-
         jq -c . "$BUNDLE_PATH" > attestation.jsonl
 
         FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
@@ -97,11 +94,8 @@ runs:
           -T ./attestation.jsonl \
           "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
 
-    - if: steps.check-artifacts.outputs.exists == 'true'
-      shell: bash
+    - name: Upload vcpkg artifacts to CDN
+      if: steps.check-artifacts.outputs.exists == 'true'
+      shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.ciproxy-dir }}
-      run: |
-        set -euo pipefail
-
-        cat vcpkg_curlscripts/*
-        awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fsS -K -
+      run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fsS -K -

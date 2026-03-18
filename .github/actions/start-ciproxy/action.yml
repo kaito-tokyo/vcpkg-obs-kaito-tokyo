@@ -25,13 +25,9 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-      with:
-        go-version-file: ${{ inputs.ciproxy-dir }}/go.mod
-        cache: false
-
-    - id: start
-      shell: bash
+    - name: Start ciproxy
+      id: start
+      shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.ciproxy-dir }}
       env:
         MASTER_TOKEN: ${{ inputs.master-token }}
