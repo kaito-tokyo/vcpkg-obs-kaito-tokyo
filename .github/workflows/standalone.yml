@@ -44,7 +44,7 @@ jobs:
       - name: Export clean env file for vcpkg (Windows)
         shell: bash -euo pipefail {0}
         run: |
-          evho "$PATH"
+          echo "$PATH"
           (
             # System
             printf 'export SYSTEMROOT="%s"\n' "$SYSTEMROOT"
