@@ -44,13 +44,13 @@ jobs:
       - name: Set up Go for ciproxy
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version-file: ./ciproxy/go.mod
+          go-version-file: ciproxy/go.mod
 
       - name: Extract vcpkg configuration
         id: vcpkg-configuration
         uses: ./.github/actions/extract-vcpkg-configuration
         with:
-          path: ./vcpkg-configuration.json
+          path: vcpkg-configuration.json
 
       - name: Checkout vcpkg
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -83,7 +83,7 @@ jobs:
             printf 'declare -x PATH=%q\n' "/usr/bin:/c/Windows/system32:/c/Windows"
             printf 'declare -x VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
             printf 'declare -x VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
-          > .bashenv_vcpkg
+          ) > .bashenv_vcpkg
 
       - name: Start ciproxy
         id: start-ciproxy
@@ -127,13 +127,13 @@ jobs:
       - name: Set up Go for ciproxy
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version-file: ./ciproxy/go.mod
+          go-version-file: ciproxy/go.mod
 
       - name: Extract vcpkg configuration
         id: vcpkg-configuration
         uses: ./.github/actions/extract-vcpkg-configuration
         with:
-          path: ./vcpkg-configuration.json
+          path: vcpkg-configuration.json
 
       - name: Checkout vcpkg
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -196,13 +196,13 @@ jobs:
       - name: Set up Go for ciproxy
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version-file: ./ciproxy/go.mod
+          go-version-file: ciproxy/go.mod
 
       - name: Extract vcpkg configuration
         id: vcpkg-configuration
         uses: ./.github/actions/extract-vcpkg-configuration
         with:
-          path: ./vcpkg-configuration.json
+          path: vcpkg-configuration.json
 
       - name: Checkout vcpkg
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
