@@ -160,6 +160,7 @@ jobs:
             CMAKE_POLICY_VERSION_MINIMUM=3.5 \
             CMAKE_OSX_ARCHITECTURES="${{ matrix.arch }}" \
             CMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            CMAKE_PROJECT_INCLUDE_BEFORE="$GITHUB_WORKSPACE/no_install.cmake" \
             --use_vcpkg \
             --skip_submodule_sync \
             --skip_tests \

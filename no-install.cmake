@@ -1,0 +1,2 @@
+macro(install)
+endmacro()
