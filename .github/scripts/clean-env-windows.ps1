@@ -1,24 +1,44 @@
 $AllowList = @(
+	"ALLUSERSPROFILE",
+	"APPDATA",
 	"CI",
-	"COMSPEC",
+	"CommonProgramFiles",
+	"CommonProgramFiles(x86)",
+	"CommonProgramW6432",
+	"COMPUTERNAME",
+	"ComSpec",
+	"HOMEDRIVE",
+	"HOMEPATH",
+	"ImageOS",
+	"ImageVersion",
 	"LOCALAPPDATA",
-	"PATH",
+	"NUMBER_OF_PROCESSORS",
+	"OS",
+	"Path",
 	"PATHEXT",
+	"PROCESSOR_ARCHITECTURE",
+	"PROCESSOR_IDENTIFIER",
+	"PROCESSOR_LEVEL",
+	"PROCESSOR_REVISION",
 	"ProgramData",
 	"ProgramFiles",
 	"ProgramFiles(x86)",
 	"ProgramW6432",
+	"PSModulePath",
 	"SystemDrive",
 	"SystemRoot",
 	"TEMP",
 	"TMP",
+	"USERDOMAIN_ROAMINGPROFILE",
+	"USERDOMAIN",
 	"USERNAME",
 	"USERPROFILE",
 	"VCPKG_BINARY_SOURCES",
-	"VCPKG_ROOT"
+	"VCPKG_ROOT",
+	"windir",
 )
 Get-ChildItem env: | ForEach-Object {
-	if ($AllowList -notcontains $_.Name -and $_.Name -notlike "GITHUB_*" -and $_.Name -notlike "RUNNER_*") {
+	if ($AllowList -notcontains $_.Name -and $_.Name -notlike "ACTIONS_*" -and $_.Name -notlike "GITHUB_*" -and $_.Name -notlike "RUNNER_*") {
 		Remove-Item $_.PSPath -Force
 	}
 }
