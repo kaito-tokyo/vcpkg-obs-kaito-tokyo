@@ -73,7 +73,7 @@ jobs:
       - name: Build vcpkg of ONNX Runtime
         shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
         env:
-          PATH: 'C:/Windows/system32;C:/Windows'
+          PATH: 'C:/Program Files/CMake/bin;C:/Program Files/Ninja;C:/Windows/system32;C:/Windows'
         run: |
           $env:PATH -split [IO.Path]::PathSeparator
           python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
