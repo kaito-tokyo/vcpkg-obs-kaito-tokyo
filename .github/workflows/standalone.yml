@@ -84,6 +84,7 @@ jobs:
             printf 'declare -x VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
             printf 'declare -x VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
           ) > .bashenv_vcpkg
+          cat .bashenv_vcpkg
 
       - name: Start ciproxy
         id: start-ciproxy
