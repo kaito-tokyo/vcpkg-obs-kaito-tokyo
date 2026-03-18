@@ -20,7 +20,7 @@ runs:
   steps:
     - name: Extract vcpkg configuration
       id: extract
-      shell: bash
+      shell: bash --noprofile --norc -euo pipefail {0}
       env:
         INPUT_PATH: ${{ inputs.path }}
       run: (printf 'json=' && jq -c . "$INPUT_PATH") >> "$GITHUB_OUTPUT"
