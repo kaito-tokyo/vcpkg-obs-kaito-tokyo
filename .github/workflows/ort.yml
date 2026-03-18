@@ -33,14 +33,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: Windows x64 v1.24.1
-            runs-on: windows-2022
-            ort-version: v1.24.1
+        ort-version: [v1.24.1]
 
-    name: Build vcpkg in ORT for ${{ matrix.name }}
+    name: Build vcpkg in ORT for Windows x64
 
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: windows-2022
     timeout-minutes: 180
     environment: production
 
@@ -69,13 +66,13 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version-file: ".python-version"
+          pip-install: -r requirements-build.txt
 
       - name: Build vcpkg of ONNX Runtime
         shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
         env:
-          PATH: 'C:\Program Files\CMake\bin;C:\Program Files\Ninja;C:\Windows\system32;C:\Windows'
+          PATH: 'C:\Program Files\CMake\bin;C:\Program Files\Ninja;C:\Program Files\Git\cmd;C:\Windows\system32;C:\Windows'
         run: |
-          $env:PATH -split [IO.Path]::PathSeparator
           python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
             --build_dir ./.deps_vendor/ort_x64 `
             --update `
@@ -95,86 +92,3 @@ jobs:
           master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
-
-
-  # build-ort-vcpkg:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #         - name: Windows x64 v1.24.1
-  #           runs-on: windows-2022
-  #           ort-version: v1.24.1
-  #           buildpy-additional-args: --build_dir ./.deps_vendor/ort_x64
-  #         - name: macOS arm64 v1.24.1
-  #           runs-on: macos-15
-  #           ort-version: v1.24.1
-  #           buildpy-additional-args: --build_dir ./.deps_vendor/ort_arm64 --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 --osx_arch arm64 --apple_deploy_target 12.0 --use_coreml
-  #         - name: macOS x86_64 v1.24.1
-  #           runs-on: macos-15
-  #           ort-version: v1.24.1
-  #           buildpy-additional-args: --build_dir ./.deps_vendor/ort_x86_64 --cmake_extra_defines CMAKE_OSX_DEPLOYMENT_TARGET=12.0 --osx_arch x86_64 --apple_deploy_target 12.0 --use_coreml
-  #         - name: Ubuntu x86_64 v1.24.1
-  #           runs-on: ubuntu-24.04
-  #           ort-version: v1.24.1
-  #           buildpy-additional-args: --build_dir ./.deps_vendor/ort_x86_64
-
-  #   name: Build vcpkg in ORT (${{ matrix.name }})
-
-  #   runs-on: ${{ matrix.runs-on }}
-  #   timeout-minutes: 180
-  #   environment: production
-
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-  #     - name: Start ciproxy
-  #       id: start-ciproxy
-  #       if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-  #       uses: ./.github/actions/start-ciproxy
-  #       with:
-  #         master-token: ${{ secrets.MASTER_TOKEN }}
-  #         ciproxy-dir: ${{ github.workspace }}/ciproxy
-  #         port: ${{ env.CIPROXY_PORT }}
-
-  #     - name: Checkout ONNX Runtime
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-  #       with:
-  #         repository: microsoft/onnxruntime
-  #         ref: ${{ matrix.ort-version }}
-  #         path: .deps_vendor/onnxruntime
-  #         submodules: recursive
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-  #       with:
-  #         python-version: "3.12"
-
-  #     - name: Build vcpkg of ONNX Runtime
-  #       shell: bash
-  #       run: |
-  #         set -euo pipefail
-
-  #         printf 'macro(install)\nendmacro()\n' > "$GITHUB_WORKSPACE/no_install.cmake"
-
-  #         python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py \
-  #           --update \
-  #           --config Release \
-  #           --parallel \
-  #           --compile_no_warning_as_error \
-  #           --cmake_extra_defines \
-  #           CMAKE_POLICY_VERSION_MINIMUM=3.5 \
-  #           CMAKE_PROJECT_INCLUDE_BEFORE="$GITHUB_WORKSPACE/no_install.cmake" \
-  #           --use_vcpkg \
-  #           --skip_submodule_sync \
-  #           --skip_tests \
-  #           --disable_rtti \
-  #           ${{ matrix.buildpy-additional-args }}
-
-  #     - name: Finalize ciproxy
-  #       uses: ./.github/actions/finalize-ciproxy
-  #       with:
-  #         master-token: ${{ secrets.MASTER_TOKEN }}
-  #         ciproxy-dir: ${{ github.workspace }}/ciproxy
-  #         ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
