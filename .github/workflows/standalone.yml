@@ -66,21 +66,21 @@ jobs:
         uses: ./.github/actions/start-ciproxy
         with:
           master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-dir: ciproxy
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
         shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
         env:
           PATH: 'C:/Windows/system32;C:/Windows'
-          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+          VCPKG_ROOT: vcpkg
         run: '& "$Env:VCPKG_ROOT/vcpkg.exe" install --triplet=x64-windows-static-md-obs'
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
         with:
           master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
 
   build-macos:
@@ -132,21 +132,21 @@ jobs:
         uses: ./.github/actions/start-ciproxy
         with:
           master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-dir: ciproxy
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (${{ matrix.triplet }})
         shell: env BASH_ENV=.github/scripts/clean-env-macos.bash bash --noprofile --norc -euo pipefail {0}
         env:
           PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
-          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+          VCPKG_ROOT: vcpkg
         run: '"$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}"'
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
         with:
           master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
 
   build-linux-x64:
@@ -190,19 +190,19 @@ jobs:
         uses: ./.github/actions/start-ciproxy
         with:
           master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-dir: ciproxy
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (linux-x64-obs)
         shell: env BASH_ENV=.github/scripts/clean-env-ubuntu.sh bash --noprofile --norc -euo pipefail {0}
         env:
           PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
-          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+          VCPKG_ROOT: vcpkg
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
         with:
           master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}

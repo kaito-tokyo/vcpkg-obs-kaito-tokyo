@@ -27,5 +27,5 @@ jobs:
           node-version-file: cloudflare/.node-version
 
       - name: Run Prettier
-        working-directory: ${{ github.workspace }}/cloudflare
+        working-directory: cloudflare
         run: npx prettier --check .
