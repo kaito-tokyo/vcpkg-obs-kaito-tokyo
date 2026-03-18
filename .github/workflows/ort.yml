@@ -151,7 +151,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           PATH: "/usr/bin:/bin:/usr/sbin:/sbin"
         run: |
-          python ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
+          python ./.deps_vendor/onnxruntime/tools/ci_build/build.py \
             --build_dir "./.deps_vendor/ort_$ARCH" \
             --update \
             --config Release \
@@ -226,7 +226,7 @@ jobs:
         env:
           PATH: "/usr/bin:/bin:/usr/sbin:/sbin"
         run: |
-          python ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
+          python ./.deps_vendor/onnxruntime/tools/ci_build/build.py \
             --build_dir "./.deps_vendor/ort_x86_64" \
             --update \
             --config Release \
