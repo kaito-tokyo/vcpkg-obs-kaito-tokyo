@@ -22,6 +22,7 @@ concurrency:
 
 env:
   CIPROXY_PORT: "8080"
+  DEVELOPER_DIR: /Applications/Xcode_16.4.app
   HOMEBREW_NO_ANALYTICS: "1"
   HOMEBREW_NO_AUTO_UPDATE: "1"
   HOMEBREW_NO_ENV_HINTS: "1"
@@ -29,27 +30,10 @@ env:
   VCPKG_BINARY_SOURCES: clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite
 
 jobs:
-  build-ort-vcpkg:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows x64
-            runs-on: windows-2022
-            vcpkg-target-triplet: x64-windows-static-md-obs
-          - name: macOS arm64
-            runs-on: macos-15
-            vcpkg-target-triplet: arm64-osx-obs
-          - name: macOS x86_64
-            runs-on: macos-15
-            vcpkg-target-triplet: x64-osx-obs
-          - name: Ubuntu x86_64
-            runs-on: ubuntu-24.04
-            vcpkg-target-triplet: x64-linux-obs
+  build-windows-x64:
+    name: Build vcpkg for windows-x64-static-md-obs
 
-    name: Build vcpkg (${{ matrix.name }})
-
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: windows-2022
     timeout-minutes: 180
     environment: production
 
@@ -65,12 +49,99 @@ jobs:
           master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ${{ github.workspace }}/ciproxy
           port: ${{ env.CIPROXY_PORT }}
-      
-      - name: Install dependencies from vcpkg
-        shell: bash
-        env:
-          VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg-target-triplet }}
-        run: VCPKG_ROOT="$VCPKG_INSTALLATION_ROOT" "$VCPKG_INSTALLATION_ROOT/vcpkg" install --triplet "$VCPKG_TARGET_TRIPLET"
+
+      - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
+        shell: bash -euo pipefail {0}
+        run: VCPKG_ROOT="$VCPKG_INSTALLATION_ROOT" "$VCPKG_INSTALLATION_ROOT/vcpkg" install --triplet x64-windows-static-md-obs
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
+
+  build-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        triplet: [arm64-osx-obs, x64-osx-obs]
+
+    name: Build vcpkg for ${{ matrix.triplet }}
+
+    runs-on: macos-15
+    timeout-minutes: 180
+    environment: production
+
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Export clean env file for vcpkg (macOS)
+        shell: bash -euo pipefail {0}
+        run: |
+          (
+            printf 'export DEVELOPER_DIR="%s"\n' "$DEVELOPER_DIR"
+            printf 'export HOME="%s"\n' "$HOME"
+            printf 'export PATH="%s"\n' "/usr/bin:/bin:/usr/sbin:/sbin"
+            printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
+          ) > .bashrc_vcpkg
+
+      - name: Start ciproxy
+        id: start-ciproxy
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: ./.github/actions/start-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          port: ${{ env.CIPROXY_PORT }}
+
+      - name: Install dependencies from vcpkg (${{ matrix.triplet }})
+        shell: env -i BASH_ENV=.bashrc_vcpkg bash -euo pipefail {0}
+        run: '"$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}"'
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
+
+  build-linux-x64:
+    name: Build vcpkg for linux-x64-obs
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Export clean env file for vcpkg (Linux)
+        shell: bash -euo pipefail {0}
+        run: |
+          (
+            printf 'export HOME="%s"\n' "$HOME"
+            printf 'export PATH="%s"\n' "/usr/bin:/bin:/usr/sbin:/sbin"
+            printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
+          ) > .bashrc_vcpkg
+
+      - name: Start ciproxy
+        id: start-ciproxy
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: ./.github/actions/start-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ${{ github.workspace }}/ciproxy
+          port: ${{ env.CIPROXY_PORT }}
+
+      - name: Install dependencies from vcpkg (linux-x64-obs)
+        shell: env -i BASH_ENV=.bashrc_vcpkg bash -euo pipefail {0}
+        run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
