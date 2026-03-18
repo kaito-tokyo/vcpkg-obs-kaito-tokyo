@@ -44,24 +44,24 @@ jobs:
       - name: Export clean env file for vcpkg (Windows)
         shell: bash -euo pipefail {0}
         run: |
-          echo "$PATH"
           (
             # System
             printf 'export SYSTEMROOT="%s"\n' "$SYSTEMROOT"
             printf 'export SYSTEMDRIVE="%s"\n' "$SYSTEMDRIVE"
             printf 'export WINDIR="%s"\n' "$WINDIR"
             printf 'export "ProgramFiles=%s"\n' "$PROGRAMFILES"
-            printf 'export "ProgramFiles(x86)=%s"\n' "${PROGRAMFILES_X86_:-C:\\Program Files (x86)}"
-            printf 'export ProgramW6432="%s"\n' "$PROGRAMW6432"
+            printf 'export "ProgramFiles(x86)=%s"\n' "$PROGRAMFILES_X86_}"
+            printf 'export ProgramW6432="%s"\n' "$ProgramW6432"
             printf 'export PROCESSOR_ARCHITECTURE="%s"\n' "$PROCESSOR_ARCHITECTURE"
             printf 'export TEMP="%s"\n' "$TEMP"
             printf 'export TMP="%s"\n' "$TMP"
             printf 'export USERPROFILE="%s"\n' "$USERPROFILE"
             printf 'export LOCALAPPDATA="%s"\n' "$LOCALAPPDATA"
 
+            # Build env
             printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
             printf 'export VCPKG_BINARY_SOURCES="%s"\n' "$VCPKG_BINARY_SOURCES"
-            printf 'export PATH="%s"\n' "/c/Windows/system32:/c/Windows:/usr/bin:/bin"
+            printf 'export PATH="%s"\n' "/usr/bin:/c/Windows/system32:/c/Windows"
           ) > .bashrc_vcpkg
 
       - name: Start ciproxy
