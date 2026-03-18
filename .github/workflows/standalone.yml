@@ -41,6 +41,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Extract vcpkg configuration
+        id: vcpkg-configuration
+        uses: ./.github/actions/extract-vcpkg-configuration
+        with:
+          path: ./vcpkg-configuration.json
+
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
+          path: vcpkg
+          filter: "blob:none"
+
       - name: Export clean env file for vcpkg (Windows)
         shell: bash -euo pipefail {0}
         run: |
@@ -59,8 +73,8 @@ jobs:
 
             printf 'export PATH=%q\n' "/usr/bin:/c/Windows/system32:/c/Windows"
             printf 'export VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
-            printf 'export VCPKG_ROOT=%q\n' "$(cygpath -u "$VCPKG_INSTALLATION_ROOT")"
-          ) > .bashrc_vcpkg
+            printf 'export VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
+          ) > .bashenv_vcpkg
 
       - name: Start ciproxy
         id: start-ciproxy
@@ -72,7 +86,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
-        shell: env -i BASH_ENV=.bashrc_vcpkg bash -euo pipefail {0}
+        shell: env -i BASH_ENV=.bashenv_vcpkg bash -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-windows-static-md-obs'
 
       - name: Finalize ciproxy
@@ -101,6 +115,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Extract vcpkg configuration
+        id: vcpkg-configuration
+        uses: ./.github/actions/extract-vcpkg-configuration
+        with:
+          path: ./vcpkg-configuration.json
+
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
+          path: vcpkg
+          filter: "blob:none"
+
       - name: Export clean env file for vcpkg (macOS)
         shell: bash -euo pipefail {0}
         run: |
@@ -109,8 +137,8 @@ jobs:
             printf 'export HOME=%q\n' "$HOME"
             printf 'export PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
             printf 'export VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
-            printf 'export VCPKG_ROOT=%q\n' "$VCPKG_INSTALLATION_ROOT"
-          ) > .bashrc_vcpkg
+            printf 'export VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
+          ) > .bashenv_vcpkg
 
       - name: Start ciproxy
         id: start-ciproxy
@@ -122,7 +150,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (${{ matrix.triplet }})
-        shell: env -i BASH_ENV=.bashrc_vcpkg bash -euo pipefail {0}
+        shell: env -i BASH_ENV=.bashenv_vcpkg bash -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}"'
 
       - name: Finalize ciproxy
@@ -143,6 +171,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Extract vcpkg configuration
+        id: vcpkg-configuration
+        uses: ./.github/actions/extract-vcpkg-configuration
+        with:
+          path: ./vcpkg-configuration.json
+
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
+          path: vcpkg
+          filter: "blob:none"
+
       - name: Export clean env file for vcpkg (Linux)
         shell: bash -euo pipefail {0}
         run: |
@@ -150,8 +192,8 @@ jobs:
             printf 'export HOME=%q\n' "$HOME"
             printf 'export PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
             printf 'export VCPKG_BINARY_SOURCES=%q\n' "$VCPKG_BINARY_SOURCES"
-            printf 'export VCPKG_ROOT=%q\n' "$VCPKG_INSTALLATION_ROOT"
-          ) > .bashrc_vcpkg
+            printf 'export VCPKG_ROOT=%q\n' "$(cygpath -u "$GITHUB_WORKSPACE/vcpkg")"
+          ) > .bashenv_vcpkg
 
       - name: Start ciproxy
         id: start-ciproxy
@@ -163,7 +205,7 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (linux-x64-obs)
-        shell: env -i BASH_ENV=.bashrc_vcpkg bash -euo pipefail {0}
+        shell: env -i BASH_ENV=.bashenv_vcpkg bash -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy
