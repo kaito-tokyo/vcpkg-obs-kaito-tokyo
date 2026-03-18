@@ -132,6 +132,7 @@ jobs:
       - name: Export clean env file for vcpkg (macOS)
         shell: bash -euo pipefail {0}
         run: |
+          env
           (
             printf 'export DEVELOPER_DIR=%q\n' "$DEVELOPER_DIR"
             printf 'export HOME=%q\n' "$HOME"
@@ -188,7 +189,6 @@ jobs:
       - name: Export clean env file for vcpkg (Linux)
         shell: bash -euo pipefail {0}
         run: |
-          env
           (
             printf 'export HOME=%q\n' "$HOME"
             printf 'export PATH=%q\n' "/usr/bin:/bin:/usr/sbin:/sbin"
