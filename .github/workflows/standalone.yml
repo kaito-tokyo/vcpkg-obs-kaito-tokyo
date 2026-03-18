@@ -41,6 +41,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Export clean env file for vcpkg (Windows)
+        shell: bash -euo pipefail {0}
+        run: |
+          env
+          (
+            printf 'export SystemRoot="%s"\n' "$SystemRoot"
+            printf 'export TEMP="%s"\n' "$TEMP"
+            printf 'export TMP="%s"\n' "$TMP"
+            printf 'export USERPROFILE="%s"\n' "$USERPROFILE"
+            printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
+            printf 'export VCPKG_BINARY_SOURCES="%s"\n' "$VCPKG_BINARY_SOURCES"
+            printf 'export PATH="%s"\n' "/c/Windows/system32:/c/Windows:/usr/bin:/bin"
+          ) > .bashrc_vcpkg
+
       - name: Start ciproxy
         id: start-ciproxy
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
@@ -51,8 +65,8 @@ jobs:
           port: ${{ env.CIPROXY_PORT }}
 
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
-        shell: bash -euo pipefail {0}
-        run: VCPKG_ROOT="$VCPKG_INSTALLATION_ROOT" "$VCPKG_INSTALLATION_ROOT/vcpkg" install --triplet x64-windows-static-md-obs
+        shell: env -i BASH_ENV=.bashrc_vcpkg bash -euo pipefail {0}
+        run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-windows-static-md-obs'
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
@@ -87,6 +101,7 @@ jobs:
             printf 'export DEVELOPER_DIR="%s"\n' "$DEVELOPER_DIR"
             printf 'export HOME="%s"\n' "$HOME"
             printf 'export PATH="%s"\n' "/usr/bin:/bin:/usr/sbin:/sbin"
+            printf 'export VCPKG_BINARY_SOURCES="%s"\n' "$VCPKG_BINARY_SOURCES"
             printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
           ) > .bashrc_vcpkg
 
@@ -127,6 +142,7 @@ jobs:
           (
             printf 'export HOME="%s"\n' "$HOME"
             printf 'export PATH="%s"\n' "/usr/bin:/bin:/usr/sbin:/sbin"
+            printf 'export VCPKG_BINARY_SOURCES="%s"\n' "$VCPKG_BINARY_SOURCES"
             printf 'export VCPKG_ROOT="%s"\n' "$VCPKG_INSTALLATION_ROOT"
           ) > .bashrc_vcpkg
 
