@@ -72,7 +72,7 @@ jobs:
       - name: Install dependencies from vcpkg (windows-x64-static-md-obs)
         shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
         env:
-          PATH: 'C:/Windows/system32;C:/Windows'
+          PATH: 'C:\Windows\system32;C:\Windows'
           VCPKG_ROOT: vcpkg
         run: '& "$Env:VCPKG_ROOT/vcpkg.exe" install --triplet=x64-windows-static-md-obs'
 
