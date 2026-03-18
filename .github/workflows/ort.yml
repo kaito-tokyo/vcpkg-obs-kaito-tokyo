@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ort-version: [v1.24.1]
+        ort-version: [v1.24.1, v1.24.4]
 
     name: Build vcpkg in ORT for Windows x64 ${{ matrix.ort-version }}
 
@@ -98,7 +98,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [arm64, x86_64]
-        ort-version: [v1.24.1]
+        ort-version: [v1.24.1, v1.24.4]
 
     name: Build vcpkg in ORT for macOS ${{ matrix.arch }} ${{ matrix.ort-version }}
 
@@ -168,7 +168,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ort-version: [v1.24.1]
+        ort-version: [v1.24.1, v1.24.4]
 
     name: Build vcpkg in ORT for Ubuntu x86_64 ${{ matrix.ort-version }}
 
