@@ -67,6 +67,7 @@ jobs:
       - name: Export clean env file for vcpkg (Windows)
         shell: bash --noprofile --norc -euo pipefail {0}
         run: |
+          which bash
           (
             printf 'export ProgramFiles(x86)=%q\n' "$(cygpath -u "$(env | grep "ProgramFiles(x86)" | sed 's/^.*=//')")"
             printf 'export PROGRAMFILES=%q\n' "$(cygpath -u "$PROGRAMFILES")"
