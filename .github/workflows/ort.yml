@@ -73,7 +73,7 @@ jobs:
         env:
           PATH: 'C:\Program Files\CMake\bin;C:\Program Files\Ninja;C:\Program Files\Git\cmd;C:\Windows\system32;C:\Windows'
         run: |
-          python3 ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
+          python ./.deps_vendor/onnxruntime/tools/ci_build/build.py `
             --build_dir ./.deps_vendor/ort_x64 `
             --update `
             --config Release `
@@ -85,6 +85,7 @@ jobs:
             --skip_submodule_sync `
             --skip_tests `
             --disable_rtti
+          Get-Content "D:\a\vcpkg-obs-kaito-tokyo\vcpkg-obs-kaito-tokyo\.deps_vendor\ort_x64\Release\vcpkg-bootstrap.log"
 
       - name: Finalize ciproxy
         uses: ./.github/actions/finalize-ciproxy
