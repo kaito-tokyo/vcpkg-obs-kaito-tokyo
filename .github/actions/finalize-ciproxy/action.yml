@@ -77,13 +77,13 @@ runs:
 
     - name: Attest vcpkg artifacts
       id: attest
-      if: steps.check-artifacts.outputs.exists == 'true'
+      if: steps.check-artifacts.outputs.EXISTS == 'true'
       uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
       with:
         subject-path: ciproxy/vcpkg_artifacts/*
 
     - name: Upload build provenance of vcpkg artifacts to CDN
-      if: steps.check-artifacts.outputs.exists == 'true'
+      if: steps.check-artifacts.outputs.EXISTS == 'true'
       shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.path }}
       env:
@@ -111,7 +111,7 @@ runs:
           "https://readwrite.vcpkg-obs.kaito.tokyo/_sigstore/$FILENAME"
 
     - name: Upload vcpkg artifacts to CDN
-      if: steps.check-artifacts.outputs.exists == 'true'
+      if: steps.check-artifacts.outputs.EXISTS == 'true'
       shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.path }}
       run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fL -K -

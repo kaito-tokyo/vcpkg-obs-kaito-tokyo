@@ -91,8 +91,9 @@ runs:
         CIPROXY_BINARYCACHE_READWRITE_URL: ${{ inputs.ciproxy-binarycache-readwrite-url }}
       run: |
         go build -o ciproxy
-        nohup ./ciproxy > stdout.log 2> stderr.log &
+        ./ciproxy > stdout.log 2> stderr.log &
         PID=$!
+        disown
         sleep 3
 
         if kill -0 "$PID" 2>/dev/null; then
