@@ -147,7 +147,7 @@ jobs:
         arch: [arm64, x86_64]
         ort-version: ${{ fromJson(inputs.ort-versions-json) }}
         include:
-          - os-xcode: Sequoia, Xcode 15.4
+          - os-xcode: Sequoia, Xcode 16.4
             runs-on: macos-15
             DEVELOPER_DIR: /Applications/Xcode_16.4.app
           - os-xcode: Tahoe, Xcode 26.3

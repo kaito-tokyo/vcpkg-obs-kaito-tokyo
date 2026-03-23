@@ -77,7 +77,7 @@ runs:
       run: |
         nohup ./ciproxy > stdout.log 2> stderr.log &
         CIPROXY_PID=$!
-        disown "$CIPROXY_PID"
+        disown
         sleep 3
 
         if kill -0 "$CIPROXY_PID" 2>/dev/null; then
