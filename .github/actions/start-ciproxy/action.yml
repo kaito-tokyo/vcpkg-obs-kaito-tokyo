@@ -53,7 +53,7 @@ runs:
         Set-StrictMode -Version Latest
         $PSNativeCommandUseErrorActionPreference = $true
 
-        go build -o ciproxy
+        go build -o ciproxy.exe
 
         $workingDirectory = Get-Location
         $ciproxyPath = Join-Path $workingDirectory "ciproxy.exe"
