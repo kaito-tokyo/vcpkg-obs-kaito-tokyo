@@ -133,15 +133,19 @@ jobs:
     timeout-minutes: 180
     environment: production
 
+    permissions:
+      contents: read
+      packages: read
+
+    container:
+      image: ${{ needs.prepare-devcontainer.outputs.DEVCONTAINER_IMAGE }}
+
     env:
       CIPROXY_PORT: "8080"
       CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash
       CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
       MINIMAL_PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
       VCPKG_BINARY_SOURCES: "clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite"
-
-    container:
-      image: ${{ needs.prepare-devcontainer.outputs.DEVCONTAINER_IMAGE }}
 
     steps:
       - name: Checkout
