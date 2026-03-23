@@ -43,4 +43,4 @@ RUN git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpk
     && cd "${VCPKG_ROOT}" \
     && git checkout "${ARG_VCPKG_DEFAULT_REGISTRY_BASELINE}" \
     && "${VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics \
-	&& chmod -R ug=rwX,o=rX "${VCPKG_ROOT}"
+	&& chmod -R ug=rwX,o=rX "/home/vscode"
