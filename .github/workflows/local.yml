@@ -89,11 +89,19 @@ jobs:
             echo "EXISTS=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Resolve azure.archive.ubuntu.com
+        id: azure-archive
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: getent hosts azure.archive.ubuntu.com | awk 'NR==1 {print "IPADDR=" $1}' >> "$GITHUB_OUTPUT"
+
       - name: Build and Push builder image (Ubuntu)
         id: push
         if: github.event_name == 'push' || steps.check-image.outputs.EXISTS == 'false'
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
+          add-hosts: |
+            archive.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
+            ports.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
           build-args: |
             ARG_VCPKG_DEFAULT_REGISTRY_BASELINE=${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
           context: ${{ github.workspace }}
