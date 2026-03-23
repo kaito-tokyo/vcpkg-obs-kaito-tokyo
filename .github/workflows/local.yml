@@ -103,6 +103,8 @@ jobs:
             archive.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
             ports.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
           build-args: |
+            ARG_BASE_IMAGE=ubuntu:24.04
+            ARG_USERNAME=runner
             ARG_VCPKG_DEFAULT_REGISTRY_BASELINE=${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
           context: .devcontainer
           file: .devcontainer/Dockerfile
