@@ -40,11 +40,6 @@ runs:
         MASTER_TOKEN: ${{ inputs.master-token }}
       run: '[[ -n "$MASTER_TOKEN" ]]'
 
-    - name: Build ciproxy
-      shell: bash --noprofile --norc -euo pipefail {0}
-      working-directory: ${{ inputs.ciproxy-dir }}
-      run: go build -o ciproxy
-
     - name: Start ciproxy (Windows)
       id: start-windows
       if: runner.os == 'Windows'
@@ -57,6 +52,8 @@ runs:
         $ErrorActionPreference = "Stop"
         Set-StrictMode -Version Latest
         $PSNativeCommandUseErrorActionPreference = $true
+
+        go build -o ciproxy
 
         $workingDirectory = Get-Location
         $ciproxyPath = Join-Path $workingDirectory "ciproxy.exe"
@@ -88,6 +85,7 @@ runs:
         MASTER_TOKEN: ${{ inputs.master-token }}
         PORT: ${{ inputs.ciproxy-port }}
       run: |
+        go build -o ciproxy
         nohup ./ciproxy > stdout.log 2> stderr.log &
         CIPROXY_PID=$!
         disown
