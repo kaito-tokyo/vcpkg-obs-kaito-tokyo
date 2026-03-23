@@ -71,7 +71,7 @@ runs:
           "CIPROXY_MASTER_TOKEN=$env:CIPROXY_MASTER_TOKEN",
           "CIPROXY_TOKEN_URL=$env:CIPROXY_TOKEN_URL",
           "CIPROXY_BINARYCACHE_URL=$env:CIPROXY_BINARYCACHE_URL",
-          "CIPROXY_BINARYCACHE_READWRITE_URL=$env:CIPROXY_BINARYCACHE_READWRITE_DIR",
+          "CIPROXY_BINARYCACHE_READWRITE_URL=$env:CIPROXY_BINARYCACHE_READWRITE_URL",
         )
 
         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Value $vars -PropertyType MultiString

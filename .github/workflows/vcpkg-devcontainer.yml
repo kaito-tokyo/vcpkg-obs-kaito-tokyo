@@ -192,8 +192,8 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
+          path: ciproxy
           pid: ${{ steps.ciproxy.outputs.PID }}
-          port: "8080"
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
 
       - name: Upload ciproxy logs
@@ -202,6 +202,6 @@ jobs:
         with:
           name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
           path: |
-            ${{ steps.ciproxy.outputs.CIPROXY_STDOUT_LOG }}
-            ${{ steps.ciproxy.outputs.CIPROXY_STDERR_LOG }}
+            ${{ steps.ciproxy.outputs.STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.STDERR_LOG }}
           if-no-files-found: warn
