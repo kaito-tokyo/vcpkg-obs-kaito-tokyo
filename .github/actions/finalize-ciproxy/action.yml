@@ -31,7 +31,7 @@ runs:
       shell: bash --noprofile --norc -uo pipefail {0}
       env:
         CIPROXY_PORT: ${{ inputs.ciproxy-port }}
-      run: curl -fsS -X X-CIPROXY-SHUTDOWN "http://localhost:$CIPROXY_PORT/"
+      run: curl -fsS -X X-CIPROXY-SHUTDOWN "http://127.0.0.1:$CIPROXY_PORT/"
 
     - name: Ensure to stop ciproxy (Windows)
       if: runner.os == 'Windows'
