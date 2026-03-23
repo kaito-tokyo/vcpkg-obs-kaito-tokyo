@@ -74,7 +74,7 @@ runs:
           "CIPROXY_BINARYCACHE_READWRITE_URL=$env:CIPROXY_BINARYCACHE_READWRITE_URL"
         )
 
-        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Value $vars -PropertyType MultiString
+        New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Value $vars -PropertyType MultiString -Force
 
         Start-Service -Name ciproxy
 
