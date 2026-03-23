@@ -43,7 +43,7 @@ runs:
     - name: Check if MASTER_TOKEN is set
       shell: bash --noprofile --norc -euo pipefail {0}
       env:
-        MASTER_TOKEN: ${{ inputs.master-token }}
+        MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
       run: '[[ -n "$MASTER_TOKEN" ]]'
 
     - name: Start ciproxy (Windows)
@@ -55,7 +55,7 @@ runs:
         CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
         CIPROXY_TOKEN_URL: ${{ inputs.ciproxy-token-url }}
         CIPROXY_BINARYCACHE_URL: ${{ inputs.ciproxy-binarycache-url }}
-        CIPROXY_BINARYCACHE_READWRITE_DIR: ${{ inputs.ciproxy-binarycache-readwrite-url }}
+        CIPROXY_BINARYCACHE_READWRITE_URL: ${{ inputs.ciproxy-binarycache-readwrite-url }}
       run: |
         $ErrorActionPreference = "Stop"
         Set-StrictMode -Version Latest
@@ -71,7 +71,7 @@ runs:
           "CIPROXY_MASTER_TOKEN=$env:CIPROXY_MASTER_TOKEN",
           "CIPROXY_TOKEN_URL=$env:CIPROXY_TOKEN_URL",
           "CIPROXY_BINARYCACHE_URL=$env:CIPROXY_BINARYCACHE_URL",
-          "CIPROXY_BINARYCACHE_READWRITE_DIR=$env:CIPROXY_BINARYCACHE_READWRITE_DIR",
+          "CIPROXY_BINARYCACHE_READWRITE_URL=$env:CIPROXY_BINARYCACHE_READWRITE_DIR",
         )
 
         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Value $vars -PropertyType MultiString
@@ -88,7 +88,7 @@ runs:
         CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
         CIPROXY_TOKEN_URL: ${{ inputs.ciproxy-token-url }}
         CIPROXY_BINARYCACHE_URL: ${{ inputs.ciproxy-binarycache-url }}
-        CIPROXY_BINARYCACHE_READWRITE_DIR: ${{ inputs.ciproxy-binarycache-readwrite-url }}
+        CIPROXY_BINARYCACHE_READWRITE_URL: ${{ inputs.ciproxy-binarycache-readwrite-url }}
       run: |
         go build -o ciproxy
         nohup ./ciproxy > stdout.log 2> stderr.log &

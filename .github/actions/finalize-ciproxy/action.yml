@@ -41,8 +41,10 @@ runs:
       shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.path }}
       env:
-        PID: ${{ inputs.ciproxy-pid }}
+        PID: ${{ inputs.pid }}
       run: |
+        kill -15 "$PID" 2> /dev/null || true
+
         count=0
         while kill -0 "$PID" 2> /dev/null; do
           ps -p "$PID"
@@ -59,7 +61,7 @@ runs:
     - name: Check if vcpkg artifacts exist
       id: check-artifacts
       shell: bash --noprofile --norc -euo pipefail {0}
-      working-directory: ${{ inputs.ciproxy-dir }}
+      working-directory: ${{ inputs.path }}
       run: |
         if [[ -d vcpkg_artifacts ]] && [ -n "$(ls -A vcpkg_artifacts)" ]; then
           echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -78,9 +80,9 @@ runs:
     - name: Upload build provenance of vcpkg artifacts to CDN
       if: steps.check-artifacts.outputs.exists == 'true'
       shell: bash --noprofile --norc -euo pipefail {0}
-      working-directory: ${{ inputs.ciproxy-dir }}
+      working-directory: ${{ inputs.path }}
       env:
-        MASTER_TOKEN: ${{ inputs.master-token }}
+        MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
         JOB_ID: ${{ github.job }}
         BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
         SHORT_HASH_LENGTH: ${{ inputs.short-hash-length }}
@@ -106,5 +108,5 @@ runs:
     - name: Upload vcpkg artifacts to CDN
       if: steps.check-artifacts.outputs.exists == 'true'
       shell: bash --noprofile --norc -euo pipefail {0}
-      working-directory: ${{ inputs.ciproxy-dir }}
+      working-directory: ${{ inputs.path }}
       run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fsS -K -

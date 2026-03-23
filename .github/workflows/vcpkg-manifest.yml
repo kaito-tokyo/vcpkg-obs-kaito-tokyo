@@ -130,10 +130,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
-          ciproxy-dir: ciproxy
-          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
-          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
-          master-token: ${{ secrets.MASTER_TOKEN }}
+          pid: ${{ steps.ciproxy.outputs.PID }}
+          port: "8080"
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
 
       - name: Upload ciproxy logs
         if: github.ref == 'refs/heads/main' && always()
@@ -237,10 +236,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
-          ciproxy-dir: ciproxy
-          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
-          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
-          master-token: ${{ secrets.MASTER_TOKEN }}
+          pid: ${{ steps.ciproxy.outputs.PID }}
+          port: "8080"
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
 
       - name: Upload ciproxy logs
         if: github.ref == 'refs/heads/main' && always()
@@ -334,10 +332,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
-          ciproxy-dir: ciproxy
-          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
-          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
-          master-token: ${{ secrets.MASTER_TOKEN }}
+          pid: ${{ steps.ciproxy.outputs.PID }}
+          port: "8080"
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
 
       - name: Upload ciproxy logs
         if: github.ref == 'refs/heads/main' && always()
