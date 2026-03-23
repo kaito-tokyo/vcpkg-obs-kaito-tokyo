@@ -81,9 +81,9 @@ jobs:
         id: check-image
         shell: bash --noprofile --norc -euo pipefail {0}
         env:
-          BUILDER_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          DEVCONTAINER_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
         run: |
-          if docker manifest inspect "$BUILDER_IMAGE" > /dev/null; then
+          if docker manifest inspect "$DEVCONTAINER_IMAGE" > /dev/null; then
             echo "EXISTS=true" >> "$GITHUB_OUTPUT"
           else
             echo "EXISTS=false" >> "$GITHUB_OUTPUT"
@@ -114,8 +114,8 @@ jobs:
         id: subject
         shell: bash --noprofile --norc -euo pipefail {0}
         env:
-          BUILDER_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
-        run: echo "SUBJECT_NAME=${BUILDER_IMAGE%:*}" >> "$GITHUB_OUTPUT"
+          DEVCONTAINER_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: echo "SUBJECT_NAME=${DEVCONTAINER_IMAGE%:*}" >> "$GITHUB_OUTPUT"
 
       - name: Generate artifact attestation for builder image (Ubuntu)
         if: github.event_name == 'push' || steps.check-image.outputs.EXISTS == 'false'
