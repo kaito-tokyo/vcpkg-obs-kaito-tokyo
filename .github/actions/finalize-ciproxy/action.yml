@@ -108,4 +108,8 @@ runs:
       if: steps.check-artifacts.outputs.exists == 'true'
       shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.path }}
-      run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fsS -K -
+      run: |
+        shopt -s globstar nullglob
+        files=(vcpkg_artifacts/*)
+        echo "Uploading ${#files[@]} files..."
+        awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fsS -K -
