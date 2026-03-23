@@ -83,7 +83,7 @@ jobs:
         env:
           DEVCONTAINER_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
         run: |
-          if docker manifest inspect "$DEVCONTAINER_IMAGE" > /dev/null; then
+          if docker manifest inspect "$DEVCONTAINER_IMAGE"; then
             echo "EXISTS=true" >> "$GITHUB_OUTPUT"
           else
             echo "EXISTS=false" >> "$GITHUB_OUTPUT"
@@ -91,12 +91,13 @@ jobs:
 
       - name: Resolve azure.archive.ubuntu.com
         id: azure-archive
+        if: steps.check-image.outputs.EXISTS == 'false'
         shell: bash --noprofile --norc -euo pipefail {0}
         run: getent hosts azure.archive.ubuntu.com | awk 'NR==1 {print "IPADDR=" $1}' >> "$GITHUB_OUTPUT"
 
       - name: Build and Push builder image (Ubuntu)
         id: push
-        if: github.event_name == 'push' || steps.check-image.outputs.EXISTS == 'false'
+        if: steps.check-image.outputs.EXISTS == 'false'
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
           add-hosts: |
@@ -114,13 +115,14 @@ jobs:
 
       - name: Extract subject name of builder image
         id: subject
+        if: steps.check-image.outputs.EXISTS == 'false'
         shell: bash --noprofile --norc -euo pipefail {0}
         env:
           DEVCONTAINER_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
         run: echo "SUBJECT_NAME=${DEVCONTAINER_IMAGE%:*}" >> "$GITHUB_OUTPUT"
 
       - name: Generate artifact attestation for builder image (Ubuntu)
-        if: github.event_name == 'push' || steps.check-image.outputs.EXISTS == 'false'
+        if: steps.check-image.outputs.EXISTS == 'false'
         uses: actions/attest@e18a799f23337c367f76b067253d6f53abc6f03d # v4.1.0
         with:
           subject-name: ${{ steps.subject.outputs.SUBJECT_NAME }}
