@@ -104,8 +104,8 @@ jobs:
             ports.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
           build-args: |
             ARG_VCPKG_DEFAULT_REGISTRY_BASELINE=${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
-          context: ${{ github.workspace }}
-          file: "Dockerfile.ubuntu-24.04"
+          context: .devcontainer
+          file: "Dockerfile"
           labels: ${{ steps.meta.outputs.labels }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
