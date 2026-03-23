@@ -62,11 +62,17 @@ runs:
       shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.path }}
       run: |
-        if [[ -d vcpkg_artifacts ]] && [ -n "$(ls -A vcpkg_artifacts)" ]; then
-          echo "exists=true" >> "$GITHUB_OUTPUT"
-          ls -lA vcpkg_artifacts
+        shopt -s nullglob
+        files=(vcpkg_artifacts/*)
+        if [[ -d vcpkg_artifacts ]] && [ "${#files[@]}" -gt 0 ]; then
+          echo "Found ${#files[@]} vcpkg artifact(s)."
+          for file in "${files[@]}"; do
+            echo "- $file"
+          done
+          echo "EXISTS=true" >> "$GITHUB_OUTPUT"
         else
-          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "No vcpkg artifacts found."
+          echo "EXISTS=false" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Attest vcpkg artifacts
@@ -96,7 +102,7 @@ runs:
         ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
         printf "::add-mask::%s\n" "$ACCESS_TOKEN"
 
-        curl -fsSL \
+        curl -fL \
           -X PUT \
           -H "Authorization: Bearer $ACCESS_TOKEN" \
           -H "Content-Type: application/x-ndjson" \
@@ -108,8 +114,4 @@ runs:
       if: steps.check-artifacts.outputs.exists == 'true'
       shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.path }}
-      run: |
-        shopt -s globstar nullglob
-        files=(vcpkg_artifacts/*)
-        echo "Uploading ${#files[@]} files..."
-        awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fsS -K -
+      run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fL -K -
