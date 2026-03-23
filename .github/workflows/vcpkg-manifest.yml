@@ -21,8 +21,20 @@ on:
         description: The URL of the read-only vcpkg binary sources.
         required: true
         type: string
+      ciproxy-token-url:
+        description: Token URL.
+        required: true
+        type: string
+      ciproxy-binarycache-url:
+        description: Binarycache URL.
+        required: true
+        type: string
+      ciproxy-binarycache-readwrite-url:
+        description: Binarycache Readwrite URL.
+        required: true
+        type: string
     secrets:
-      MASTER_TOKEN:
+      CIPROXY_MASTER_TOKEN:
         description: The master token for ciproxy.
         required: false
 
@@ -99,9 +111,12 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
-          ciproxy-dir: ciproxy
-          master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-port: "8080"
+          path: ciproxy
+          port: "8080"
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          ciproxy-token-url: ${{ inputs.ciproxy-token-url }}
+          ciproxy-binarycache-url: ${{ inputs.ciproxy-binarycache-url }}
+          ciproxy-binarycache-readwrite-url: ${{ inputs.ciproxy-binarycache-readwrite-url }}
 
       - name: Install dependencies from Windows vcpkg (${{ matrix.triplet }})
         shell: pwsh -NoProfile -Command ". $env:PWSH_ENV && . '{0}'"
@@ -203,9 +218,12 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
-          ciproxy-dir: ciproxy
-          master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-port: "8080"
+          path: ciproxy
+          port: "8080"
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          ciproxy-token-url: ${{ inputs.ciproxy-token-url }}
+          ciproxy-binarycache-url: ${{ inputs.ciproxy-binarycache-url }}
+          ciproxy-binarycache-readwrite-url: ${{ inputs.ciproxy-binarycache-readwrite-url }}
 
       - name: Install dependencies from macOS vcpkg (${{ matrix.triplet }})
         shell: bash --noprofile --norc -euo pipefail {0}
@@ -297,9 +315,12 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
-          ciproxy-dir: ciproxy
-          master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-port: "8080"
+          path: ciproxy
+          port: "8080"
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          ciproxy-token-url: ${{ inputs.ciproxy-token-url }}
+          ciproxy-binarycache-url: ${{ inputs.ciproxy-binarycache-url }}
+          ciproxy-binarycache-readwrite-url: ${{ inputs.ciproxy-binarycache-readwrite-url }}
 
       - name: Install dependencies from Ubuntu vcpkg (${{ matrix.triplet }})
         shell: bash --noprofile --norc -euo pipefail {0}

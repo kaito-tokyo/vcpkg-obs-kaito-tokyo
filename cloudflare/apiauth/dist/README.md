@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "vcpkg-obs-kaito-tokyo-apiauth" generated at 2026-03-23T15:35:41.940Z.

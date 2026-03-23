@@ -25,8 +25,20 @@ on:
         description: JSON array of ONNX Runtime versions to test, e.g. '["v1.24.1", "v1.24.4"]'
         required: true
         type: string
+      ciproxy-token-url:
+        description: Token URL.
+        required: true
+        type: string
+      ciproxy-binarycache-url:
+        description: Binarycache URL.
+        required: true
+        type: string
+      ciproxy-binarycache-readwrite-url:
+        description: Binarycache Readwrite URL.
+        required: true
+        type: string
     secrets:
-      MASTER_TOKEN:
+      CIPROXY_MASTER_TOKEN:
         description: The master token for ciproxy.
         required: false
 
@@ -87,9 +99,12 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
-          ciproxy-dir: ciproxy
-          master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-port: "8080"
+          path: ciproxy
+          port: "8080"
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          ciproxy-token-url: ${{ inputs.ciproxy-token-url }}
+          ciproxy-binarycache-url: ${{ inputs.ciproxy-binarycache-url }}
+          ciproxy-binarycache-readwrite-url: ${{ inputs.ciproxy-binarycache-readwrite-url }}
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -197,9 +212,12 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
-          ciproxy-dir: ciproxy
-          master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-port: "8080"
+          path: ciproxy
+          port: "8080"
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          ciproxy-token-url: ${{ inputs.ciproxy-token-url }}
+          ciproxy-binarycache-url: ${{ inputs.ciproxy-binarycache-url }}
+          ciproxy-binarycache-readwrite-url: ${{ inputs.ciproxy-binarycache-readwrite-url }}
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -300,9 +318,12 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
-          ciproxy-dir: ciproxy
-          master-token: ${{ secrets.MASTER_TOKEN }}
-          ciproxy-port: "8080"
+          path: ciproxy
+          port: "8080"
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          ciproxy-token-url: ${{ inputs.ciproxy-token-url }}
+          ciproxy-binarycache-url: ${{ inputs.ciproxy-binarycache-url }}
+          ciproxy-binarycache-readwrite-url: ${{ inputs.ciproxy-binarycache-readwrite-url }}
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

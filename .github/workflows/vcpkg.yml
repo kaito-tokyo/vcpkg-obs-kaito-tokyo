@@ -30,6 +30,9 @@ jobs:
       environment-prepare-devcontainer: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       environment-build-devcontainer: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       vcpkg-binary-sources-readonly-url: 'https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}'
+      ciproxy-token-url: 'https://readwrite.vcpkg-obs.kaito.tokyo/token'
+      ciproxy-binarycache-url: 'https://vcpkg-obs.kaito.tokyo'
+      ciproxy-binarycache-readwrite-url: 'https://readwrite.vcpkg-obs.kaito.tokyo/binarycache'
     secrets: inherit
 
   manifest:
@@ -43,6 +46,9 @@ jobs:
       environment-build-manifest-macos: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       environment-build-manifest-ubuntu: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       vcpkg-binary-sources-readonly-url: 'https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}'
+      ciproxy-token-url: 'https://readwrite.vcpkg-obs.kaito.tokyo/token'
+      ciproxy-binarycache-url: 'https://vcpkg-obs.kaito.tokyo'
+      ciproxy-binarycache-readwrite-url: 'https://readwrite.vcpkg-obs.kaito.tokyo/binarycache'
     secrets: inherit
 
   ort:
@@ -57,4 +63,7 @@ jobs:
       environment-build-ort-vcpkg-ubuntu-x64: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       vcpkg-binary-sources-readonly-url: 'https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}'
       ort-versions-json: '["v1.24.1", "v1.24.4"]'
+      ciproxy-token-url: 'https://readwrite.vcpkg-obs.kaito.tokyo/token'
+      ciproxy-binarycache-url: 'https://vcpkg-obs.kaito.tokyo'
+      ciproxy-binarycache-readwrite-url: 'https://readwrite.vcpkg-obs.kaito.tokyo/binarycache'
     secrets: inherit

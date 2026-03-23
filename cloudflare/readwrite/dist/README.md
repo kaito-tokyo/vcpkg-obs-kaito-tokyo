@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "vcpkg-obs-kaito-tokyo-readwrite" generated at 2026-03-23T15:35:34.450Z.

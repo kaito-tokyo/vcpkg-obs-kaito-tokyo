@@ -7,29 +7,35 @@ author: Kaito Udagawa <umireon@kaito.tokyo>
 description: Start ciproxy for vcpkg binary caching
 
 inputs:
-  master-token:
-    description: "Long-term master token"
+  path:
+    description: Path to CIProxy directory.
     required: true
-  ciproxy-dir:
-    description: "Directory of ciproxy"
+  port:
+    description: Port to listen on.
     required: true
-  ciproxy-port:
-    description: "Port to listen on"
+  ciproxy-master-token:
+    description: CIProxy master token.
+    required: true
+  ciproxy-token-url:
+    description: Token URL.
+    required: true
+  ciproxy-binarycache-url:
+    description: Binarycache URL.
+    required: true
+  ciproxy-binarycache-readwrite-url:
+    description: Binarycache Readwrite URL.
     required: true
 
 outputs:
-  CIPROXY_PID:
+  PID:
     description: "PID of the started ciproxy"
-    value: ${{ runner.os == 'Windows' && steps.start-windows.outputs.CIPROXY_PID || steps.start-non-windows.outputs.CIPROXY_PID }}
-  CIPROXY_PORT:
-    description: "Port that ciproxy is listening on"
-    value: ${{ inputs.ciproxy-port }}
-  CIPROXY_STDOUT_LOG:
+    value: ${{ runner.os == 'Windows' && 'NO_PID' || steps.start-posix.outputs.PID }}
+  STDOUT_LOG:
     description: "Path to ciproxy stdout log"
-    value: ${{ inputs.ciproxy-dir }}/stdout.log
-  CIPROXY_STDERR_LOG:
+    value: ${{ inputs.path }}/stdout.log
+  STDERR_LOG:
     description: "Path to ciproxy stderr log"
-    value: ${{ inputs.ciproxy-dir }}/stderr.log
+    value: ${{ inputs.path }}/stderr.log
 
 runs:
   using: composite
@@ -41,13 +47,15 @@ runs:
       run: '[[ -n "$MASTER_TOKEN" ]]'
 
     - name: Start ciproxy (Windows)
-      id: start-windows
       if: runner.os == 'Windows'
       shell: pwsh
-      working-directory: ${{ inputs.ciproxy-dir }}
+      working-directory: ${{ inputs.path }}
       env:
-        MASTER_TOKEN: ${{ inputs.master-token }}
-        PORT: ${{ inputs.ciproxy-port }}
+        PORT: ${{ inputs.port }}
+        CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
+        CIPROXY_TOKEN_URL: ${{ inputs.ciproxy-token-url }}
+        CIPROXY_BINARYCACHE_URL: ${{ inputs.ciproxy-binarycache-url }}
+        CIPROXY_BINARYCACHE_READWRITE_DIR: ${{ inputs.ciproxy-binarycache-readwrite-url }}
       run: |
         $ErrorActionPreference = "Stop"
         Set-StrictMode -Version Latest
@@ -59,31 +67,36 @@ runs:
         New-Service -Name ciproxy -BinaryPathName $exePath -StartupType Manual
 
         $vars = @(
-          "MASTER_TOKEN=$env:MASTER_TOKEN",
           "PORT=$env:PORT",
+          "CIPROXY_MASTER_TOKEN=$env:CIPROXY_MASTER_TOKEN",
+          "CIPROXY_TOKEN_URL=$env:CIPROXY_TOKEN_URL",
+          "CIPROXY_BINARYCACHE_URL=$env:CIPROXY_BINARYCACHE_URL",
+          "CIPROXY_BINARYCACHE_READWRITE_DIR=$env:CIPROXY_BINARYCACHE_READWRITE_DIR",
         )
 
         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Value $vars -PropertyType MultiString
 
         Start-Service -Name ciproxy
 
-    - name: Start ciproxy (Non-Windows)
-      id: start-non-windows
+    - name: Start ciproxy (POSIX)
+      id: start-posix
       if: runner.os != 'Windows'
       shell: bash --noprofile --norc -euo pipefail {0}
-      working-directory: ${{ inputs.ciproxy-dir }}
+      working-directory: ${{ inputs.path }}
       env:
-        MASTER_TOKEN: ${{ inputs.master-token }}
-        PORT: ${{ inputs.ciproxy-port }}
+        PORT: ${{ inputs.port }}
+        CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
+        CIPROXY_TOKEN_URL: ${{ inputs.ciproxy-token-url }}
+        CIPROXY_BINARYCACHE_URL: ${{ inputs.ciproxy-binarycache-url }}
+        CIPROXY_BINARYCACHE_READWRITE_DIR: ${{ inputs.ciproxy-binarycache-readwrite-url }}
       run: |
         go build -o ciproxy
         nohup ./ciproxy > stdout.log 2> stderr.log &
-        CIPROXY_PID=$!
-        disown
+        PID=$!
         sleep 3
 
-        if kill -0 "$CIPROXY_PID" 2>/dev/null; then
-          echo "CIPROXY_PID=$CIPROXY_PID" >> "$GITHUB_OUTPUT"
+        if kill -0 "$PID" 2>/dev/null; then
+          echo "PID=$PID" >> "$GITHUB_OUTPUT"
         else
           echo "ERROR: ciproxy crashed immediately!"
           echo "<stdout>"
