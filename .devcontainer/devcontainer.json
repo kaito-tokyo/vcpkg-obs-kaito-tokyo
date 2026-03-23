@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "ubuntu-24.04-devcontainer",
+  "features": {
+    "ghcr.io/devcontainers/features/copilot-cli:1": {
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "extensions": ["github/gh-aw"]
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "astro-build.astro-vscode",
+        "editorconfig.editorconfig",
+        "github.vscode-github-actions",
+        "ms-vscode.cpp-devtools",
+        "ms-vscode.cpptools-extension-pack",
+        "redhat.vscode-yaml"
+      ]
+    }
+  },
+  "remoteEnv": {
+    "GH_TOKEN": "${localEnv:GH_TOKEN}",
+    "VCPKG_BINARY_SOURCES": "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}"
+  },
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "mounts": [
+    "source=${localWorkspaceFolderBasename}-build_macos,target=${containerWorkspaceFolder}/build_macos,type=volume,volume-nocopy",
+    "source=${localWorkspaceFolderBasename}-build_x64,target=${containerWorkspaceFolder}/build_x64,type=volume,volume-nocopy",
+    "source=${localWorkspaceFolderBasename}-build_x86_64,target=${containerWorkspaceFolder}/build_x86_64,type=volume,volume-nocopy",
+    "source=${localWorkspaceFolderBasename}-deps_vendor,target=${containerWorkspaceFolder}/.deps_vendor,type=volume,volume-nocopy",
+    "source=${localWorkspaceFolderBasename}-deps,target=${containerWorkspaceFolder}/.deps,type=volume,volume-nocopy",
+    "source=${localWorkspaceFolderBasename}-venv,target=${containerWorkspaceFolder}/.venv,type=volume,volume-nocopy"
+  ],
+	"remoteUser": "vscode",
+  "onCreateCommand": "sudo chown -R vscode:vscode /workspaces && chmod -R u=rwX,go=rX /workspaces",
+  "updateContentCommand": "if command -v ./scripts/setup_ubuntu.sh >/dev/null 2>&1; then ./scripts/setup_ubuntu.sh; fi"
+}

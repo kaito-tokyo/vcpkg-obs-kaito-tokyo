@@ -1,0 +1,180 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Local CI
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: 23 6 * * *
+  workflow_dispatch:
+
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare-devcontainer:
+    name: Prepare Dev Container
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+
+    outputs:
+      DEVCONTAINER_IMAGE: "${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Extract vcpkg configuration
+        id: vcpkg-configuration
+        uses: ./.github/actions/extract-vcpkg-configuration
+        with:
+          path: ${{ github.workspace }}/vcpkg-configuration.json
+
+      - name: Image info
+        id: image-info
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          DEVCONTAINER_DOCKERFILE_HASH: ${{ hashFiles('.devcontainer/Dockerfile', 'vcpkg-configuration.json') }}
+        run: |
+          echo "RAW_IMAGE_NAME=$GITHUB_REPOSITORY-devcontainer" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_TAG_TEMPLATE=utc-{{date 'YYYYMMDD'}}-${DEVCONTAINER_DOCKERFILE_HASH:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to the GitHub Container registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Extract metadata for builder image
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ghcr.io/${{ steps.image-info.outputs.RAW_IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.image-info.outputs.IMAGE_TAG_TEMPLATE }},priority=10000
+            type=raw,value=latest
+
+      - name: Check if builder image already exists
+        id: check-image
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          BUILDER_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: |
+          if docker manifest inspect "$BUILDER_IMAGE" > /dev/null; then
+            echo "EXISTS=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "EXISTS=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve azure.archive.ubuntu.com
+        id: azure-archive
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: getent hosts azure.archive.ubuntu.com | awk 'NR==1 {print "IPADDR=" $1}' >> "$GITHUB_OUTPUT"
+
+      - name: Build and Push builder image (Ubuntu)
+        id: push
+        if: github.event_name == 'push' || steps.check-image.outputs.EXISTS == 'false'
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        with:
+          add-hosts: |
+            archive.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
+            ports.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
+          build-args: |
+            ARG_VCPKG_DEFAULT_REGISTRY_BASELINE=${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
+          context: ${{ github.workspace }}
+          file: "Dockerfile.ubuntu-24.04"
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Extract subject name of builder image
+        id: subject
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          BUILDER_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: echo "SUBJECT_NAME=${BUILDER_IMAGE%:*}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate artifact attestation for builder image (Ubuntu)
+        if: github.event_name == 'push' || steps.check-image.outputs.EXISTS == 'false'
+        uses: actions/attest@e18a799f23337c367f76b067253d6f53abc6f03d # v4.1.0
+        with:
+          subject-name: ${{ steps.subject.outputs.SUBJECT_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+
+  build-devcontainer:
+    name: Build vcpkg for Dev Container
+
+    needs: prepare-devcontainer
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production
+
+    env:
+      CIPROXY_PORT: "8080"
+      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash
+      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
+      MINIMAL_PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      VCPKG_BINARY_SOURCES: "clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite"
+
+    container:
+      image: ${{ needs.prepare-devcontainer.outputs.DEVCONTAINER_IMAGE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
+
+      - name: Start ciproxy
+        id: start-ciproxy
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: ./.github/actions/start-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ciproxy
+          port: ${{ env.CIPROXY_PORT }}
+
+      - name: Install dependencies from vcpkg (Ubuntu x86_64)
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
+          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
+          PATH: ${{ env.MINIMAL_PATH }}
+        run: '"$VCPKG_ROOT/vcpkg" install --x-install-root=./.deps_vendor/vcpkg_installed --triplet=x64-linux-obs'
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-dir: ciproxy
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
