@@ -67,10 +67,10 @@ runs:
         New-Service -Name ciproxy -BinaryPathName $exePath -StartupType Manual
 
         $vars = @(
-          "PORT=$env:PORT",
-          "CIPROXY_MASTER_TOKEN=$env:CIPROXY_MASTER_TOKEN",
-          "CIPROXY_TOKEN_URL=$env:CIPROXY_TOKEN_URL",
-          "CIPROXY_BINARYCACHE_URL=$env:CIPROXY_BINARYCACHE_URL",
+          "PORT=$env:PORT"
+          "CIPROXY_MASTER_TOKEN=$env:CIPROXY_MASTER_TOKEN"
+          "CIPROXY_TOKEN_URL=$env:CIPROXY_TOKEN_URL"
+          "CIPROXY_BINARYCACHE_URL=$env:CIPROXY_BINARYCACHE_URL"
           "CIPROXY_BINARYCACHE_READWRITE_URL=$env:CIPROXY_BINARYCACHE_READWRITE_URL"
         )
 
