@@ -55,26 +55,17 @@ runs:
 
         go build -o ciproxy.exe
 
-        $workingDirectory = Get-Location
-        $ciproxyPath = Join-Path $workingDirectory "ciproxy.exe"
-        $stdoutLog = Join-Path $workingDirectory "stdout.log"
-        $stderrLog = Join-Path $workingDirectory "stderr.log"
+        $exePath = Join-Path (Get-Location) "ciproxy.exe"
+        New-Service -Name ciproxy -BinaryPathName $exePath -StartupType Manual
 
-        $process = Start-Process $ciproxyPath -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -PassThru
-        Start-Sleep -Seconds 3
+        $vars = @(
+          "MASTER_TOKEN=$env:MASTER_TOKEN",
+          "PORT=$env:PORT",
+        )
 
-        if ($process.HasExited) {
-          Write-Error "ERROR: ciproxy crashed immediately!"
-          Write-Output "<stdout>"
-          Get-Content $stdoutLog
-          Write-Output "</stdout>"
-          Write-Output "<stderr>"
-          Get-Content $stderrLog
-          Write-Output "</stderr>"
-          exit 1
-        } else {
-          Write-Output "CIPROXY_PID=$($process.Id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-        }
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Value $vars -PropertyType MultiString
+
+        Start-Service -Name ciproxy
 
     - name: Start ciproxy (Non-Windows)
       id: start-non-windows
