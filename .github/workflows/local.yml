@@ -105,7 +105,7 @@ jobs:
           build-args: |
             ARG_VCPKG_DEFAULT_REGISTRY_BASELINE=${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
           context: .devcontainer
-          file: "Dockerfile"
+          file: .devcontainer/Dockerfile
           labels: ${{ steps.meta.outputs.labels }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
