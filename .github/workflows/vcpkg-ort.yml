@@ -1,0 +1,340 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+on:
+  workflow_call:
+    inputs:
+      environment-build-ort-vcpkg-windows-x64:
+        description: The environment name for the build-ort-vcpkg-windows-x64 job, or empty string for no environment
+        required: true
+        type: string
+      environment-build-ort-vcpkg-macos:
+        description: The environment name for the build-ort-vcpkg-macos job, or empty string for no environment
+        required: true
+        type: string
+      environment-build-ort-vcpkg-ubuntu-x64:
+        description: The environment name for the build-ort-vcpkg-ubuntu-x64 job, or empty string for no environment
+        required: true
+        type: string
+      ort-versions-json:
+        description: JSON array of ONNX Runtime versions to test, e.g. '["v1.24.1", "v1.24.4"]'
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;http,${{ (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') && 'https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' || 'http://localhost:8080/{name}/{version}/{sha},readwrite' }}"
+
+jobs:
+  build-ort-vcpkg-windows-x64:
+    strategy:
+      fail-fast: false
+      matrix:
+        ort-version: ${{ fromJson(inputs.ort-versions-json) }}
+
+    name: Build vcpkg in ORT for Windows x64 ${{ matrix.ort-version }}
+
+    runs-on: windows-2022
+    timeout-minutes: 180
+    environment: ${{ inputs.environment-build-ort-vcpkg-windows-x64 }}
+
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    env:
+      CLEAN_PWSH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-windows.ps1
+      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
+      CMAKE_PATH: 'C:\Program Files\CMake\bin;C:\Program Files\Ninja'
+      GIT_PATH: 'C:\Program Files\Git\cmd'
+      MINIMAL_PATH: 'C:\Windows\System32;C:\Windows'
+      VCPKG_ROOT: '${{ github.workspace }}\vcpkg'
+
+    steps:
+      - name: Enable Windows long path
+        shell: pwsh
+        run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version-file: ".python-version"
+          pip-install: -r requirements-build.txt
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
+
+      - name: Start ciproxy
+        id: ciproxy
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/start-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          port: "8080"
+
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ matrix.ort-version }}
+          persist-credentials: false
+          path: onnxruntime
+          submodules: recursive
+
+      - name: Build vcpkg of ONNX Runtime
+        shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
+        env:
+          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
+          PATH: '${{ env.CMAKE_PATH }};${{ env.GIT_PATH }};${{ env.MINIMAL_PATH }}'
+          PWSH_ENV: ${{ env.CLEAN_PWSH_ENV }}
+        run: |
+          python ./onnxruntime/tools/ci_build/build.py `
+            --build_dir build `
+            --update `
+            --config Release `
+            --parallel `
+            --compile_no_warning_as_error `
+            --cmake_extra_defines `
+            CMAKE_POLICY_VERSION_MINIMUM=3.5 `
+            CMAKE_PROJECT_INCLUDE_BEFORE="$env:GITHUB_WORKSPACE/no_install.cmake" `
+            --use_vcpkg `
+            --skip_submodule_sync `
+            --skip_tests `
+            --disable_rtti
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          master-token: ${{ secrets.MASTER_TOKEN }}
+
+      - name: Upload ciproxy logs
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            ${{ steps.ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDERR_LOG }}
+          if-no-files-found: warn
+
+  build-ort-vcpkg-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+        ort-version: ${{ fromJson(inputs.ort-versions-json) }}
+        include:
+          - os-xcode: Sequoia, Xcode 15.4
+            runs-on: macos-15
+            DEVELOPER_DIR: /Applications/Xcode_16.4.app
+          - os-xcode: Tahoe, Xcode 26.3
+            runs-on: macos-26
+            DEVELOPER_DIR: /Applications/Xcode_26.3.app
+
+    name: Build vcpkg in ORT for macOS ${{ matrix.os-xcode }} ${{ matrix.arch }} ${{ matrix.ort-version }}
+
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 180
+    environment: ${{ inputs.environment-build-ort-vcpkg-macos }}
+
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    env:
+      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-macos.bash
+      CMAKE_PATH: /opt/homebrew/opt/cmake/bin
+      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
+      DEVELOPER_DIR: ${{ matrix.DEVELOPER_DIR }}
+      MINIMAL_PATH: "/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      XCBEAUTIFY_PATH: /opt/homebrew/opt/xcbeautify/bin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version-file: ".python-version"
+          pip-install: -r requirements-build.txt
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
+
+      - name: Start ciproxy
+        id: ciproxy
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/start-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          port: "8080"
+
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ matrix.ort-version }}
+          persist-credentials: false
+          path: onnxruntime
+          submodules: recursive
+
+      - name: Build vcpkg of ONNX Runtime
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          PATH: "${{ env.CMAKE_PATH }}:${{ env.MINIMAL_PATH }}"
+        run: |
+          python ./onnxruntime/tools/ci_build/build.py \
+            --build_dir build \
+            --update \
+            --config Release \
+            --parallel \
+            --compile_no_warning_as_error \
+            --cmake_extra_defines \
+            CMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            CMAKE_PROJECT_INCLUDE_BEFORE="$GITHUB_WORKSPACE/no_install.cmake" \
+            CMAKE_OSX_ARCHITECTURES="${{ matrix.arch }}" \
+            CMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            --use_vcpkg \
+            --skip_submodule_sync \
+            --skip_tests \
+            --disable_rtti \
+            --osx_arch "${{ matrix.arch }}" \
+            --apple_deploy_target 12.0 \
+            --use_coreml
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          master-token: ${{ secrets.MASTER_TOKEN }}
+
+      - name: Upload ciproxy logs
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            ${{ steps.ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDERR_LOG }}
+          if-no-files-found: warn
+
+  build-ort-vcpkg-ubuntu-x64:
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: [ubuntu-22.04, ubuntu-24.04]
+        ort-version: ${{ fromJson(inputs.ort-versions-json) }}
+
+    name: Build vcpkg in ORT for Ubuntu x64 ${{ matrix.runs-on }} ${{ matrix.ort-version }}
+
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 180
+    environment: ${{ inputs.environment-build-ort-vcpkg-ubuntu-x64 }}
+
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    env:
+      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash
+      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
+      MINIMAL_PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version-file: ".python-version"
+          pip-install: -r requirements-build.txt
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
+
+      - name: Start ciproxy
+        id: ciproxy
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/start-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          port: "8080"
+
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ matrix.ort-version }}
+          persist-credentials: false
+          path: onnxruntime
+          submodules: recursive
+
+      - name: Build vcpkg of ONNX Runtime on Ubuntu
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
+          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
+          PATH: ${{ env.MINIMAL_PATH }}
+        run: |
+          python ./onnxruntime/tools/ci_build/build.py \
+            --build_dir build \
+            --update \
+            --config Release \
+            --parallel \
+            --compile_no_warning_as_error \
+            --cmake_extra_defines \
+            CMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            CMAKE_PROJECT_INCLUDE_BEFORE="$GITHUB_WORKSPACE/no_install.cmake" \
+            --use_vcpkg \
+            --skip_submodule_sync \
+            --skip_tests \
+            --disable_rtti
+
+      - name: Finalize ciproxy
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          master-token: ${{ secrets.MASTER_TOKEN }}
+
+      - name: Upload ciproxy logs
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            ${{ steps.ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDERR_LOG }}
+          if-no-files-found: warn
