@@ -144,7 +144,7 @@ jobs:
 
     container:
       image: ${{ needs.prepare-devcontainer.outputs.DEVCONTAINER_IMAGE }}
-      options: --user root
+      options: --user 1001:1001
 
     env:
       VCPKG_BINARY_SOURCES: "clear;http,${{ (github.ref == 'refs/heads/main') && 'http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || format('{0},read', inputs.vcpkg-binary-sources-readonly-url) }}"

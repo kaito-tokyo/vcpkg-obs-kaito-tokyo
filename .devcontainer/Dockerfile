@@ -2,9 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-ARG ARG_BASE_IMAGE=mcr.microsoft.com/devcontainers/base:ubuntu-24.04
-
-FROM --platform=linux/amd64 ${ARG_BASE_IMAGE} AS base
+FROM --platform=linux/amd64 mcr.microsoft.com/devcontainers/base:ubuntu-24.04 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -35,17 +33,14 @@ RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/obs
     zip \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ARG_USERNAME=vscode
-RUN case "${ARG_USERNAME}" in \
-    runner) useradd -u 1001 runner && mkdir -p /home/runner && chown -R runner:runner /home/runner && chmod -R u=rwX,go=rX /home/runner ;; \
-    vscode) mkdir -p /workspaces && chown -R vscode:vscode /workspaces && chmod -R u=rwX,go=rX /workspaces ;; \
-    esac
+RUN groupadd -g 1001 runner && useradd -m -u 1001 -g runner -G vscode runner \
+    && mkdir -p /workspaces && chown -R vscode:vscode /workspaces && chmod -R u=rwX,go=rX /workspaces
 
-ENV VCPKG_ROOT=/home/${ARG_USERNAME}/vcpkg
+ENV VCPKG_ROOT=/home/vscode/vcpkg
+USER vscode
 ARG ARG_VCPKG_DEFAULT_REGISTRY_BASELINE=master
-
-USER ${ARG_USERNAME}
-RUN git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpkg.git "${VCPKG_ROOT}" && \
-    cd "${VCPKG_ROOT}" && \
-    git checkout "${ARG_VCPKG_DEFAULT_REGISTRY_BASELINE}" && \
-    "${VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics
+RUN git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpkg.git "${VCPKG_ROOT}" \
+    && cd "${VCPKG_ROOT}" \
+    && git checkout "${ARG_VCPKG_DEFAULT_REGISTRY_BASELINE}" \
+    && "${VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics \
+	&& chmod -R ug=rwX,o=rX "${VCPKG_ROOT}"

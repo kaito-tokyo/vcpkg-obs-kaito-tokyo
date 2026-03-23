@@ -28,7 +28,7 @@ runs:
   using: composite
   steps:
     - name: Signal ciproxy to shutdown
-      shell: bash --noprofile --norc -uo pipefail {0}
+      shell: bash --noprofile --norc -euo pipefail {0}
       env:
         CIPROXY_PORT: ${{ inputs.ciproxy-port }}
       run: curl -fsS -X X-CIPROXY-SHUTDOWN "http://127.0.0.1:$CIPROXY_PORT/"
@@ -40,6 +40,10 @@ runs:
       env:
         CIPROXY_PID: ${{ inputs.ciproxy-pid }}
       run: |
+        $ErrorActionPreference = "Stop"
+        Set-StrictMode -Version Latest
+        $PSNativeCommandUseErrorActionPreference = $true
+
         $pid = [int]$env:CIPROXY_PID
 
         for ($i = 0; $i -lt 10; $i++) {
@@ -55,7 +59,7 @@ runs:
 
     - name: Ensure to stop ciproxy (Non-Windows)
       if: runner.os != 'Windows'
-      shell: bash --noprofile --norc -uo pipefail {0}
+      shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.ciproxy-dir }}
       env:
         CIPROXY_PID: ${{ inputs.ciproxy-pid }}

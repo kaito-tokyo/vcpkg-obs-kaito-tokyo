@@ -41,7 +41,7 @@ runs:
       run: '[[ -n "$MASTER_TOKEN" ]]'
 
     - name: Build ciproxy
-      shell: bash --noprofile --norc -uo pipefail {0}
+      shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.ciproxy-dir }}
       run: go build -o ciproxy
 
@@ -54,13 +54,26 @@ runs:
         MASTER_TOKEN: ${{ inputs.master-token }}
         PORT: ${{ inputs.ciproxy-port }}
       run: |
-        $process = Start-Process .\ciproxy.exe -RedirectStandardOutput stdout.log -RedirectStandardError stderr.log -PassThru
+        $ErrorActionPreference = "Stop"
+        Set-StrictMode -Version Latest
+        $PSNativeCommandUseErrorActionPreference = $true
+
+        $workingDirectory = Get-Location
+        $ciproxyPath = Join-Path $workingDirectory "ciproxy.exe"
+        $stdoutLog = Join-Path $workingDirectory "stdout.log"
+        $stderrLog = Join-Path $workingDirectory "stderr.log"
+
+        $process = Start-Process $ciproxyPath -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -PassThru
         Start-Sleep -Seconds 3
 
         if ($process.HasExited) {
           Write-Error "ERROR: ciproxy crashed immediately!"
-          Get-Content stdout.log
-          Get-Content stderr.log
+          Write-Output "<stdout>"
+          Get-Content $stdoutLog
+          Write-Output "</stdout>"
+          Write-Output "<stderr>"
+          Get-Content $stderrLog
+          Write-Output "</stderr>"
           exit 1
         } else {
           Write-Output "CIPROXY_PID=$($process.Id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -69,7 +82,7 @@ runs:
     - name: Start ciproxy (Non-Windows)
       id: start-non-windows
       if: runner.os != 'Windows'
-      shell: bash --noprofile --norc -uo pipefail {0}
+      shell: bash --noprofile --norc -euo pipefail {0}
       working-directory: ${{ inputs.ciproxy-dir }}
       env:
         MASTER_TOKEN: ${{ inputs.master-token }}
@@ -84,6 +97,11 @@ runs:
           echo "CIPROXY_PID=$CIPROXY_PID" >> "$GITHUB_OUTPUT"
         else
           echo "ERROR: ciproxy crashed immediately!"
-          cat stdout.log stderr.log
+          echo "<stdout>"
+          cat stdout.log
+          echo "</stdout>"
+          echo "<stderr>"
+          cat stderr.log
+          echo "</stderr>"
           exit 1
         fi
