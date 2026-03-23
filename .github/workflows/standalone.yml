@@ -83,6 +83,15 @@ jobs:
           ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
 
+      - name: Upload ciproxy logs
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}
+          path: |
+            ${{ steps.start-ciproxy.outputs.ciproxy-stdout-log }}
+            ${{ steps.start-ciproxy.outputs.ciproxy-stderr-log }}
+          if-no-files-found: warn
+
   build-macos:
     strategy:
       fail-fast: false
@@ -149,6 +158,15 @@ jobs:
           ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
 
+      - name: Upload ciproxy logs
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}
+          path: |
+            ${{ steps.start-ciproxy.outputs.ciproxy-stdout-log }}
+            ${{ steps.start-ciproxy.outputs.ciproxy-stderr-log }}
+          if-no-files-found: warn
+
   build-linux-x64:
     name: Build vcpkg for linux-x64-obs
 
@@ -206,3 +224,12 @@ jobs:
           master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
+
+      - name: Upload ciproxy logs
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}
+          path: |
+            ${{ steps.start-ciproxy.outputs.ciproxy-stdout-log }}
+            ${{ steps.start-ciproxy.outputs.ciproxy-stderr-log }}
+          if-no-files-found: warn

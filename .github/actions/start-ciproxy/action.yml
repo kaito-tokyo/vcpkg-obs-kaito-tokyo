@@ -21,6 +21,12 @@ outputs:
   ciproxy-pid:
     description: "PID of the started ciproxy"
     value: ${{ steps.start.outputs.ciproxy-pid }}
+  ciproxy-stdout-log:
+    description: "Path to ciproxy stdout log"
+    value: ${{ inputs.ciproxy-dir }}/stdout.log
+  ciproxy-stderr-log:
+    description: "Path to ciproxy stderr log"
+    value: ${{ inputs.ciproxy-dir }}/stderr.log
 
 runs:
   using: composite
@@ -35,7 +41,7 @@ runs:
         PORT: ${{ inputs.port }}
       run: |
         go build
-        MASTER_TOKEN="$MASTER_TOKEN" "./ciproxy$EXE" &
+        MASTER_TOKEN="$MASTER_TOKEN" "./ciproxy$EXE" > stdout.log 2> stderr.log &
         CIPROXY_PID=$!
         echo "Ciproxy started with PID: $CIPROXY_PID"
         echo "ciproxy-pid=$CIPROXY_PID" >> "$GITHUB_OUTPUT"
