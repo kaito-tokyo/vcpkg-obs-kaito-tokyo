@@ -10,6 +10,9 @@ inputs:
   master-token:
     description: "Long-term master token"
     required: true
+  ciproxy-port:
+    description: "Port that ciproxy is listening on"
+    required: true
   ciproxy-dir:
     description: "Directory of ciproxy"
     required: true
@@ -24,28 +27,51 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Ensure to stop ciproxy
-      shell: bash --noprofile --norc -euo pipefail {0}
+    - name: Signal ciproxy to shutdown
+      shell: bash --noprofile --norc -uo pipefail {0}
+      env:
+        CIPROXY_PORT: ${{ inputs.ciproxy-port }}
+      run: curl -fsS -X X-CIPROXY-SHUTDOWN "http://localhost:$CIPROXY_PORT/"
+
+    - name: Ensure to stop ciproxy (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
       working-directory: ${{ inputs.ciproxy-dir }}
       env:
         CIPROXY_PID: ${{ inputs.ciproxy-pid }}
       run: |
-        echo "Sending SIGTERM to ciproxy (PID: $CIPROXY_PID)..."
-        kill -15 $CIPROXY_PID || true
+        $pid = [int]$env:CIPROXY_PID
 
+        for ($i = 0; $i -lt 10; $i++) {
+          if (-not (Get-Process -Id $pid -ErrorAction SilentlyContinue)) {
+            Write-Output "Ciproxy gracefully exited."
+            exit 0
+          }
+          Start-Sleep -Seconds 3
+        }
+
+        Write-Error "ERROR: Ciproxy did not stop after 30 seconds!"
+        exit 1
+
+    - name: Ensure to stop ciproxy (Non-Windows)
+      if: runner.os != 'Windows'
+      shell: bash --noprofile --norc -uo pipefail {0}
+      working-directory: ${{ inputs.ciproxy-dir }}
+      env:
+        CIPROXY_PID: ${{ inputs.ciproxy-pid }}
+      run: |
         count=0
-        while kill -0 $CIPROXY_PID 2>/dev/null; do
-          echo "Waiting for process $CIPROXY_PID to exit..."
-          sleep 1
-          count=$((count+1))
-          if [ $count -ge 10 ]; then
-            echo "Timeout reached. Force killing..."
-            kill -9 $CIPROXY_PID || true
-            break
+        while kill -0 "$CIPROXY_PID"; do
+          ps -p "$CIPROXY_PID"
+          if [[ "$count" -ge 10 ]]; then
+            echo "ERROR: Ciproxy did not stop after 30 seconds!"
+            exit 1
           fi
+          sleep 3
+          count=$((count+1))
         done
 
-        echo "Ciproxy stopped."
+        ps -p "$CIPROXY_PID"
 
     - name: Check if vcpkg artifacts exist
       id: check-artifacts

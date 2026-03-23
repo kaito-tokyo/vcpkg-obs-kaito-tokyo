@@ -94,15 +94,15 @@ jobs:
         with:
           master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ciproxy
-          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.CIPROXY_PID }}
 
       - name: Upload ciproxy logs
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index || 0 }}
           path: |
-            ${{ steps.start-ciproxy.outputs.ciproxy-stdout-log }}
-            ${{ steps.start-ciproxy.outputs.ciproxy-stderr-log }}
+            ${{ steps.start-ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.start-ciproxy.outputs.CIPROXY_STDERR_LOG }}
           if-no-files-found: warn
 
   build-ort-vcpkg-macos:
@@ -183,15 +183,15 @@ jobs:
         with:
           master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ciproxy
-          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.CIPROXY_PID }}
 
       - name: Upload ciproxy logs
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index || 0 }}
           path: |
-            ${{ steps.start-ciproxy.outputs.ciproxy-stdout-log }}
-            ${{ steps.start-ciproxy.outputs.ciproxy-stderr-log }}
+            ${{ steps.start-ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.start-ciproxy.outputs.CIPROXY_STDERR_LOG }}
           if-no-files-found: warn
 
   build-ort-vcpkg-ubuntu:
@@ -263,13 +263,13 @@ jobs:
         with:
           master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ciproxy
-          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
+          ciproxy-pid: ${{ steps.start-ciproxy.outputs.CIPROXY_PID }}
 
       - name: Upload ciproxy logs
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index || 0 }}
           path: |
-            ${{ steps.start-ciproxy.outputs.ciproxy-stdout-log }}
-            ${{ steps.start-ciproxy.outputs.ciproxy-stderr-log }}
+            ${{ steps.start-ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.start-ciproxy.outputs.CIPROXY_STDERR_LOG }}
           if-no-files-found: warn

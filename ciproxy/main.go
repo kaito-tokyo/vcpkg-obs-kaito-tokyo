@@ -8,10 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -97,6 +95,7 @@ func getPresignedURL(accessToken string, key string) (string, error) {
 
 type CIProxyServer struct {
 	AccessToken string
+	Shutdown    chan struct{}
 }
 
 // isSafeFilename returns true if the filename contains only safe characters and does not allow any path separators or "..".
@@ -182,8 +181,11 @@ func (s CIProxyServer) handle(w http.ResponseWriter, r *http.Request) {
 		s.handleRedirect(w, r)
 	case http.MethodPut:
 		s.handleFileUpload(w, r)
+	case "X-CIPROXY-SHUTDOWN":
+		w.WriteHeader(http.StatusOK)
+		s.Shutdown <- struct{}{}
 	default:
-		w.Header().Set("Allow", "GET, HEAD, PUT")
+		w.Header().Set("Allow", "GET, HEAD, PUT, X-CIPROXY-SHUTDOWN")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
@@ -223,7 +225,7 @@ func main() {
 		Addr:    ":" + port,
 		Handler: nil,
 	}
-	proxyServer := CIProxyServer{AccessToken: accessToken}
+	proxyServer := CIProxyServer{AccessToken: accessToken, Shutdown: make(chan struct{})}
 	http.HandleFunc("/", proxyServer.handle)
 
 	go func() {
@@ -233,10 +235,7 @@ func main() {
 		}
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	<-stop
+	<-proxyServer.Shutdown
 	fmt.Println("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
