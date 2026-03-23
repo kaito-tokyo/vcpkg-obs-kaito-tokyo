@@ -184,7 +184,7 @@ func (s *CIProxyServer) handle(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		s.handleFileUpload(w, r)
 	case "X-CIPROXY-SHUTDOWN":
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusNoContent)
 		s.shutdownOnce.Do(func() {
 			close(s.Shutdown)
 		})
@@ -241,6 +241,8 @@ func main() {
 
 	<-proxyServer.Shutdown
 	fmt.Println("Shutting down server...")
+
+	time.Sleep(1000 * time.Second)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
