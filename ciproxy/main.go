@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -60,7 +61,7 @@ type PostBinarycacheResponse struct {
 
 func getPresignedURL(accessToken string, key string) (string, error) {
 	binarycacheURL := "https://readwrite.vcpkg-obs.kaito.tokyo/binarycache"
-	fmt.Printf("Getting presigned URL for key: %s\n", key)
+	fmt.Printf("Getting presigned URL...\n")
 
 	req, err := http.NewRequest("POST", binarycacheURL+key, nil)
 	if err != nil {
@@ -94,8 +95,9 @@ func getPresignedURL(accessToken string, key string) (string, error) {
 }
 
 type CIProxyServer struct {
-	AccessToken string
-	Shutdown    chan struct{}
+	AccessToken  string
+	Shutdown     chan struct{}
+	shutdownOnce sync.Once
 }
 
 // isSafeFilename returns true if the filename contains only safe characters and does not allow any path separators or "..".
@@ -110,7 +112,7 @@ func isSafeFilename(name string) bool {
 	return true
 }
 
-func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) {
+func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
 
 	presignedURL, err := getPresignedURL(s.AccessToken, key)
@@ -170,12 +172,12 @@ func (s CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s CIProxyServer) handleRedirect(w http.ResponseWriter, r *http.Request) {
+func (s *CIProxyServer) handleRedirect(w http.ResponseWriter, r *http.Request) {
 	binarycacheURL := "https://vcpkg-obs.kaito.tokyo"
 	http.Redirect(w, r, binarycacheURL+r.URL.Path, http.StatusTemporaryRedirect)
 }
 
-func (s CIProxyServer) handle(w http.ResponseWriter, r *http.Request) {
+func (s *CIProxyServer) handle(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodHead, http.MethodGet:
 		s.handleRedirect(w, r)
@@ -183,7 +185,9 @@ func (s CIProxyServer) handle(w http.ResponseWriter, r *http.Request) {
 		s.handleFileUpload(w, r)
 	case "X-CIPROXY-SHUTDOWN":
 		w.WriteHeader(http.StatusOK)
-		s.Shutdown <- struct{}{}
+		s.shutdownOnce.Do(func() {
+			close(s.Shutdown)
+		})
 	default:
 		w.Header().Set("Allow", "GET, HEAD, PUT, X-CIPROXY-SHUTDOWN")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -222,7 +226,7 @@ func main() {
 	}
 
 	server := &http.Server{
-		Addr:    ":" + port,
+		Addr:    "127.0.0.1:" + port,
 		Handler: nil,
 	}
 	proxyServer := CIProxyServer{AccessToken: accessToken, Shutdown: make(chan struct{})}

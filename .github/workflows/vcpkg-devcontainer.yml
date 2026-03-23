@@ -6,21 +6,21 @@ on:
   workflow_call:
     inputs:
       environment-prepare-devcontainer:
-        description: The environment name for the prepare-devcontainer jobs, or empty string for no environment
+        description: The environment name for the prepare-devcontainer jobs, or empty string for no environment.
         required: true
         type: string
       environment-build-devcontainer:
-        description: The environment name for the build-devcontainer jobs, or empty string for no environment
+        description: The environment name for the build-devcontainer jobs, or empty string for no environment.
         required: true
         type: string
       vcpkg-binary-sources-readonly-url:
-        description: The URL of the read-only vcpkg binary sources
+        description: The URL of the read-only vcpkg binary sources.
         required: true
         type: string
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    secrets:
+      MASTER_TOKEN:
+        description: The master token for ciproxy.
+        required: false
 
 jobs:
   prepare-devcontainer:
@@ -144,10 +144,10 @@ jobs:
 
     container:
       image: ${{ needs.prepare-devcontainer.outputs.DEVCONTAINER_IMAGE }}
+      options: --user root
 
     env:
-      VCPKG_BINARY_SOURCES: "clear;http,${{ (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') && format('{0}.read', inputs.vcpkg-binary-sources-readonly-url) || 'http://localhost:8080/{name}/{version}/{sha},readwrite' }}"
-
+      VCPKG_BINARY_SOURCES: "clear;http,${{ (github.ref == 'refs/heads/main') && 'http://localhost:8080/{name}/{version}/{sha},readwrite' || format('{0},read', inputs.vcpkg-binary-sources-readonly-url) }}"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -161,32 +161,33 @@ jobs:
           cache-dependency-path: ciproxy/go.mod
 
       - name: Start ciproxy
-        id: start-ciproxy
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        id: ciproxy
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
           ciproxy-dir: ciproxy
           master-token: ${{ secrets.MASTER_TOKEN }}
-          port: "8080"
+          ciproxy-port: "8080"
 
       - name: Install dependencies from vcpkg (x64-linux-obs)
         shell: bash --noprofile --norc -euo pipefail {0}
         run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
-          master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ciproxy
-          ciproxy-pid: ${{ steps.start-ciproxy.outputs.CIPROXY_PID }}
+          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
+          master-token: ${{ secrets.MASTER_TOKEN }}
 
       - name: Upload ciproxy logs
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && always()
+        if: github.ref == 'refs/heads/main' && always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index || 0 }}
+          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
           path: |
-            ${{ steps.start-ciproxy.outputs.CIPROXY_STDOUT_LOG }}
-            ${{ steps.start-ciproxy.outputs.CIPROXY_STDERR_LOG }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDERR_LOG }}
           if-no-files-found: warn

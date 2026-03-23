@@ -17,17 +17,21 @@ on:
         description: The environment name for the build-ort-vcpkg-ubuntu-x64 job, or empty string for no environment
         required: true
         type: string
+      vcpkg-binary-sources-readonly-url:
+        description: The URL of the read-only vcpkg binary sources.
+        required: true
+        type: string
       ort-versions-json:
         description: JSON array of ONNX Runtime versions to test, e.g. '["v1.24.1", "v1.24.4"]'
         required: true
         type: string
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    secrets:
+      MASTER_TOKEN:
+        description: The master token for ciproxy.
+        required: false
 
 env:
-  VCPKG_BINARY_SOURCES: "clear;http,${{ (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') && 'https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' || 'http://localhost:8080/{name}/{version}/{sha},readwrite' }}"
+  VCPKG_BINARY_SOURCES: "clear;http,${{ (github.ref == 'refs/heads/main') && 'http://localhost:8080/{name}/{version}/{sha},readwrite' || format('{0},read', inputs.vcpkg-binary-sources-readonly-url) }}"
 
 jobs:
   build-ort-vcpkg-windows-x64:
@@ -49,10 +53,11 @@ jobs:
 
     env:
       CLEAN_PWSH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-windows.ps1
-      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
       CMAKE_PATH: 'C:\Program Files\CMake\bin;C:\Program Files\Ninja'
+      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
       GIT_PATH: 'C:\Program Files\Git\cmd'
       MINIMAL_PATH: 'C:\Windows\System32;C:\Windows'
+      POWERSHELL_PATH: 'C:\Windows\System32\WindowsPowerShell\v1.0'
       VCPKG_ROOT: '${{ github.workspace }}\vcpkg'
 
     steps:
@@ -79,12 +84,12 @@ jobs:
 
       - name: Start ciproxy
         id: ciproxy
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
           ciproxy-dir: ciproxy
           master-token: ${{ secrets.MASTER_TOKEN }}
-          port: "8080"
+          ciproxy-port: "8080"
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -99,7 +104,7 @@ jobs:
         shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
         env:
           GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: '${{ env.CMAKE_PATH }};${{ env.GIT_PATH }};${{ env.MINIMAL_PATH }}'
+          PATH: '${{ env.CMAKE_PATH }};${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}'
           PWSH_ENV: ${{ env.CLEAN_PWSH_ENV }}
         run: |
           python ./onnxruntime/tools/ci_build/build.py `
@@ -117,13 +122,16 @@ jobs:
             --disable_rtti
 
       - name: Finalize ciproxy
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
           ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
           master-token: ${{ secrets.MASTER_TOKEN }}
 
       - name: Upload ciproxy logs
+        if: github.ref == 'refs/heads/main' && always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
@@ -186,12 +194,12 @@ jobs:
 
       - name: Start ciproxy
         id: ciproxy
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
           ciproxy-dir: ciproxy
           master-token: ${{ secrets.MASTER_TOKEN }}
-          port: "8080"
+          ciproxy-port: "8080"
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -227,13 +235,16 @@ jobs:
             --use_coreml
 
       - name: Finalize ciproxy
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
           ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          ciproxy--port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
           master-token: ${{ secrets.MASTER_TOKEN }}
 
       - name: Upload ciproxy logs
+        if: github.ref == 'refs/heads/main' && always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
@@ -286,12 +297,12 @@ jobs:
 
       - name: Start ciproxy
         id: ciproxy
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
           ciproxy-dir: ciproxy
           master-token: ${{ secrets.MASTER_TOKEN }}
-          port: "8080"
+          ciproxy-port: "8080"
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -324,13 +335,16 @@ jobs:
             --disable_rtti
 
       - name: Finalize ciproxy
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
           ciproxy-dir: ciproxy
           ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
           master-token: ${{ secrets.MASTER_TOKEN }}
 
       - name: Upload ciproxy logs
+        if: github.ref == 'refs/heads/main' && always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}

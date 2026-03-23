@@ -13,7 +13,7 @@ inputs:
   ciproxy-dir:
     description: "Directory of ciproxy"
     required: true
-  port:
+  ciproxy-port:
     description: "Port to listen on"
     required: true
 
@@ -21,6 +21,9 @@ outputs:
   CIPROXY_PID:
     description: "PID of the started ciproxy"
     value: ${{ runner.os == 'Windows' && steps.start-windows.outputs.CIPROXY_PID || steps.start-non-windows.outputs.CIPROXY_PID }}
+  CIPROXY_PORT:
+    description: "Port that ciproxy is listening on"
+    value: ${{ inputs.ciproxy-port }}
   CIPROXY_STDOUT_LOG:
     description: "Path to ciproxy stdout log"
     value: ${{ inputs.ciproxy-dir }}/stdout.log
@@ -31,8 +34,14 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Build ciproxy
+    - name: Check if MASTER_TOKEN is set
       shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        MASTER_TOKEN: ${{ inputs.master-token }}
+      run: '[[ -n "$MASTER_TOKEN" ]]'
+
+    - name: Build ciproxy
+      shell: bash --noprofile --norc -uo pipefail {0}
       working-directory: ${{ inputs.ciproxy-dir }}
       run: go build -o ciproxy
 
@@ -43,7 +52,7 @@ runs:
       working-directory: ${{ inputs.ciproxy-dir }}
       env:
         MASTER_TOKEN: ${{ inputs.master-token }}
-        PORT: ${{ inputs.port }}
+        PORT: ${{ inputs.ciproxy-port }}
       run: |
         $process = Start-Process .\ciproxy.exe -RedirectStandardOutput stdout.log -RedirectStandardError stderr.log -PassThru
         Start-Sleep -Seconds 3
@@ -64,7 +73,7 @@ runs:
       working-directory: ${{ inputs.ciproxy-dir }}
       env:
         MASTER_TOKEN: ${{ inputs.master-token }}
-        PORT: ${{ inputs.port }}
+        PORT: ${{ inputs.ciproxy-port }}
       run: |
         nohup ./ciproxy > stdout.log 2> stderr.log &
         CIPROXY_PID=$!

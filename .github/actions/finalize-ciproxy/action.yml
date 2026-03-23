@@ -61,7 +61,7 @@ runs:
         CIPROXY_PID: ${{ inputs.ciproxy-pid }}
       run: |
         count=0
-        while kill -0 "$CIPROXY_PID"; do
+        while kill -0 "$CIPROXY_PID" 2> /dev/null; do
           ps -p "$CIPROXY_PID"
           if [[ "$count" -ge 10 ]]; then
             echo "ERROR: Ciproxy did not stop after 30 seconds!"
@@ -71,7 +71,7 @@ runs:
           count=$((count+1))
         done
 
-        ps -p "$CIPROXY_PID"
+        echo "Ciproxy gracefully exited."
 
     - name: Check if vcpkg artifacts exist
       id: check-artifacts
