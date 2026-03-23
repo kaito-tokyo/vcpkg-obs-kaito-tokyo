@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,19 +9,21 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 )
 
-const (
-	ArtifactDir    = "vcpkg_artifacts"
-	CurlScriptsDir = "vcpkg_curlscripts"
-	TempDir        = "vcpkg_artifacts_tmp"
-)
+type CIProxyServer struct {
+	AccessToken             string
+	ArtifactDir             string
+	BinarycacheReadwriteURL string
+	BinarycacheURL          string
+	CurlScriptsDir          string
+	StderrWriter            io.Writer
+	StdoutWriter            io.Writer
+	TempDir                 string
+}
 
-func getAccessToken(masterToken string) (string, error) {
-	tokenURL := "https://readwrite.vcpkg-obs.kaito.tokyo/token"
-
+func getAccessToken(tokenURL string, masterToken string) (string, error) {
 	data := url.Values{}
 	data.Set("master_token", masterToken)
 	encodedData := data.Encode()
@@ -55,15 +56,74 @@ func getAccessToken(masterToken string) (string, error) {
 	return accessToken, nil
 }
 
+func NewCIProxyServer(outputDir string, stdoutWriter io.Writer, stderrWriter io.Writer) (*CIProxyServer, error) {
+	absOutputDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path for output directory: %v", err)
+	}
+
+	if err := os.Chdir(absOutputDir); err != nil {
+		return nil, fmt.Errorf("failed to change directory to output directory: %v", err)
+	}
+
+	artifactDir := filepath.Join(absOutputDir, "vcpkg_artifacts")
+	if err := os.MkdirAll(artifactDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create artifact directory: %v", err)
+	}
+
+	curlScriptsDir := filepath.Join(absOutputDir, "vcpkg_curlscripts")
+	if err := os.MkdirAll(curlScriptsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create curl scripts directory: %v", err)
+	}
+
+	tempDir := filepath.Join(absOutputDir, "vcpkg_artifacts_tmp")
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %v", err)
+	}
+
+	masterToken := os.Getenv("CIPROXY_MASTER_TOKEN")
+	if masterToken == "" {
+		return nil, fmt.Errorf("CIPROXY_MASTER_TOKEN environment variable is not set")
+	}
+
+	tokenURL := os.Getenv("CIPROXY_TOKEN_URL")
+	if tokenURL == "" {
+		return nil, fmt.Errorf("CIPROXY_TOKEN_URL environment variable is not set")
+	}
+
+	accessToken, err := getAccessToken(tokenURL, masterToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get access token: %v", err)
+	}
+
+	binarycacheURL := os.Getenv("CIPROXY_BINARYCACHE_URL")
+	if binarycacheURL == "" {
+		return nil, fmt.Errorf("CIPROXY_BINARYCACHE_URL environment variable is not set")
+	}
+
+	binarycacheReadwriteURL := os.Getenv("CIPROXY_BINARYCACHE_READWRITE_URL")
+	if binarycacheReadwriteURL == "" {
+		return nil, fmt.Errorf("CIPROXY_BINARYCACHE_READWRITE_URL environment variable is not set")
+	}
+
+	return &CIProxyServer{
+		AccessToken:             accessToken,
+		ArtifactDir:             artifactDir,
+		BinarycacheURL:          binarycacheURL,
+		BinarycacheReadwriteURL: binarycacheReadwriteURL,
+		CurlScriptsDir:          curlScriptsDir,
+		StderrWriter:            stderrWriter,
+		StdoutWriter:            stdoutWriter,
+		TempDir:                 tempDir,
+	}, nil
+}
+
 type PostBinarycacheResponse struct {
 	PresignedUrl string `json:"presignedUrl"`
 }
 
-func getPresignedURL(accessToken string, key string) (string, error) {
-	binarycacheURL := "https://readwrite.vcpkg-obs.kaito.tokyo/binarycache"
-	fmt.Printf("Getting presigned URL...\n")
-
-	req, err := http.NewRequest("POST", binarycacheURL+key, nil)
+func (s *CIProxyServer) getPresignedURL(accessToken string, key string) (string, error) {
+	req, err := http.NewRequest("POST", s.BinarycacheReadwriteURL+key, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %v", err)
 	}
@@ -94,12 +154,6 @@ func getPresignedURL(accessToken string, key string) (string, error) {
 	return presignedURL, nil
 }
 
-type CIProxyServer struct {
-	AccessToken  string
-	Shutdown     chan struct{}
-	shutdownOnce sync.Once
-}
-
 // isSafeFilename returns true if the filename contains only safe characters and does not allow any path separators or "..".
 func isSafeFilename(name string) bool {
 	if name == "" || name == "." || name == ".." {
@@ -115,9 +169,10 @@ func isSafeFilename(name string) bool {
 func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
 
-	presignedURL, err := getPresignedURL(s.AccessToken, key)
+	presignedURL, err := s.getPresignedURL(s.AccessToken, key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
+		fmt.Fprintln(s.StderrWriter, "Unauthorized")
 		return
 	}
 
@@ -126,16 +181,18 @@ func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request)
 	// Validate that filename is safe
 	if !isSafeFilename(filename) {
 		http.Error(w, "Invalid file name", http.StatusBadRequest)
+		fmt.Fprintln(s.StderrWriter, "Invalid file name")
 		return
 	}
 
-	finalPath := filepath.Join(ArtifactDir, filename)
-	tempPath := filepath.Join(TempDir, filename)
+	finalPath := filepath.Join(s.ArtifactDir, filename)
+	tempPath := filepath.Join(s.TempDir, filename)
 
 	tempFile, err := os.Create(tempPath)
 	if err != nil {
 		os.Remove(tempPath)
 		http.Error(w, "Failed to create temp file", http.StatusInternalServerError)
+		fmt.Fprintln(s.StderrWriter, "Failed to create temp file")
 		return
 	}
 
@@ -144,12 +201,14 @@ func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		os.Remove(tempPath)
 		http.Error(w, "Failed to write file", http.StatusInternalServerError)
+		fmt.Fprintln(s.StderrWriter, "Failed to write file")
 		return
 	}
 
 	if err := os.Rename(tempPath, finalPath); err != nil {
 		os.Remove(tempPath)
 		http.Error(w, "Failed to commit artifact", http.StatusInternalServerError)
+		fmt.Fprintln(s.StderrWriter, "Failed to commit artifact")
 		return
 	}
 
@@ -162,10 +221,10 @@ func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request)
 		presignedURL, safeFinalPath,
 	)
 
-	configPath := filepath.Join(CurlScriptsDir, filename+".txt")
+	configPath := filepath.Join(s.CurlScriptsDir, filename+".txt")
 	if err := os.WriteFile(configPath, []byte(entry), 0644); err != nil {
-		fmt.Printf("Failed to write config file: %v\n", err)
 		http.Error(w, "Failed to write upload config", http.StatusInternalServerError)
+		fmt.Fprintln(s.StderrWriter, "Failed to write upload config")
 		return
 	}
 
@@ -173,83 +232,17 @@ func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *CIProxyServer) handleRedirect(w http.ResponseWriter, r *http.Request) {
-	binarycacheURL := "https://vcpkg-obs.kaito.tokyo"
-	http.Redirect(w, r, binarycacheURL+r.URL.Path, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, s.BinarycacheURL+r.URL.Path, http.StatusTemporaryRedirect)
 }
 
-func (s *CIProxyServer) handle(w http.ResponseWriter, r *http.Request) {
+func (s *CIProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodHead, http.MethodGet:
 		s.handleRedirect(w, r)
 	case http.MethodPut:
 		s.handleFileUpload(w, r)
-	case "X-CIPROXY-SHUTDOWN":
-		w.WriteHeader(http.StatusNoContent)
-		s.shutdownOnce.Do(func() {
-			close(s.Shutdown)
-		})
 	default:
-		w.Header().Set("Allow", "GET, HEAD, PUT, X-CIPROXY-SHUTDOWN")
+		w.Header().Set("Allow", "GET, HEAD, PUT")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
-}
-
-func main() {
-	// Ensure ArtifactDir and TempDir exist
-	if err := os.MkdirAll(ArtifactDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create ArtifactDir: %v\n", err)
-		os.Exit(1)
-	}
-	if err := os.MkdirAll(TempDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create TempDir: %v\n", err)
-		os.Exit(1)
-	}
-	if err := os.MkdirAll(CurlScriptsDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create CurlScriptsDir: %v\n", err)
-		os.Exit(1)
-	}
-
-	envMasterToken := os.Getenv("MASTER_TOKEN")
-	if envMasterToken == "" {
-		panic("MASTER_TOKEN environment variable is not set")
-	}
-	masterToken := strings.TrimSpace(envMasterToken)
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		panic("PORT environment variable is not set")
-	}
-
-	accessToken, err := getAccessToken(masterToken)
-	if err != nil {
-		panic(err)
-	}
-
-	server := &http.Server{
-		Addr:    "127.0.0.1:" + port,
-		Handler: nil,
-	}
-	proxyServer := CIProxyServer{AccessToken: accessToken, Shutdown: make(chan struct{})}
-	http.HandleFunc("/", proxyServer.handle)
-
-	go func() {
-		fmt.Printf("Starting CI Proxy Server on port %s...\n", port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("HTTP server ListenAndServe: %v\n", err)
-		}
-	}()
-
-	<-proxyServer.Shutdown
-	fmt.Println("Shutting down server...")
-
-	time.Sleep(1 * time.Second)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		fmt.Printf("Server forced to shutdown: %v\n", err)
-	}
-
-	fmt.Println("Server exiting")
 }

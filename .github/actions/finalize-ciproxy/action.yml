@@ -7,17 +7,14 @@ author: Kaito Udagawa <umireon@kaito.tokyo>
 description: Stop ciproxy for vcpkg binary caching and upload packages to the storage
 
 inputs:
-  master-token:
-    description: "Long-term master token"
+  path:
+    description: Path to CIProxy directory.
     required: true
-  ciproxy-port:
-    description: "Port that ciproxy is listening on"
+  pid:
+    description: PID of the running ciproxy
     required: true
-  ciproxy-dir:
-    description: "Directory of ciproxy"
-    required: true
-  ciproxy-pid:
-    description: "PID of the running ciproxy"
+  ciproxy-master-token:
+    description: CIProxy master token.
     required: true
   short-hash-length:
     description: "Length of the short hash to be used in the filename"
@@ -27,46 +24,28 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Signal ciproxy to shutdown
-      shell: bash --noprofile --norc -euo pipefail {0}
-      env:
-        CIPROXY_PORT: ${{ inputs.ciproxy-port }}
-      run: curl -fsS -X X-CIPROXY-SHUTDOWN "http://127.0.0.1:$CIPROXY_PORT/"
-
-    - name: Ensure to stop ciproxy (Windows)
+    - name: Stop CIProxy (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
-      working-directory: ${{ inputs.ciproxy-dir }}
-      env:
-        CIPROXY_PID: ${{ inputs.ciproxy-pid }}
       run: |
         $ErrorActionPreference = "Stop"
         Set-StrictMode -Version Latest
         $PSNativeCommandUseErrorActionPreference = $true
 
-        $pid = [int]$env:CIPROXY_PID
-
-        for ($i = 0; $i -lt 10; $i++) {
-          if (-not (Get-Process -Id $pid -ErrorAction SilentlyContinue)) {
-            Write-Output "Ciproxy gracefully exited."
-            exit 0
-          }
-          Start-Sleep -Seconds 3
-        }
-
-        Write-Error "ERROR: Ciproxy did not stop after 30 seconds!"
-        exit 1
+        Stop-Service -Name ciproxy
+        Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Force
+        Remove-Service -Name ciproxy
 
     - name: Ensure to stop ciproxy (Non-Windows)
       if: runner.os != 'Windows'
       shell: bash --noprofile --norc -euo pipefail {0}
-      working-directory: ${{ inputs.ciproxy-dir }}
+      working-directory: ${{ inputs.path }}
       env:
-        CIPROXY_PID: ${{ inputs.ciproxy-pid }}
+        PID: ${{ inputs.ciproxy-pid }}
       run: |
         count=0
-        while kill -0 "$CIPROXY_PID" 2> /dev/null; do
-          ps -p "$CIPROXY_PID"
+        while kill -0 "$PID" 2> /dev/null; do
+          ps -p "$PID"
           if [[ "$count" -ge 10 ]]; then
             echo "ERROR: Ciproxy did not stop after 30 seconds!"
             exit 1
