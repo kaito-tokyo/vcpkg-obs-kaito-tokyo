@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Vcpkg CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: 23 9 * * *
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  devcontainer:
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/vcpkg-devcontainer.yml
+    with:
+      environment-prepare-devcontainer: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      environment-build-devcontainer: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      vcpkg-binary-sources-readonly-url: 'https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}'
+    secrets: inherit
+
+  manifest:
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/vcpkg-manifest.yml
+    with:
+      environment-build-manifest-windows: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      environment-build-manifest-macos: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      environment-build-manifest-ubuntu: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      vcpkg-binary-sources-readonly-url: 'https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}'
+    secrets: inherit
+
+  ort:
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/vcpkg-ort.yml
+    with:
+      environment-build-ort-vcpkg-windows-x64: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      environment-build-ort-vcpkg-macos: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      environment-build-ort-vcpkg-ubuntu-x64: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      vcpkg-binary-sources-readonly-url: 'https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}'
+      ort-versions-json: '["v1.24.1", "v1.24.4"]'
+    secrets: inherit

@@ -1,0 +1,329 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+on:
+  workflow_call:
+    inputs:
+      environment-build-manifest-windows:
+        description: The environment name for the build-manifest-windows job, or empty string for no environment
+        required: true
+        type: string
+      environment-build-manifest-macos:
+        description: The environment name for the build-manifest-macos job, or empty string for no environment
+        required: true
+        type: string
+      environment-build-manifest-ubuntu:
+        description: The environment name for the build-manifest-ubuntu job, or empty string for no environment
+        required: true
+        type: string
+      vcpkg-binary-sources-readonly-url:
+        description: The URL of the read-only vcpkg binary sources.
+        required: true
+        type: string
+    secrets:
+      MASTER_TOKEN:
+        description: The master token for ciproxy.
+        required: false
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;http,${{ (github.ref == 'refs/heads/main') && 'http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || format('{0},read', inputs.vcpkg-binary-sources-readonly-url) }}"
+
+jobs:
+  build-manifest-windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        triplet: [x64-windows-static-md-obs]
+
+    name: Build Windows vcpkg for ${{ matrix.triplet }}
+
+    runs-on: windows-2022
+    timeout-minutes: 180
+    environment: ${{ inputs.environment-build-manifest-windows }}
+
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    env:
+      CLEAN_PWSH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-windows.ps1
+      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
+      GIT_PATH: 'C:\Program Files\Git\cmd'
+      MINIMAL_PATH: 'C:\Windows\System32;C:\Windows'
+      POWERSHELL_PATH: 'C:\Windows\System32\WindowsPowerShell\v1.0'
+      VCPKG_ROOT: '${{ github.workspace }}\vcpkg'
+
+    steps:
+      - name: Enable Windows long path
+        shell: pwsh
+        run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
+
+      - name: Extract vcpkg configuration
+        id: vcpkg-configuration
+        uses: ./.github/actions/extract-vcpkg-configuration
+        with:
+          path: vcpkg-configuration.json
+
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
+          persist-credentials: false
+          path: vcpkg
+          filter: "blob:none"
+
+      - name: Run bootstrap-vcpkg.bat
+        shell: pwsh -Command ". $env:PWSH_ENV && . '{0}'"
+        env:
+          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
+          PATH: "${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}"
+          PWSH_ENV: ${{ env.CLEAN_PWSH_ENV }}
+        run: '& "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics'
+
+      - name: Start ciproxy
+        id: ciproxy
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/start-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-port: "8080"
+
+      - name: Install dependencies from Windows vcpkg (${{ matrix.triplet }})
+        shell: pwsh -NoProfile -Command ". $env:PWSH_ENV && . '{0}'"
+        env:
+          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
+          PATH: "${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}"
+          PWSH_ENV: ${{ env.CLEAN_PWSH_ENV }}
+        run: '& "$Env:VCPKG_ROOT/vcpkg.exe" install --triplet=${{ matrix.triplet }}'
+
+      - name: Finalize ciproxy
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
+          master-token: ${{ secrets.MASTER_TOKEN }}
+
+      - name: Upload ciproxy logs
+        if: github.ref == 'refs/heads/main' && always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            ${{ steps.ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDERR_LOG }}
+          if-no-files-found: warn
+
+  build-manifest-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        triplet: [arm64-osx-obs, x64-osx-obs]
+        include:
+          - os-xcode: Sequoia, Xcode 16.4
+            runs-on: macos-15
+            DEVELOPER_DIR: /Applications/Xcode_16.4.app
+          - os-xcode: Tahoe, Xcode 26.3
+            runs-on: macos-26
+            DEVELOPER_DIR: /Applications/Xcode_26.3.app
+
+    name: Build macOS ${{ matrix.os-xcode }} vcpkg for ${{ matrix.triplet }}
+
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 180
+    environment: ${{ inputs.environment-build-manifest-macos }}
+
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    env:
+      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-macos.bash
+      CMAKE_PATH: /opt/homebrew/opt/cmake/bin
+      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
+      DEVELOPER_DIR: ${{ matrix.DEVELOPER_DIR }}
+      MINIMAL_PATH: "/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      XCBEAUTIFY_PATH: /opt/homebrew/opt/xcbeautify/bin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
+
+      - name: Extract vcpkg configuration
+        id: vcpkg-configuration
+        uses: ./.github/actions/extract-vcpkg-configuration
+        with:
+          path: vcpkg-configuration.json
+
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
+          persist-credentials: false
+          path: vcpkg
+          filter: "blob:none"
+
+      - name: Run bootstrap-vcpkg.sh
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
+          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
+          PATH: ${{ env.MINIMAL_PATH }}
+        run: '"$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics'
+
+      - name: Start ciproxy
+        id: ciproxy
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/start-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-port: "8080"
+
+      - name: Install dependencies from macOS vcpkg (${{ matrix.triplet }})
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
+          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
+          PATH: ${{ env.MINIMAL_PATH }}
+        run: '"$VCPKG_ROOT/vcpkg" install --triplet=${{ matrix.triplet }}'
+
+      - name: Finalize ciproxy
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
+          master-token: ${{ secrets.MASTER_TOKEN }}
+
+      - name: Upload ciproxy logs
+        if: github.ref == 'refs/heads/main' && always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            ${{ steps.ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDERR_LOG }}
+          if-no-files-found: warn
+
+  build-manifest-ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        triplet: [x64-linux-obs]
+
+    name: Build Ubuntu vcpkg for ${{ matrix.triplet }}
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: ${{ inputs.environment-build-manifest-ubuntu }}
+
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    env:
+      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash
+      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
+      MINIMAL_PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ciproxy/go.mod
+          cache-dependency-path: ciproxy/go.mod
+
+      - name: Extract vcpkg configuration
+        id: vcpkg-configuration
+        uses: ./.github/actions/extract-vcpkg-configuration
+        with:
+          path: vcpkg-configuration.json
+
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
+          persist-credentials: false
+          path: vcpkg
+          filter: "blob:none"
+
+      - name: Run bootstrap-vcpkg.sh
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
+          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
+          PATH: ${{ env.MINIMAL_PATH }}
+        run: '"$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics'
+
+      - name: Start ciproxy
+        id: ciproxy
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/start-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-port: "8080"
+
+      - name: Install dependencies from Ubuntu vcpkg (${{ matrix.triplet }})
+        shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
+          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
+          PATH: ${{ env.MINIMAL_PATH }}
+        run: '"$VCPKG_ROOT/vcpkg" install --triplet=${{ matrix.triplet }}'
+
+      - name: Finalize ciproxy
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/finalize-ciproxy
+        with:
+          ciproxy-dir: ciproxy
+          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
+          master-token: ${{ secrets.MASTER_TOKEN }}
+
+      - name: Upload ciproxy logs
+        if: github.ref == 'refs/heads/main' && always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            ${{ steps.ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDERR_LOG }}
+          if-no-files-found: warn

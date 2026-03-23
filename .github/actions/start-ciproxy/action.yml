@@ -13,36 +13,77 @@ inputs:
   ciproxy-dir:
     description: "Directory of ciproxy"
     required: true
-  port:
+  ciproxy-port:
     description: "Port to listen on"
     required: true
 
 outputs:
-  ciproxy-pid:
+  CIPROXY_PID:
     description: "PID of the started ciproxy"
-    value: ${{ steps.start.outputs.ciproxy-pid }}
-  ciproxy-stdout-log:
+    value: ${{ runner.os == 'Windows' && steps.start-windows.outputs.CIPROXY_PID || steps.start-non-windows.outputs.CIPROXY_PID }}
+  CIPROXY_PORT:
+    description: "Port that ciproxy is listening on"
+    value: ${{ inputs.ciproxy-port }}
+  CIPROXY_STDOUT_LOG:
     description: "Path to ciproxy stdout log"
     value: ${{ inputs.ciproxy-dir }}/stdout.log
-  ciproxy-stderr-log:
+  CIPROXY_STDERR_LOG:
     description: "Path to ciproxy stderr log"
     value: ${{ inputs.ciproxy-dir }}/stderr.log
 
 runs:
   using: composite
   steps:
-    - name: Start ciproxy
-      id: start
+    - name: Check if MASTER_TOKEN is set
       shell: bash --noprofile --norc -euo pipefail {0}
+      env:
+        MASTER_TOKEN: ${{ inputs.master-token }}
+      run: '[[ -n "$MASTER_TOKEN" ]]'
+
+    - name: Build ciproxy
+      shell: bash --noprofile --norc -uo pipefail {0}
+      working-directory: ${{ inputs.ciproxy-dir }}
+      run: go build -o ciproxy
+
+    - name: Start ciproxy (Windows)
+      id: start-windows
+      if: runner.os == 'Windows'
+      shell: pwsh
       working-directory: ${{ inputs.ciproxy-dir }}
       env:
         MASTER_TOKEN: ${{ inputs.master-token }}
-        EXE: ${{ runner.os == 'Windows' && '.exe' || '' }}
-        PORT: ${{ inputs.port }}
+        PORT: ${{ inputs.ciproxy-port }}
       run: |
-        go build
-        MASTER_TOKEN="$MASTER_TOKEN" "./ciproxy$EXE" > stdout.log 2> stderr.log &
+        $process = Start-Process .\ciproxy.exe -RedirectStandardOutput stdout.log -RedirectStandardError stderr.log -PassThru
+        Start-Sleep -Seconds 3
+
+        if ($process.HasExited) {
+          Write-Error "ERROR: ciproxy crashed immediately!"
+          Get-Content stdout.log
+          Get-Content stderr.log
+          exit 1
+        } else {
+          Write-Output "CIPROXY_PID=$($process.Id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        }
+
+    - name: Start ciproxy (Non-Windows)
+      id: start-non-windows
+      if: runner.os != 'Windows'
+      shell: bash --noprofile --norc -uo pipefail {0}
+      working-directory: ${{ inputs.ciproxy-dir }}
+      env:
+        MASTER_TOKEN: ${{ inputs.master-token }}
+        PORT: ${{ inputs.ciproxy-port }}
+      run: |
+        nohup ./ciproxy > stdout.log 2> stderr.log &
         CIPROXY_PID=$!
-        echo "Ciproxy started with PID: $CIPROXY_PID"
-        echo "ciproxy-pid=$CIPROXY_PID" >> "$GITHUB_OUTPUT"
+        disown
         sleep 3
+
+        if kill -0 "$CIPROXY_PID" 2>/dev/null; then
+          echo "CIPROXY_PID=$CIPROXY_PID" >> "$GITHUB_OUTPUT"
+        else
+          echo "ERROR: ciproxy crashed immediately!"
+          cat stdout.log stderr.log
+          exit 1
+        fi

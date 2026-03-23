@@ -2,30 +2,33 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: Local CI
-
 on:
-  push:
-    branches: [main]
-  schedule:
-    - cron: 23 6 * * *
-  workflow_dispatch:
-
-permissions:
-  attestations: write
-  contents: read
-  id-token: write
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
+    inputs:
+      environment-prepare-devcontainer:
+        description: The environment name for the prepare-devcontainer jobs, or empty string for no environment.
+        required: true
+        type: string
+      environment-build-devcontainer:
+        description: The environment name for the build-devcontainer jobs, or empty string for no environment.
+        required: true
+        type: string
+      vcpkg-binary-sources-readonly-url:
+        description: The URL of the read-only vcpkg binary sources.
+        required: true
+        type: string
+    secrets:
+      MASTER_TOKEN:
+        description: The master token for ciproxy.
+        required: false
 
 jobs:
   prepare-devcontainer:
     name: Prepare Dev Container
 
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 180
+    environment: ${{ inputs.environment-prepare-devcontainer }}
 
     permissions:
       artifact-metadata: write
@@ -104,8 +107,6 @@ jobs:
             archive.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
             ports.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
           build-args: |
-            ARG_BASE_IMAGE=ubuntu:24.04
-            ARG_USERNAME=runner
             ARG_VCPKG_DEFAULT_REGISTRY_BASELINE=${{ steps.vcpkg-configuration.outputs.DEFAULT_REGISTRY_BASELINE }}
           context: .devcontainer
           file: .devcontainer/Dockerfile
@@ -135,7 +136,7 @@ jobs:
 
     runs-on: ubuntu-24.04
     timeout-minutes: 180
-    environment: production
+    environment: ${{ inputs.environment-build-devcontainer }}
 
     permissions:
       contents: read
@@ -143,14 +144,10 @@ jobs:
 
     container:
       image: ${{ needs.prepare-devcontainer.outputs.DEVCONTAINER_IMAGE }}
+      options: --user root
 
     env:
-      CIPROXY_PORT: "8080"
-      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash
-      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      MINIMAL_PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-      VCPKG_BINARY_SOURCES: "clear;http,http://localhost:8080/{name}/{version}/{sha},readwrite"
-
+      VCPKG_BINARY_SOURCES: "clear;http,${{ (github.ref == 'refs/heads/main') && 'http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || format('{0},read', inputs.vcpkg-binary-sources-readonly-url) }}"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -164,34 +161,33 @@ jobs:
           cache-dependency-path: ciproxy/go.mod
 
       - name: Start ciproxy
-        id: start-ciproxy
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        id: ciproxy
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
-          master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ciproxy
-          port: ${{ env.CIPROXY_PORT }}
+          master-token: ${{ secrets.MASTER_TOKEN }}
+          ciproxy-port: "8080"
 
-      - name: Install dependencies from vcpkg (Ubuntu x86_64)
+      - name: Install dependencies from vcpkg (x64-linux-obs)
         shell: bash --noprofile --norc -euo pipefail {0}
-        env:
-          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
-          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: ${{ env.MINIMAL_PATH }}
-        run: '"$VCPKG_ROOT/vcpkg" install --x-install-root=./.deps_vendor/vcpkg_installed --triplet=x64-linux-obs'
+        run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
-          master-token: ${{ secrets.MASTER_TOKEN }}
           ciproxy-dir: ciproxy
-          ciproxy-pid: ${{ steps.start-ciproxy.outputs.ciproxy-pid }}
+          ciproxy-pid: ${{ steps.ciproxy.outputs.CIPROXY_PID }}
+          ciproxy-port: ${{ steps.ciproxy.outputs.CIPROXY_PORT }}
+          master-token: ${{ secrets.MASTER_TOKEN }}
 
       - name: Upload ciproxy logs
+        if: github.ref == 'refs/heads/main' && always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index || 0 }}
+          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
           path: |
-            ${{ steps.start-ciproxy.outputs.ciproxy-stdout-log }}
-            ${{ steps.start-ciproxy.outputs.ciproxy-stderr-log }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.CIPROXY_STDERR_LOG }}
           if-no-files-found: warn
