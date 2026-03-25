@@ -24,7 +24,7 @@ debootstrap --variant=minbase --include=ca-certificates noble /rootfs http://arc
 rm -rf /rootfs/var/lib/apt/lists/* /rootfs/var/cache/apt/archives/*
 EOT
 
-# obs-deps: Installs dependencies for building OBS pluguns.
+# obs-deps: Installs dependencies for building OBS plugins.
 FROM scratch AS minbase
 
 COPY --from=deboostrap /rootfs /
@@ -43,7 +43,7 @@ ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 CMD ["/bin/bash"]
 
-# obs-deps: Installs dependencies for building OBS pluguns.
+# obs-deps: Installs dependencies for building OBS plugins.
 FROM minbase AS obs-deps
 
 RUN install -d /etc/apt/keyrings

@@ -113,13 +113,10 @@ jobs:
 
     container:
       image: ${{ needs.prepare-devcontainer.outputs.DEVCONTAINER_IMAGE }}
-      volumes:
-        - type=tmpfs,destination=/usr/local/vcpkg/buildtrees
       options: --user runner
 
     env:
       VCPKG_BINARY_SOURCES: "clear;http,${{ (github.ref == 'refs/heads/main') && 'http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || format('{0},read', inputs.vcpkg-binary-sources-readonly-url) }}"
-      VCPKG_MAX_CONCURRENCY: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
