@@ -1,6 +1,5 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
-  "name": "ubuntu-24.04-devcontainer",
   "features": {
     "ghcr.io/devcontainers/features/copilot-cli:1": {
     },
@@ -14,6 +13,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
+				"ms-azuretools.vscode-containers",
         "astro-build.astro-vscode",
         "editorconfig.editorconfig",
         "github.vscode-github-actions",
@@ -23,15 +23,14 @@
       ]
     }
   },
-  "remoteEnv": {
-    "GH_TOKEN": "${localEnv:GH_TOKEN}",
+  "containerEnv": {
     "VCPKG_BINARY_SOURCES": "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}"
   },
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": "."
-  },
+	"dockerComposeFile": "compose.yaml",
+	"service": "dev",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "mounts": [
+    "source=${localWorkspaceFolder},target=${containerWorkspaceFolder},type=bind,consistency=cached",
     "source=${localWorkspaceFolderBasename}-build_macos,target=${containerWorkspaceFolder}/build_macos,type=volume,volume-nocopy",
     "source=${localWorkspaceFolderBasename}-build_x64,target=${containerWorkspaceFolder}/build_x64,type=volume,volume-nocopy",
     "source=${localWorkspaceFolderBasename}-build_x86_64,target=${containerWorkspaceFolder}/build_x86_64,type=volume,volume-nocopy",
