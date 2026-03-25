@@ -5,12 +5,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# busybox-scratch: Hack for Dev Container
-FROM --platform=linux/amd64 busybox:1.37.0-glibc AS busybox-scratch
-RUN rm -rf /bin /etc /home /lib /lib64 /root /sbin /usr /var || true
-
 # noble-minbase: Bootstraps minbase noble
-FROM ubuntu:noble-20260217 AS noble-minbase
+FROM --platform=linux/amd64 ubuntu:noble-20260217 AS noble-minbase
 
 RUN <<'EOT' DEBIAN_FRONTEND=noninteractive bash -euo pipefail -O nullglob
   # Pinning at the available version on 2006-03-25
@@ -25,8 +21,9 @@ EOT
 
 RUN debootstrap --variant=minbase --include=ca-certificates noble /rootfs http://archive.ubuntu.com/ubuntu/
 
-# obs-build-deps: Installs OBS build dependencies.
-FROM busybox-scratch AS obs-build-deps
+# Dirty hack for Dev Container's broken behavior of pulling scratch with error
+FR\
+OM scratch
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -71,8 +68,6 @@ RUN <<'EOT' DEBIAN_FRONTEND=noninteractive bash -euo pipefail -O nullglob
   rm -rf /var/lib/apt/lists/*
 EOT
 
-# bootstrap-vcpkg: Clone and bootstrap vcpkg
-FROM obs-build-deps AS bootstrap-vcpkg
 ENV VCPKG_ROOT=/usr/local/vcpkg
 ENV VCPKG_DOWNLOADS=/usr/local/vcpkg-downloads
 COPY vcpkg_default_registry_baseline.txt /usr/local/vcpkg_default_registry_baseline.txt
@@ -86,9 +81,6 @@ RUN <<'EOT' bash -euo pipefail -O nullglob
   chgrp -R vcpkg "${VCPKG_ROOT}" "${VCPKG_DOWNLOADS}"
   chmod -R ug=rwX,o=rX "${VCPKG_ROOT}" "${VCPKG_DOWNLOADS}"
 EOT
-
-# final: Final image for Dev Container and GitHub Actions runner
-FROM bootstrap-vcpkg AS final
 
 RUN <<'EOT' bash -euo pipefail -O nullglob
 	groupadd -g 1000 vscode
