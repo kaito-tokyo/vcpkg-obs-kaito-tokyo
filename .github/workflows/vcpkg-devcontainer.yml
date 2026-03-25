@@ -58,12 +58,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Extract vcpkg configuration
-        id: vcpkg-configuration
-        uses: ./.github/actions/extract-vcpkg-configuration
-        with:
-          path: ${{ github.workspace }}/vcpkg-configuration.json
-
       - name: Log in to the GitHub Container registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:

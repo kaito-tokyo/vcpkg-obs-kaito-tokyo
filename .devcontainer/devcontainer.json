@@ -1,10 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "features": {
-    "ghcr.io/devcontainers/features/copilot-cli:1": {
-    },
+    "ghcr.io/devcontainers/features/copilot-cli:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {
-      "extensions": ["github/gh-aw"]
+      "extensions": [
+        "github/gh-aw"
+      ]
     },
     "ghcr.io/devcontainers/features/node:1": {
       "version": "24"
@@ -13,7 +14,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
-				"ms-azuretools.vscode-containers",
+        "ms-azuretools.vscode-containers",
         "astro-build.astro-vscode",
         "editorconfig.editorconfig",
         "github.vscode-github-actions",
@@ -26,9 +27,9 @@
   "containerEnv": {
     "VCPKG_BINARY_SOURCES": "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}"
   },
-	"dockerComposeFile": "compose.yaml",
-	"service": "dev",
-	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "dockerComposeFile": "compose.yaml",
+  "service": "dev",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "mounts": [
     "source=${localWorkspaceFolder},target=${containerWorkspaceFolder},type=bind,consistency=cached",
     "source=${localWorkspaceFolderBasename}-build_macos,target=${containerWorkspaceFolder}/build_macos,type=volume,volume-nocopy",
@@ -38,7 +39,7 @@
     "source=${localWorkspaceFolderBasename}-deps,target=${containerWorkspaceFolder}/.deps,type=volume,volume-nocopy",
     "source=${localWorkspaceFolderBasename}-venv,target=${containerWorkspaceFolder}/.venv,type=volume,volume-nocopy"
   ],
-	"remoteUser": "vscode",
+  "remoteUser": "vscode",
   "onCreateCommand": "sudo chown -R vscode:vscode /workspaces && chmod -R u=rwX,go=rX /workspaces",
   "updateContentCommand": "if command -v ./scripts/setup_ubuntu.sh >/dev/null 2>&1; then ./scripts/setup_ubuntu.sh; fi"
 }

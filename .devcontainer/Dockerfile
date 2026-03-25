@@ -9,12 +9,11 @@
 FROM --platform=linux/amd64 busybox:1.37.0-glibc AS busybox-scratch
 RUN rm -rf /bin /etc /home /lib /lib64 /root /sbin /usr /var || true
 
-FROM --platform=linux/amd64 scratch AS pure-scratch
-
 # noble-minbase: Bootstraps minbase noble
 FROM ubuntu:noble-20260217 AS noble-minbase
 
 RUN <<'EOT' DEBIAN_FRONTEND=noninteractive bash -euo pipefail -O nullglob
+  # Pinning at the available version on 2006-03-25
   dependencies=(
     ca-certificates=20240203
     debootstrap=1.0.134ubuntu1
@@ -26,24 +25,27 @@ EOT
 
 RUN debootstrap --variant=minbase --include=ca-certificates noble /rootfs http://archive.ubuntu.com/ubuntu/
 
-# obs-build-deps: Installs OBS build dependencies
+# obs-build-deps: Installs OBS build dependencies.
 FROM busybox-scratch AS obs-build-deps
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 COPY --from=noble-minbase /rootfs /
 
+RUN install -d /etc/apt/keyrings
+
 COPY <<'EOF' /etc/apt/sources.list
 deb http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse
 EOF
 
-ADD --chmod=644 https://keyserver.ubuntu.com/pks/lookup?fingerprint=on&op=get&search=0xBC7345F522079769F5BBE987EFC71127F425E228 /etc/apt/keyrings/obsproject.asc
+COPY obsproject.asc /etc/apt/keyrings/obsproject.asc
 
 COPY <<'EOF' /etc/apt/sources.list.d/obsproject.list
 deb [signed-by=/etc/apt/keyrings/obsproject.asc] https://ppa.launchpadcontent.net/obsproject/obs-studio/ubuntu noble main
 EOF
 
 RUN <<'EOT' DEBIAN_FRONTEND=noninteractive bash -euo pipefail -O nullglob
+  # Pinning at the latest versions on noble, and let it detect if any changes occurred on noble repository.
   dependencies=(
     build-essential=12.10ubuntu1
     cmake=3.28.3-1build7
@@ -75,10 +77,10 @@ ENV VCPKG_ROOT=/usr/local/vcpkg
 ENV VCPKG_DOWNLOADS=/usr/local/vcpkg-downloads
 COPY vcpkg_default_registry_baseline.txt /usr/local/vcpkg_default_registry_baseline.txt
 RUN <<'EOT' bash -euo pipefail -O nullglob
+  install -d "${VCPKG_DOWNLOADS}"
   git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpkg.git "${VCPKG_ROOT}"
   cd "${VCPKG_ROOT}"
   git checkout "$(< /usr/local/vcpkg_default_registry_baseline.txt)"
-  mkdir -p "${VCPKG_DOWNLOADS}"
   "${VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics
   groupadd -g 999 vcpkg
   chgrp -R vcpkg "${VCPKG_ROOT}" "${VCPKG_DOWNLOADS}"
