@@ -1,0 +1,7 @@
+services:
+  dev:
+    build:
+      context: .
+      platforms: [linux/amd64]
+    tty: true
+    stdin_open: true
