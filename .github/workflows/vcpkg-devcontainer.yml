@@ -149,9 +149,9 @@ jobs:
           ciproxy-binarycache-url: ${{ inputs.ciproxy-binarycache-url }}
           ciproxy-binarycache-readwrite-url: ${{ inputs.ciproxy-binarycache-readwrite-url }}
 
-      - name: Install dependencies from vcpkg (x64-linux-obs)
-        shell: bash --noprofile --norc -euo pipefail {0}
-        run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
+      # - name: Install dependencies from vcpkg (x64-linux-obs)
+      #   shell: bash --noprofile --norc -euo pipefail {0}
+      #   run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'

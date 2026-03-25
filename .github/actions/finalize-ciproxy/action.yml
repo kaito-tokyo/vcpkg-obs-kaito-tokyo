@@ -36,9 +36,9 @@ runs:
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Force
         Remove-Service -Name ciproxy
 
-    - name: Ensure to stop ciproxy (Non-Windows)
+    - name: Stop CIProxy (Non-Windows)
       if: runner.os != 'Windows'
-      shell: bash --noprofile --norc -euo pipefail {0}
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
       working-directory: ${{ inputs.path }}
       env:
         PID: ${{ inputs.pid }}
@@ -47,7 +47,7 @@ runs:
 
         count=0
         while kill -0 "$PID" 2> /dev/null; do
-          ps -p "$PID" || true
+          ps -p "$PID" -o pid,ppid,state,stat,comm || true
           if [[ "$count" -ge 10 ]]; then
             echo "ERROR: Ciproxy did not stop after 30 seconds!"
             exit 1
@@ -85,7 +85,7 @@ runs:
 
     - name: Upload build provenance of vcpkg artifacts to CDN
       if: steps.check-artifacts.outputs.EXISTS == 'true'
-      shell: bash --noprofile --norc -euo pipefail {0}
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
       working-directory: ${{ inputs.path }}
       env:
         MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
@@ -113,6 +113,6 @@ runs:
 
     - name: Upload vcpkg artifacts to CDN
       if: steps.check-artifacts.outputs.EXISTS == 'true'
-      shell: bash --noprofile --norc -euo pipefail {0}
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
       working-directory: ${{ inputs.path }}
       run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fL -K -
