@@ -82,7 +82,7 @@ RUN <<'EOT' bash -euo pipefail -O nullglob
   "${VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics
   groupadd -g 999 vcpkg
   chgrp -R vcpkg "${VCPKG_ROOT}"
-  chmod -R ug=rwX,o=rX "${VCPKG_ROOT}"
+  chmod -R ug=rwX,o=rX "${VCPKG_ROOT}" "${VCPKG_DOWNLOADS}"
 EOT
 
 # final: Final image for Dev Container and GitHub Actions runner
