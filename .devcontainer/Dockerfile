@@ -81,7 +81,7 @@ RUN <<'EOT' bash -euo pipefail -O nullglob
   mkdir -p "${VCPKG_DOWNLOADS}"
   "${VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics
   groupadd -g 999 vcpkg
-  chgrp -R vcpkg "${VCPKG_ROOT}"
+  chgrp -R vcpkg "${VCPKG_ROOT}" "${VCPKG_DOWNLOADS}"
   chmod -R ug=rwX,o=rX "${VCPKG_ROOT}" "${VCPKG_DOWNLOADS}"
 EOT
 
