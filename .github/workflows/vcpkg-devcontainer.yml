@@ -58,6 +58,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Resolve azure.archive.ubuntu.com
+        id: azure-archive
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: getent hosts azure.archive.ubuntu.com | awk 'NR==1 {print "IPADDR=" $1}' >> "$GITHUB_OUTPUT"
+
       - name: Log in to the GitHub Container registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
@@ -72,12 +77,15 @@ jobs:
         id: meta
         uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
         with:
+          flavor: |
+            latest=auto
           images: ghcr.io/${{ github.repository }}-devcontainer
-
-      - name: Resolve azure.archive.ubuntu.com
-        id: azure-archive
-        shell: bash --noprofile --norc -euo pipefail {0}
-        run: getent hosts azure.archive.ubuntu.com | awk 'NR==1 {print "IPADDR=" $1}' >> "$GITHUB_OUTPUT"
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
 
       - name: Build and Push builder image (Ubuntu)
         id: push
@@ -88,8 +96,8 @@ jobs:
             ports.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
           annotations: ${{ steps.meta.outputs.annotations }}
           context: .devcontainer
-          cache-from: type=inline
-          cache-to: type=inline,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           file: .devcontainer/Dockerfile
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
