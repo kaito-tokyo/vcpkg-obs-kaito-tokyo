@@ -103,7 +103,7 @@ jobs:
         shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
         env:
           GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: '${{ env.CMAKE_PATH }};${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}'
+          PATH: "${{ env.CMAKE_PATH }};${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}"
           PWSH_ENV: ${{ env.CLEAN_PWSH_ENV }}
         run: |
           python ./onnxruntime/tools/ci_build/build.py `
