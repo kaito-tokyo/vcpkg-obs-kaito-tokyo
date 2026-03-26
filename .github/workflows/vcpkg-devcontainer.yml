@@ -46,11 +46,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Resolve azure.archive.ubuntu.com
-        id: azure-archive
-        shell: bash --noprofile --norc -euo pipefail {0}
-        run: getent hosts azure.archive.ubuntu.com | awk 'NR==1 {print "IPADDR=" $1}' >> "$GITHUB_OUTPUT"
-
       - name: Log in to the GitHub Container registry
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
@@ -63,14 +58,10 @@ jobs:
 
       - name: Build and Push builder image
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          AZURE_ARCHIVE_IPADDR: ${{ steps.azure-archive.outputs.IPADDR }}
         run: |
           IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY,,}-devcontainer"
 
           BUILD_ARGS=(
-            --add-host="archive.ubuntu.com:$AZURE_ARCHIVE_IPADDR"
-            --add-host="ports.ubuntu.com:$AZURE_ARCHIVE_IPADDR"
             --cache-from=type=gha
             --cache-to=type=gha,mode=max
             --platform=linux/amd64
