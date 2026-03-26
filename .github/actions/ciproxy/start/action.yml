@@ -134,6 +134,6 @@ runs:
           fi
 
           sleep 1
-        }
+        done
 
         echo "PID=$(cat 'ciproxy.pid' | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
