@@ -27,7 +27,7 @@ on:
         required: false
 
 env:
-  VCPKG_BINARY_SOURCES: ${{ github.ref == 'refs/heads/main' && 'http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || inputs.VCPKG_BINARY_SOURCES }}
+  VCPKG_BINARY_SOURCES: ${{ github.ref == 'refs/heads/main' && 'clear;http,http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || inputs.VCPKG_BINARY_SOURCES }}
 
 jobs:
   build-manifest-windows:
@@ -112,7 +112,7 @@ jobs:
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/finalize-ciproxy
+        uses: ./.github/actions/ciproxy/finalize
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
           pid: ${{ steps.ciproxy.outputs.PID }}
@@ -213,7 +213,7 @@ jobs:
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/finalize-ciproxy
+        uses: ./.github/actions/ciproxy/finalize
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
           pid: ${{ steps.ciproxy.outputs.PID }}
@@ -304,7 +304,7 @@ jobs:
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/finalize-ciproxy
+        uses: ./.github/actions/ciproxy/finalize
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
           pid: ${{ steps.ciproxy.outputs.PID }}

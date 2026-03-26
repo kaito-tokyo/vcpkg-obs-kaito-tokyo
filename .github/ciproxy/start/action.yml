@@ -55,8 +55,8 @@ runs:
         $vars = @(
           "CIPROXY_MASTER_TOKEN=$env:CIPROXY_MASTER_TOKEN"
           "PORT=$env:PORT"
-          "STDERR_PATH=$((Join-Path (Get-Location) "stderr.log"))"
-          "STDOUT_PATH=$((Join-Path (Get-Location) "stdout.log"))"
+          "STDERR_PATH=$((Join-Path (Get-Location) 'stderr.log'))"
+          "STDOUT_PATH=$((Join-Path (Get-Location) 'stdout.log'))"
           "WORKING_DIRECTORY=$((Get-Location).Path)"
         )
         New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Value $vars -PropertyType MultiString -Force
