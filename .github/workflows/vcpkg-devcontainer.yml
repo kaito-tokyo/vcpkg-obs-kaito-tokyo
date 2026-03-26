@@ -46,12 +46,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - run: buildkitd
-
       - name: Resolve azure.archive.ubuntu.com
         id: azure-archive
         shell: bash --noprofile --norc -euo pipefail {0}
         run: getent hosts azure.archive.ubuntu.com | awk 'NR==1 {print "IPADDR=" $1}' >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx builder
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: docker buildx create --bootstrap --use
+
+      - name: Log in to the GitHub Container registry
+        run: buildctl
 
       - name: Log in to the GitHub Container registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
