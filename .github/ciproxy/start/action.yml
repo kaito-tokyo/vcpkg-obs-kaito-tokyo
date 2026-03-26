@@ -1,0 +1,92 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Start CIProxy
+author: Kaito Udagawa <umireon@kaito.tokyo>
+description: Start CIProxy for vcpkg binary caching
+
+inputs:
+  port:
+    description: Port to listen on.
+    required: true
+  ciproxy-master-token:
+    description: CIProxy master token.
+    required: true
+  working-directory:
+    description: Working directory for CIProxy.
+    required: false
+    default: .
+
+outputs:
+  PID:
+    description: "PID of the started ciproxy"
+    value: ${{ steps.pid.outputs.PID }}
+  STDOUT_LOG:
+    description: "Path to ciproxy stdout log"
+    value: ${{ inputs.working-directory }}/stdout.log
+  STDERR_LOG:
+    description: "Path to ciproxy stderr log"
+    value: ${{ inputs.working-directory }}/stderr.log
+
+runs:
+  using: composite
+  steps:
+    - name: Build CIProxy
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+      working-directory: ${{ github.action_path }}/../cmd
+      run: go build -o "$RUNNER_TEMP/ciproxy.exe"
+
+    - name: Start CIProxy (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        CIPROXY_EXE: ${{ runner.temp }}/ciproxy.exe
+        CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
+        PORT: ${{ inputs.port }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        Set-StrictMode -Version Latest
+        $PSNativeCommandUseErrorActionPreference = $true
+
+        New-Service -Name ciproxy -BinaryPathName $env:CIPROXY_EXE -StartupType Manual
+
+        $vars = @(
+          "CIPROXY_MASTER_TOKEN=$env:CIPROXY_MASTER_TOKEN"
+          "PORT=$env:PORT"
+          "STDERR_PATH=$((Join-Path (Get-Location) "stderr.log"))"
+          "STDOUT_PATH=$((Join-Path (Get-Location) "stdout.log"))"
+          "WORKING_DIRECTORY=$((Get-Location).Path)"
+        )
+        New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Value $vars -PropertyType MultiString -Force
+
+        Start-Service -Name ciproxy
+        Start-Sleep -Seconds 1
+
+        $pidPath = Join-Path (Get-Location) "ciproxy.pid"
+        $pid = (Get-Content $pidPath -Raw).Trim()
+        Add-Content -Path "$env:GITHUB_OUTPUT" -Value "PID=$pid"
+
+    - name: Start CIProxy (Posix)
+      if: runner.os != 'Windows'
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        CIPROXY_EXE: ${{ runner.temp }}/ciproxy.exe
+        CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
+        PORT: ${{ inputs.port }}
+      run: |
+        if command -v tini >/dev/null 2>&1; then
+          tini -s -- "$CIPROXY_EXE" >stdout.log 2>stderr.log &
+        else
+          "$CIPROXY_EXE" >stdout.log 2>stderr.log &
+        fi
+        sleep 1
+        disown
+
+    - name: Output CIProxy PID
+      id: pid
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+      working-directory: ${{ inputs.working-directory }}
+      run: echo "PID=$(<ciproxy.pid)" >> "$GITHUB_OUTPUT"

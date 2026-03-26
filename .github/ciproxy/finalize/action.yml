@@ -7,15 +7,16 @@ author: Kaito Udagawa <umireon@kaito.tokyo>
 description: Stop ciproxy for vcpkg binary caching and upload packages to the storage
 
 inputs:
-  path:
-    description: Path to CIProxy directory.
-    required: true
   pid:
     description: PID of the running ciproxy
     required: true
   ciproxy-master-token:
     description: CIProxy master token.
     required: true
+  working-directory:
+    description: Working directory for CIProxy.
+    required: false
+    default: .
   short-hash-length:
     description: "Length of the short hash to be used in the filename"
     required: false
@@ -36,10 +37,10 @@ runs:
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\ciproxy" -Name "Environment" -Force
         Remove-Service -Name ciproxy
 
-    - name: Stop CIProxy (POSIX)
+    - name: Stop CIProxy (Posix)
       if: runner.os != 'Windows'
       shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-      working-directory: ${{ inputs.path }}
+      working-directory: ${{ inputs.working-directory }}
       env:
         PID: ${{ inputs.pid }}
       run: |
@@ -50,21 +51,20 @@ runs:
           ps aux || true
           ps -p "$PID" -o pid,ppid,state,stat,comm || true
           if [[ "$count" -ge 10 ]]; then
-            echo "ERROR: Ciproxy did not stop after 30 seconds!"
+            echo "ERROR: CIProxy did not stop after 30 seconds!"
             exit 1
           fi
           sleep 3
           count=$((count+1))
         done
 
-        echo "Ciproxy gracefully exited."
+        echo "CIProxy gracefully exited."
 
     - name: Check if vcpkg artifacts exist
       id: check-artifacts
-      shell: bash --noprofile --norc -euo pipefail {0}
-      working-directory: ${{ inputs.path }}
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+      working-directory: ${{ inputs.working-directory }}
       run: |
-        shopt -s nullglob
         files=(vcpkg_artifacts/*)
         if [[ -d vcpkg_artifacts ]] && [ "${#files[@]}" -gt 0 ]; then
           echo "Found ${#files[@]} vcpkg artifact(s)."
@@ -82,16 +82,15 @@ runs:
       if: steps.check-artifacts.outputs.EXISTS == 'true'
       uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
       with:
-        subject-path: ciproxy/vcpkg_artifacts/*
+        subject-path: ${{ inputs.working-directory }}/vcpkg_artifacts/*
 
     - name: Upload build provenance of vcpkg artifacts to CDN
       if: steps.check-artifacts.outputs.EXISTS == 'true'
       shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-      working-directory: ${{ inputs.path }}
+      working-directory: ${{ inputs.working-directory }}
       env:
-        CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
-        JOB_ID: ${{ github.job }}
         BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
         SHORT_HASH_LENGTH: ${{ inputs.short-hash-length }}
       run: |
         jq -c . "$BUNDLE_PATH" > attestation.jsonl
@@ -99,7 +98,8 @@ runs:
         FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
         SHORT_HASH=${FULL_HASH:0:$SHORT_HASH_LENGTH}
         FILENAME="${GITHUB_REPOSITORY/\//@}@$GITHUB_RUN_ID@$GITHUB_RUN_ATTEMPT@$GITHUB_JOB@$SHORT_HASH.jsonl"
-        echo "Uploading $FILENAME"
+
+        echo "Uploading $FILENAME..."
 
         ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$CIPROXY_MASTER_TOKEN" https://readwrite.vcpkg-obs.kaito.tokyo/token)
         printf "::add-mask::%s\n" "$ACCESS_TOKEN"
@@ -115,5 +115,5 @@ runs:
     - name: Upload vcpkg artifacts to CDN
       if: steps.check-artifacts.outputs.EXISTS == 'true'
       shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-      working-directory: ${{ inputs.path }}
+      working-directory: ${{ inputs.working-directory }}
       run: awk 'FNR==1 && NR!=1 {print "next"} {print}' vcpkg_curlscripts/* | curl -Z -fL -K -

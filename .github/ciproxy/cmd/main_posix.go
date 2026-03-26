@@ -15,14 +15,19 @@ import (
 )
 
 func main() {
-	exePath, err := os.Executable()
+	workingDir, err := os.Getwd()
 	if err != nil {
-		panic(fmt.Sprintf("failed to get executable path: %v", err))
+		panic(fmt.Sprintf("failed to get current working directory: %v", err))
 	}
 
-	outputDir := filepath.Dir(exePath)
+	pidPath := filepath.Join(workingDir, "ciproxy.pid")
+	pidData := []byte(fmt.Sprintf("%d", os.Getpid()))
+	if err := os.WriteFile(pidPath, pidData, 0644); err != nil {
+		panic(fmt.Sprintf("failed to write PID file: %v", err))
+	}
+	defer os.Remove(pidPath)
 
-	ciProxyServer, err := NewCIProxyServer(outputDir, os.Stdout, os.Stderr)
+	ciProxyServer, err := NewCIProxyServer(workingDir)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create CIProxyServer: %v", err))
 	}
@@ -39,21 +44,21 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "Server closed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "CIProxy closed: %v\n", err)
 		}
 	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	sig := <-sigChan
-	fmt.Fprintf(os.Stdout, "Received signal %s, shutting down...\n", sig)
+	fmt.Fprintf(os.Stderr, "received signal %s, shutting down...\n", sig)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Server shutdown failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "CIProxy shutdown failed: %v\n", err)
 	}
 
-	fmt.Fprintln(os.Stdout, "Server gracefully stopped.")
+	fmt.Fprintln(os.Stderr, "CIProxy gracefully stopped.")
 }

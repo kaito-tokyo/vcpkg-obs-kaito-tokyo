@@ -13,25 +13,13 @@ on:
         description: The environment name for the build-devcontainer jobs, or empty string for no environment.
         required: true
         type: string
-      vcpkg-binary-sources-readonly-url:
-        description: The URL of the read-only vcpkg binary sources.
-        required: true
-        type: string
-      ciproxy-token-url:
-        description: Token URL.
-        required: true
-        type: string
-      ciproxy-binarycache-url:
-        description: Binarycache URL.
-        required: true
-        type: string
-      ciproxy-binarycache-readwrite-url:
-        description: Binarycache Readwrite URL.
+      VCPKG_BINARY_SOURCES:
+        description: Default VCPKG_BINARY_SOURCES.
         required: true
         type: string
     secrets:
       CIPROXY_MASTER_TOKEN:
-        description: The master token for ciproxy.
+        description: CIProxy master token.
         required: false
 
 jobs:
@@ -124,7 +112,7 @@ jobs:
       options: --user runner
 
     env:
-      VCPKG_BINARY_SOURCES: "clear;http,${{ (github.ref == 'refs/heads/main') && 'http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || format('{0},read', inputs.vcpkg-binary-sources-readonly-url) }}"
+      VCPKG_BINARY_SOURCES: ${{ github.ref == 'refs/heads/main' && 'http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || inputs.VCPKG_BINARY_SOURCES }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -134,32 +122,27 @@ jobs:
       - name: Set up Go for ciproxy
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version-file: ciproxy/go.mod
-          cache-dependency-path: ciproxy/go.sum
+          go-version-file: .github/ciproxy/cmd/go.mod
+          cache-dependency-path: .github/ciproxy/cmd/go.sum
 
       - name: Start ciproxy
         id: ciproxy
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/start-ciproxy
         with:
-          path: ciproxy
-          port: "8080"
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
-          ciproxy-token-url: ${{ inputs.ciproxy-token-url }}
-          ciproxy-binarycache-url: ${{ inputs.ciproxy-binarycache-url }}
-          ciproxy-binarycache-readwrite-url: ${{ inputs.ciproxy-binarycache-readwrite-url }}
+          port: "8080"
 
-      # - name: Install dependencies from vcpkg (x64-linux-obs)
-      #   shell: bash --noprofile --norc -euo pipefail {0}
-      #   run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
+      - name: Install dependencies from vcpkg (x64-linux-obs)
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: '"$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs'
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/finalize-ciproxy
         with:
-          path: ciproxy
-          pid: ${{ steps.ciproxy.outputs.PID }}
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          pid: ${{ steps.ciproxy.outputs.PID }}
 
       - name: Upload ciproxy logs
         if: github.ref == 'refs/heads/main' && always()

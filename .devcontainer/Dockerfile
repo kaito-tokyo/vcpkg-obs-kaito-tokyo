@@ -118,6 +118,6 @@ COPY --chmod=400 <<'EOF' /etc/sudoers.d/vscode
 vscode ALL=(ALL) NOPASSWD: ALL
 EOF
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/bin/bash"]
 
 USER vscode
