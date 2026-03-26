@@ -122,14 +122,14 @@ runs:
           if [[ $retryCount -gt 30 ]]; then
             echo "ERROR: CIProxy did not start properly." >&2
             echo "**Stdout of CIProxy:**"
-            echo "```text"
+            echo '```text'
             cat "stdout.log"
-            echo "```"
+            echo '```'
             echo
             echo "**Stderr of CIProxy:**"
-            echo "```text"
+            echo '```text'
             cat "stderr.log"
-            echo "```"
+            echo '```'
             exit 1
           fi
 
