@@ -136,4 +136,4 @@ runs:
           sleep 1
         done
 
-        echo "PID=$(cat 'ciproxy.pid' | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+        echo "PID=$(awk -vORS='' '{print}' ciproxy.pid)" >> "$GITHUB_OUTPUT"
