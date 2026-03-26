@@ -57,24 +57,16 @@ func (s *WindowsService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 		return true, 2006
 	}
 
-	pidPath := filepath.Join(workingDir, "ciproxy.pid")
-	pidData := []byte(fmt.Sprintf("%d", os.Getpid()))
-	if err := os.WriteFile(pidPath, pidData, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write PID file: %v\n", err)
-		return true, 2007
-	}
-	defer os.Remove(pidPath)
-
 	ciProxyServer, err := NewCIProxyServer(workingDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create CIProxyServer: %v\n", err)
-		return true, 2008
+		return true, 2007
 	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		fmt.Fprintln(os.Stderr, "failed to get PORT")
-		return true, 2009
+		return true, 2008
 	}
 
 	server := &http.Server{
@@ -85,8 +77,16 @@ func (s *WindowsService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 	listen, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to listen on %s: %v\n", server.Addr, err)
+		return true, 2009
+	}
+
+	pidPath := filepath.Join(workingDir, "ciproxy.pid")
+	pidData := []byte(fmt.Sprintf("%d", os.Getpid()))
+	if err := os.WriteFile(pidPath, pidData, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to write PID file: %v\n", err)
 		return true, 2010
 	}
+	defer os.Remove(pidPath)
 
 	go func() {
 		if err := server.Serve(listen); err != nil && err != http.ErrServerClosed {

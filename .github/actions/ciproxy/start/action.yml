@@ -32,10 +32,37 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Validate inputs
+      shell: pwsh
+      env:
+        CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
+        PORT: ${{ inputs.port }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        Set-StrictMode -Version Latest
+        $PSNativeCommandUseErrorActionPreference = $true
+
+        if (-not $env:CIPROXY_MASTER_TOKEN) {
+          throw "CIPROXY_MASTER_TOKEN is required."
+        }
+
+        if (-not $env:PORT) {
+          throw "PORT is required."
+        }
+
+        if (-not (Test-Path $env:WORKING_DIRECTORY)) {
+          throw "WORKING_DIRECTORY '$env:WORKING_DIRECTORY' does not exist."
+        }
+
     - name: Build CIProxy
-      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+      shell: pwsh
       working-directory: ${{ github.action_path }}/../cmd
-      run: go build -o "$RUNNER_TEMP/ciproxy.exe"
+      run: |
+        $ErrorActionPreference = "Stop"
+        Set-StrictMode -Version Latest
+        $PSNativeCommandUseErrorActionPreference = $true
+        go build -o "$RUNNER_TEMP/ciproxy.exe"
 
     - name: Start CIProxy (Windows)
       if: runner.os == 'Windows'
@@ -102,7 +129,17 @@ runs:
           $retryCount++
 
           if ($retryCount -gt 30) {
-            throw "CIProxy did not start."
+            Write-Error "ERROR: CIProxy did not start properly."
+            Write-Output "**Stdout of CIProxy:**"
+            Write-Output "```text"
+            Get-Content "stdout.log"
+            Write-Output "```"
+            Write-Output
+            Write-Output "**Stderr of CIProxy:**"
+            Write-Output "```text"
+            Get-Content "stderr.log"
+            Write-Output "```"
+            exit 1
           }
 
           Start-Sleep -Seconds 1

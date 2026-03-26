@@ -20,13 +20,6 @@ func main() {
 		panic(fmt.Sprintf("failed to get current working directory: %v", err))
 	}
 
-	pidPath := filepath.Join(workingDir, "ciproxy.pid")
-	pidData := []byte(fmt.Sprintf("%d", os.Getpid()))
-	if err := os.WriteFile(pidPath, pidData, 0644); err != nil {
-		panic(fmt.Sprintf("failed to write PID file: %v", err))
-	}
-	defer os.Remove(pidPath)
-
 	ciProxyServer, err := NewCIProxyServer(workingDir)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create CIProxyServer: %v", err))
@@ -42,9 +35,21 @@ func main() {
 		Handler: ciProxyServer,
 	}
 
+	listen, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		panic(fmt.Sprintf("failed to listen on %s: %v", server.Addr, err))
+	}
+
+	pidPath := filepath.Join(workingDir, "ciproxy.pid")
+	pidData := []byte(fmt.Sprintf("%d", os.Getpid()))
+	if err := os.WriteFile(pidPath, pidData, 0644); err != nil {
+		panic(fmt.Sprintf("failed to write PID file: %v", err))
+	}
+	defer os.Remove(pidPath)
+
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "CIProxy closed: %v\n", err)
+		if err := server.Serve(listen); err != nil && err != http.ErrServerClosed {
+			panic(fmt.Sprintf("CIProxy closed: %v", err))
 		}
 	}()
 

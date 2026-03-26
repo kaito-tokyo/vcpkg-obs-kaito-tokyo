@@ -17,14 +17,34 @@ inputs:
     description: Working directory for CIProxy.
     required: false
     default: .
-  short-hash-length:
-    description: "Length of the short hash to be used in the filename"
-    required: false
-    default: "8"
 
 runs:
   using: composite
   steps:
+    - name: Validate inputs
+      shell: pwsh
+      env:
+        CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
+        PID: ${{ inputs.pid }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        Set-StrictMode -Version Latest
+        $PSNativeCommandUseErrorActionPreference = $true
+
+        if (-not $env:CIPROXY_MASTER_TOKEN) {
+          throw "CIPROXY_MASTER_TOKEN is required."
+        }
+
+        if (-not $env:PID) {
+          throw "PID is required."
+        }
+
+        if (-not (Test-Path $env:WORKING_DIRECTORY)) {
+          throw "WORKING_DIRECTORY '$env:WORKING_DIRECTORY' does not exist."
+        }
+
+
     - name: Stop CIProxy (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
@@ -62,20 +82,27 @@ runs:
 
     - name: Check if vcpkg artifacts exist
       id: check-artifacts
-      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+      shell: pwsh
       working-directory: ${{ inputs.working-directory }}
       run: |
-        files=(vcpkg_artifacts/*)
-        if [[ -d vcpkg_artifacts ]] && [ "${#files[@]}" -gt 0 ]; then
-          echo "Found ${#files[@]} vcpkg artifact(s)."
-          for file in "${files[@]}"; do
-            echo "- $file"
-          done
-          echo "EXISTS=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "No vcpkg artifacts found."
-          echo "EXISTS=false" >> "$GITHUB_OUTPUT"
-        fi
+        $ErrorActionPreference = "Stop"
+        Set-StrictMode -Version Latest
+        $PSNativeCommandUseErrorActionPreference = $true
+
+        if (-not (Test-Path "vcpkg_artifacts" -PathType Container)) {
+          Write-Error "No vcpkg artifact directory found."
+          exit 1
+        }
+
+        $files = Get-ChildItem -Path "vcpkg_artifacts"
+        if ($files.Count -gt 0) {
+          Write-Output "Found $($files.Count) vcpkg artifact(s)."
+          $files | ForEach-Object { Write-Output "- $($_.Name)" }
+          Add-Content -Path "$env:GITHUB_OUTPUT" -Value "EXISTS=true" -Encoding utf8
+        } else {
+          Write-Output "No vcpkg artifacts found."
+          Add-Content -Path "$env:GITHUB_OUTPUT" -Value "EXISTS=false" -Encoding utf8
+        }
 
     - name: Attest vcpkg artifacts
       id: attest
@@ -91,12 +118,11 @@ runs:
       env:
         BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
         CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
-        SHORT_HASH_LENGTH: ${{ inputs.short-hash-length }}
       run: |
         jq -c . "$BUNDLE_PATH" > attestation.jsonl
 
         FULL_HASH=$(sha256sum attestation.jsonl | awk '{print $1}')
-        SHORT_HASH=${FULL_HASH:0:$SHORT_HASH_LENGTH}
+        SHORT_HASH=${FULL_HASH:0:8}
         FILENAME="${GITHUB_REPOSITORY/\//@}@$GITHUB_RUN_ID@$GITHUB_RUN_ATTEMPT@$GITHUB_JOB@$SHORT_HASH.jsonl"
 
         echo "Uploading $FILENAME..."
