@@ -38,7 +38,7 @@ jobs:
       packages: write
 
     outputs:
-      DEVCONTAINER_IMAGE: "${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+      DEVCONTAINER_IMAGE: "${{ steps.build-and-push.outputs.DEVCONTAINER_IMAGE }}"
 
     steps:
       - name: Checkout
@@ -57,6 +57,7 @@ jobs:
         run: docker buildx create --bootstrap --use
 
       - name: Build and Push builder image
+        id: build-and-push
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
           IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY,,}-devcontainer"
