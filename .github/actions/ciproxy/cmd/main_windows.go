@@ -82,8 +82,14 @@ func (s *WindowsService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 		Handler: ciProxyServer,
 	}
 
+	listen, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to listen on %s: %v\n", server.Addr, err)
+		return true, 2010
+	}
+
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.Serve(listen); err != nil && err != http.ErrServerClosed {
 			fmt.Fprintf(os.Stderr, "CIProxy closed: %v\n", err)
 		}
 	}()
