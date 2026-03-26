@@ -46,6 +46,8 @@ jobs:
         with:
           persist-credentials: false
 
+      - run: buildkitd
+
       - name: Resolve azure.archive.ubuntu.com
         id: azure-archive
         shell: bash --noprofile --norc -euo pipefail {0}
