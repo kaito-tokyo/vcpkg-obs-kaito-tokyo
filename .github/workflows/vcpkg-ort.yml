@@ -85,7 +85,7 @@ jobs:
       - name: Start ciproxy
         id: ciproxy
         if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/start-ciproxy
+        uses: ./.github/actions/ciproxy/start
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
           port: "8080"
@@ -192,7 +192,7 @@ jobs:
       - name: Start ciproxy
         id: ciproxy
         if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/start-ciproxy
+        uses: ./.github/actions/ciproxy/start
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
           port: "8080"
@@ -292,7 +292,7 @@ jobs:
       - name: Start ciproxy
         id: ciproxy
         if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/start-ciproxy
+        uses: ./.github/actions/ciproxy/start
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
           port: "8080"

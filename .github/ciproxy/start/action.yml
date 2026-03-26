@@ -64,10 +64,6 @@ runs:
         Start-Service -Name ciproxy
         Start-Sleep -Seconds 1
 
-        $pidPath = Join-Path (Get-Location) "ciproxy.pid"
-        $pid = (Get-Content $pidPath -Raw).Trim()
-        Add-Content -Path "$env:GITHUB_OUTPUT" -Value "PID=$pid"
-
     - name: Start CIProxy (Posix)
       if: runner.os != 'Windows'
       shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
@@ -89,4 +85,10 @@ runs:
       id: pid
       shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
       working-directory: ${{ inputs.working-directory }}
-      run: echo "PID=$(<ciproxy.pid)" >> "$GITHUB_OUTPUT"
+      run: |
+        if ! [[ -f ciproxy.pid ]]; then
+          echo "ERROR: PID file not found!"
+          exit 1
+        fi;
+
+        echo "PID=$(<ciproxy.pid)" >> "$GITHUB_OUTPUT"
