@@ -18,8 +18,6 @@ type CIProxyServer struct {
 	BinarycacheReadwriteURL string
 	BinarycacheURL          string
 	CurlScriptsDir          string
-	StderrWriter            io.Writer
-	StdoutWriter            io.Writer
 	TempDir                 string
 }
 
@@ -56,8 +54,8 @@ func getAccessToken(tokenURL string, masterToken string) (string, error) {
 	return accessToken, nil
 }
 
-func NewCIProxyServer(outputDir string, stdoutWriter io.Writer, stderrWriter io.Writer) (*CIProxyServer, error) {
-	absOutputDir, err := filepath.Abs(outputDir)
+func NewCIProxyServer(workingDir string) (*CIProxyServer, error) {
+	absOutputDir, err := filepath.Abs(workingDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path for output directory: %v", err)
 	}
@@ -86,34 +84,17 @@ func NewCIProxyServer(outputDir string, stdoutWriter io.Writer, stderrWriter io.
 		return nil, fmt.Errorf("CIPROXY_MASTER_TOKEN environment variable is not set")
 	}
 
-	tokenURL := os.Getenv("CIPROXY_TOKEN_URL")
-	if tokenURL == "" {
-		return nil, fmt.Errorf("CIPROXY_TOKEN_URL environment variable is not set")
-	}
-
-	accessToken, err := getAccessToken(tokenURL, masterToken)
+	accessToken, err := getAccessToken(CIProxyTokenURL, masterToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %v", err)
-	}
-
-	binarycacheURL := os.Getenv("CIPROXY_BINARYCACHE_URL")
-	if binarycacheURL == "" {
-		return nil, fmt.Errorf("CIPROXY_BINARYCACHE_URL environment variable is not set")
-	}
-
-	binarycacheReadwriteURL := os.Getenv("CIPROXY_BINARYCACHE_READWRITE_URL")
-	if binarycacheReadwriteURL == "" {
-		return nil, fmt.Errorf("CIPROXY_BINARYCACHE_READWRITE_URL environment variable is not set")
 	}
 
 	return &CIProxyServer{
 		AccessToken:             accessToken,
 		ArtifactDir:             artifactDir,
-		BinarycacheURL:          binarycacheURL,
-		BinarycacheReadwriteURL: binarycacheReadwriteURL,
+		BinarycacheURL:          CIProxyBinarycacheURL,
+		BinarycacheReadwriteURL: CIProxyBinarycacheReadwriteURL,
 		CurlScriptsDir:          curlScriptsDir,
-		StderrWriter:            stderrWriter,
-		StdoutWriter:            stdoutWriter,
 		TempDir:                 tempDir,
 	}, nil
 }
@@ -172,7 +153,7 @@ func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request)
 	presignedURL, err := s.getPresignedURL(s.AccessToken, key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
-		fmt.Fprintln(s.StderrWriter, "Unauthorized")
+		fmt.Fprintln(os.Stderr, "Unauthorized")
 		return
 	}
 
@@ -181,7 +162,7 @@ func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request)
 	// Validate that filename is safe
 	if !isSafeFilename(filename) {
 		http.Error(w, "Invalid file name", http.StatusBadRequest)
-		fmt.Fprintln(s.StderrWriter, "Invalid file name")
+		fmt.Fprintln(os.Stderr, "Invalid file name")
 		return
 	}
 
@@ -192,7 +173,7 @@ func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		os.Remove(tempPath)
 		http.Error(w, "Failed to create temp file", http.StatusInternalServerError)
-		fmt.Fprintln(s.StderrWriter, "Failed to create temp file")
+		fmt.Fprintln(os.Stderr, "Failed to create temp file")
 		return
 	}
 
@@ -201,14 +182,14 @@ func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		os.Remove(tempPath)
 		http.Error(w, "Failed to write file", http.StatusInternalServerError)
-		fmt.Fprintln(s.StderrWriter, "Failed to write file")
+		fmt.Fprintln(os.Stderr, "Failed to write file")
 		return
 	}
 
 	if err := os.Rename(tempPath, finalPath); err != nil {
 		os.Remove(tempPath)
 		http.Error(w, "Failed to commit artifact", http.StatusInternalServerError)
-		fmt.Fprintln(s.StderrWriter, "Failed to commit artifact")
+		fmt.Fprintln(os.Stderr, "Failed to commit artifact")
 		return
 	}
 
@@ -224,7 +205,7 @@ func (s *CIProxyServer) handleFileUpload(w http.ResponseWriter, r *http.Request)
 	configPath := filepath.Join(s.CurlScriptsDir, filename+".txt")
 	if err := os.WriteFile(configPath, []byte(entry), 0644); err != nil {
 		http.Error(w, "Failed to write upload config", http.StatusInternalServerError)
-		fmt.Fprintln(s.StderrWriter, "Failed to write upload config")
+		fmt.Fprintln(os.Stderr, "Failed to write upload config")
 		return
 	}
 

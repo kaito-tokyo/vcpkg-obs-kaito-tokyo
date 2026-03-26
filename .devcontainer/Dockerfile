@@ -118,6 +118,9 @@ COPY --chmod=400 <<'EOF' /etc/sudoers.d/vscode
 vscode ALL=(ALL) NOPASSWD: ALL
 EOF
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+# Tini is installed but not set as the entrypoint for compatibility with popular images.
+# When you need to run a background process on GitHub Actions, run `tini -s some-command -- [args]`.
+
+CMD ["/bin/bash"]
 
 USER vscode
