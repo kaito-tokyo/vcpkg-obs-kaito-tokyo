@@ -29,7 +29,7 @@ jobs:
     with:
       environment-prepare-devcontainer: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       environment-build-devcontainer: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: 'clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read'
+      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
     secrets: inherit
 
   manifest:
@@ -42,7 +42,7 @@ jobs:
       environment-build-manifest-windows: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       environment-build-manifest-macos: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       environment-build-manifest-ubuntu: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: 'clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read'
+      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
     secrets: inherit
 
   ort:
@@ -55,6 +55,6 @@ jobs:
       environment-build-ort-vcpkg-windows-x64: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       environment-build-ort-vcpkg-macos: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       environment-build-ort-vcpkg-ubuntu-x64: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: 'clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read'
+      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
       ort-versions-json: '["v1.24.1", "v1.24.4"]'
     secrets: inherit
