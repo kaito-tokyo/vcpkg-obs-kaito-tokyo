@@ -122,8 +122,8 @@ jobs:
       - name: Set up Go for ciproxy
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version-file: .github/ciproxy/cmd/go.mod
-          cache-dependency-path: .github/ciproxy/cmd/go.sum
+          go-version-file: .github/actions/ciproxy/cmd/go.mod
+          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
       - name: Start ciproxy
         id: ciproxy
