@@ -51,55 +51,51 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail {0}
         run: getent hosts azure.archive.ubuntu.com | awk 'NR==1 {print "IPADDR=" $1}' >> "$GITHUB_OUTPUT"
 
+      - name: Log in to the GitHub Container registry
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: printenv GITHUB_TOKEN | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
       - name: Set up Buildx builder
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: docker buildx create --bootstrap --use
 
-      - name: Log in to the GitHub Container registry
-        run: buildctl
+      - name: Build and Push builder image
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          AZURE_ARCHIVE_IPADDR: ${{ steps.azure-archive.outputs.IPADDR }}
+        run: |
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY,,}-devcontainer"
 
-      - name: Log in to the GitHub Container registry
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
+          BUILD_ARGS=(
+            --add-host="archive.ubuntu.com:$AZURE_ARCHIVE_IPADDR"
+            --add-host="ports.ubuntu.com:$AZURE_ARCHIVE_IPADDR"
+            --cache-from=type=gha
+            --cache-to=type=gha,mode=max
+            --platform=linux/amd64
+            --provenance=mode=max
+            --push
+            --sbom=true
+            --tag="$IMAGE_NAME:sha-${GITHUB_SHA:0:7}"
+          )
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+          SHA_TAG="$IMAGE_NAME:sha-${GITHUB_SHA:0:7}"
+          echo "DEVCONTAINER_IMAGE=$SHA_TAG" >> "$GITHUB_OUTPUT"
+          BUILD_ARGS+=(--tag="$SHA_TAG")
 
-      - name: Extract metadata for builder image
-        id: meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
-        with:
-          flavor: |
-            latest=auto
-          images: ghcr.io/${{ github.repository }}-devcontainer
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=ref,event=tag
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha
+          if [[ "$GITHUB_REF" = "refs/heads/main" ]]; then
+            BUILD_ARGS+=(--tag="$IMAGE_NAME:latest")
+            BUILD_ARGS+=(--tag="$IMAGE_NAME:main")
+          elif [[ "$GITHUB_REF" =~ ^refs/heads/(.*)$ ]]; then
+            BUILD_ARGS+=(--tag="$IMAGE_NAME:${BASH_REMATCH[1],,}")
+          elif [[ "$GITHUB_REF" =~ ^refs/pull/(.*)/merge$ ]]; then
+            BUILD_ARGS+=(--tag="$IMAGE_NAME:pr-${BASH_REMATCH[1],,}")
+          elif [[ "$GITHUB_REF" =~ ^refs/tags/(.*)$ ]]; then
+            BUILD_ARGS+=(--tag="$IMAGE_NAME:${BASH_REMATCH[1],,}")
+          fi
 
-      - name: Build and Push builder image (Ubuntu)
-        id: push
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
-        with:
-          add-hosts: |
-            archive.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
-            ports.ubuntu.com:${{ steps.azure-archive.outputs.IPADDR }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          context: .devcontainer
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          file: .devcontainer/Dockerfile
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
-          provenance: mode=max
-          push: true
-          sbom: true
-          tags: ${{ steps.meta.outputs.tags }}
+          docker buildx build "${BUILD_ARGS[@]}" .devcontainer
 
   build-devcontainer:
     name: Build vcpkg for Dev Container
