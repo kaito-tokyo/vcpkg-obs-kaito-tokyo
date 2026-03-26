@@ -1,0 +1,13 @@
+{
+	"name": "vcpkg-obs-kaito-tokyo-workspace",
+	"private": true,
+	"workspaces": [
+		"packages/vcpkg-obs-kaito-tokyo-apiauth",
+		"packages/vcpkg-obs-kaito-tokyo-readwrite",
+		"packages/vcpkg-obs-kaito-tokyo-registry"
+	],
+	"devDependencies": {
+		"prettier": "^3.8.1",
+		"wrangler": "^4.77.0"
+	}
+}

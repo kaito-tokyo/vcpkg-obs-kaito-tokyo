@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "vcpkg-obs-kaito-tokyo-registry",
+  "main": "src/index.js",
+  "compatibility_date": "2026-03-17",
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "compatibility_flags": ["nodejs_compat"],
+  "placement": { "mode": "smart" }
+}
