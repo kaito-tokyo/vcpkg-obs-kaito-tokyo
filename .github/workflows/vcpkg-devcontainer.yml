@@ -68,7 +68,6 @@ jobs:
             --provenance=mode=max
             --push
             --sbom=true
-            --tag="$IMAGE_NAME:sha-${GITHUB_SHA:0:7}"
           )
 
           SHA_TAG="$IMAGE_NAME:sha-${GITHUB_SHA:0:7}"
