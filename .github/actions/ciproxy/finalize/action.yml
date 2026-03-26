@@ -22,28 +22,26 @@ runs:
   using: composite
   steps:
     - name: Validate inputs
-      shell: pwsh
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
       env:
         CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
         PID: ${{ inputs.pid }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
       run: |
-        $ErrorActionPreference = "Stop"
-        Set-StrictMode -Version Latest
-        $PSNativeCommandUseErrorActionPreference = $true
+        if [[ -z "$CIPROXY_MASTER_TOKEN" ]]; then
+          echo "CIPROXY_MASTER_TOKEN is required." >&2
+          exit 1
+        fi
 
-        if (-not $env:CIPROXY_MASTER_TOKEN) {
-          throw "CIPROXY_MASTER_TOKEN is required."
-        }
+        if [[ -z "$PID" ]]; then
+          echo "PID is required." >&2
+          exit 1
+        fi
 
-        if (-not $env:PID) {
-          throw "PID is required."
-        }
-
-        if (-not (Test-Path $env:WORKING_DIRECTORY)) {
-          throw "WORKING_DIRECTORY '$env:WORKING_DIRECTORY' does not exist."
-        }
-
+        if [[ ! -d "$WORKING_DIRECTORY" ]]; then
+          echo "WORKING_DIRECTORY '$WORKING_DIRECTORY' does not exist." >&2
+          exit 1
+        fi
 
     - name: Stop CIProxy (Windows)
       if: runner.os == 'Windows'
@@ -82,27 +80,25 @@ runs:
 
     - name: Check if vcpkg artifacts exist
       id: check-artifacts
-      shell: pwsh
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
       working-directory: ${{ inputs.working-directory }}
       run: |
-        $ErrorActionPreference = "Stop"
-        Set-StrictMode -Version Latest
-        $PSNativeCommandUseErrorActionPreference = $true
-
-        if (-not (Test-Path "vcpkg_artifacts" -PathType Container)) {
-          Write-Error "No vcpkg artifact directory found."
+        if [[ ! -d "vcpkg_artifacts" ]]; then
+          echo "No vcpkg artifact directory found." >&2
           exit 1
-        }
+        fi
 
-        $files = Get-ChildItem -Path "vcpkg_artifacts"
-        if ($files.Count -gt 0) {
-          Write-Output "Found $($files.Count) vcpkg artifact(s)."
-          $files | ForEach-Object { Write-Output "- $($_.Name)" }
-          Add-Content -Path "$env:GITHUB_OUTPUT" -Value "EXISTS=true" -Encoding utf8
-        } else {
-          Write-Output "No vcpkg artifacts found."
-          Add-Content -Path "$env:GITHUB_OUTPUT" -Value "EXISTS=false" -Encoding utf8
-        }
+        files=(vcpkg_artifacts/*)
+        if [[ ${#files[@]} -gt 0 ]]; then
+          echo "Found ${#files[@]} vcpkg artifact(s)."
+          for file in "${files[@]}"; do
+            echo "- $file"
+          done
+          echo "EXISTS=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "No vcpkg artifacts found."
+          echo "EXISTS=false" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Attest vcpkg artifacts
       id: attest
