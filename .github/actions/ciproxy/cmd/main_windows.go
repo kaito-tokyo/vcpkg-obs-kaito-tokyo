@@ -61,20 +61,20 @@ func (s *WindowsService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 	pidData := []byte(fmt.Sprintf("%d", os.Getpid()))
 	if err := os.WriteFile(pidPath, pidData, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to write PID file: %v\n", err)
-		return true, 2005
+		return true, 2007
 	}
 	defer os.Remove(pidPath)
 
 	ciProxyServer, err := NewCIProxyServer(workingDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create CIProxyServer: %v\n", err)
-		return true, 2006
+		return true, 2008
 	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		fmt.Fprintln(os.Stderr, "failed to get PORT")
-		return true, 2007
+		return true, 2009
 	}
 
 	server := &http.Server{
