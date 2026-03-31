@@ -48,7 +48,7 @@ jobs:
       id-token: write
 
     env:
-      CLEAN_PWSH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-windows.ps1
+      CLEAN_PWSH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-windows.ps1'
       CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
       GIT_PATH: 'C:\Program Files\Git\cmd'
       MINIMAL_PATH: 'C:\Windows\System32;C:\Windows'
@@ -58,7 +58,12 @@ jobs:
     steps:
       - name: Enable Windows long path
         shell: pwsh
-        run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+        run: |
+          $ErrorActionPreference = "Stop"
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -87,12 +92,18 @@ jobs:
           filter: "blob:none"
 
       - name: Run bootstrap-vcpkg.bat
-        shell: pwsh -Command ". $env:PWSH_ENV && . '{0}'"
+        shell: pwsh
         env:
-          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: "${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}"
-          PWSH_ENV: ${{ env.CLEAN_PWSH_ENV }}
-        run: '& "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics'
+          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
+          PATH: '${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}'
+        run: |
+          $ErrorActionPreference = "Stop"
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          . "$env:CLEAN_PWSH_ENV"
+
+          & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
 
       - name: Start ciproxy
         id: ciproxy
@@ -103,12 +114,18 @@ jobs:
           port: "8080"
 
       - name: Install dependencies from Windows vcpkg (${{ matrix.triplet }})
-        shell: pwsh -NoProfile -Command ". $env:PWSH_ENV && . '{0}'"
+        shell: pwsh
         env:
-          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: "${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}"
-          PWSH_ENV: ${{ env.CLEAN_PWSH_ENV }}
-        run: '& "$Env:VCPKG_ROOT/vcpkg.exe" install --triplet=${{ matrix.triplet }}'
+          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
+          PATH: '${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}'
+        run: |
+          $ErrorActionPreference = "Stop"
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          . "$env:CLEAN_PWSH_ENV"
+
+          & "$Env:VCPKG_ROOT/vcpkg.exe" install --triplet=${{ matrix.triplet }}
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
@@ -152,13 +169,13 @@ jobs:
       id-token: write
 
     env:
-      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-macos.bash
-      CMAKE_PATH: /opt/homebrew/opt/cmake/bin
+      CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-macos.bash'
+      CMAKE_PATH: '/opt/homebrew/opt/cmake/bin'
       CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      MINIMAL_PATH: "/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-      XCBEAUTIFY_PATH: /opt/homebrew/opt/xcbeautify/bin
+      DEVELOPER_DIR: '${{ matrix.os-xcode.DEVELOPER_DIR }}'
+      MINIMAL_PATH: '/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+      VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
+      XCBEAUTIFY_PATH: '/opt/homebrew/opt/xcbeautify/bin'
 
     steps:
       - name: Checkout
@@ -190,10 +207,11 @@ jobs:
       - name: Run bootstrap-vcpkg.sh
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
-          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: ${{ env.MINIMAL_PATH }}
-        run: '"$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics'
+          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
+          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
+          PATH: '${{ env.MINIMAL_PATH }}'
+        run: |
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Start ciproxy
         id: ciproxy
@@ -206,10 +224,11 @@ jobs:
       - name: Install dependencies from macOS vcpkg (${{ matrix.triplet }})
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
-          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: ${{ env.MINIMAL_PATH }}
-        run: '"$VCPKG_ROOT/vcpkg" install --triplet=${{ matrix.triplet }}'
+          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
+          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
+          PATH: '${{ env.MINIMAL_PATH }}'
+        run: |
+          "$VCPKG_ROOT/vcpkg" install --triplet=${{ matrix.triplet }}
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
@@ -246,10 +265,10 @@ jobs:
       id-token: write
 
     env:
-      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash
+      CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash'
       CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      MINIMAL_PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      MINIMAL_PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+      VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
 
     steps:
       - name: Checkout
@@ -281,10 +300,11 @@ jobs:
       - name: Run bootstrap-vcpkg.sh
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
-          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: ${{ env.MINIMAL_PATH }}
-        run: '"$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics'
+          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
+          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
+          PATH: '${{ env.MINIMAL_PATH }}'
+        run: |
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Start ciproxy
         id: ciproxy
@@ -297,10 +317,11 @@ jobs:
       - name: Install dependencies from Ubuntu vcpkg (${{ matrix.triplet }})
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
-          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: ${{ env.MINIMAL_PATH }}
-        run: '"$VCPKG_ROOT/vcpkg" install --triplet=${{ matrix.triplet }}'
+          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
+          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
+          PATH: '${{ env.MINIMAL_PATH }}'
+        run: |
+          "$VCPKG_ROOT/vcpkg" install --triplet=${{ matrix.triplet }}
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
