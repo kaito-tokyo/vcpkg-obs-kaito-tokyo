@@ -155,7 +155,7 @@ jobs:
       CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-macos.bash
       CMAKE_PATH: /opt/homebrew/opt/cmake/bin
       CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      DEVELOPER_DIR: ${{ matrix.DEVELOPER_DIR }}
+      DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
       MINIMAL_PATH: "/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin"
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       XCBEAUTIFY_PATH: /opt/homebrew/opt/xcbeautify/bin
