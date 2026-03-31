@@ -17,6 +17,7 @@ on:
         description: Default VCPKG_BINARY_SOURCES.
         required: true
         type: string
+
     secrets:
       CIPROXY_MASTER_TOKEN:
         description: CIProxy master token.

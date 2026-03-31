@@ -21,6 +21,7 @@ on:
         description: Default VCPKG_BINARY_SOURCES.
         required: true
         type: string
+
     secrets:
       CIPROXY_MASTER_TOKEN:
         description: CIProxy master token.
@@ -153,9 +154,9 @@ jobs:
           - name: Sequoia, Xcode 16.4
             runs-on: macos-15
             DEVELOPER_DIR: /Applications/Xcode_16.4.app
-          - name: Tahoe, Xcode 26.3
+          - name: Tahoe, Xcode 26.4
             runs-on: macos-26
-            DEVELOPER_DIR: /Applications/Xcode_26.3.app
+            DEVELOPER_DIR: /Applications/Xcode_26.4.app
 
     name: Build macOS ${{ matrix.os-xcode.name }} vcpkg for ${{ matrix.triplet }}
 

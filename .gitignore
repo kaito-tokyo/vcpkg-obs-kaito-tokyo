@@ -1,6 +1,6 @@
+.deps_vendor/
 .dev.*
 .DS_Store
+.venv/
 .wrangler/
 node_modules/
-vcpkg_installed/
-/ciproxy/ciproxy
