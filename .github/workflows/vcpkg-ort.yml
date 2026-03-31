@@ -143,17 +143,17 @@ jobs:
       matrix:
         arch: [arm64, x86_64]
         ort-version: ${{ fromJson(inputs.ort-versions-json) }}
-        include:
-          - os-xcode: Sequoia, Xcode 16.4
+        os-xcode:
+          - name: Sequoia, Xcode 16.4
             runs-on: macos-15
             DEVELOPER_DIR: /Applications/Xcode_16.4.app
-          - os-xcode: Tahoe, Xcode 26.3
+          - name: Tahoe, Xcode 26.3
             runs-on: macos-26
             DEVELOPER_DIR: /Applications/Xcode_26.3.app
 
-    name: Build vcpkg in ORT for macOS ${{ matrix.os-xcode }} ${{ matrix.arch }} ${{ matrix.ort-version }}
+    name: Build vcpkg in ORT for macOS ${{ matrix.os-xcode.name }} ${{ matrix.arch }} ${{ matrix.ort-version }}
 
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: ${{ matrix.os-xcode.runs-on }}
     timeout-minutes: 180
     environment: ${{ inputs.environment-build-ort-vcpkg-macos }}
 
@@ -166,7 +166,7 @@ jobs:
       CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-macos.bash
       CMAKE_PATH: /opt/homebrew/opt/cmake/bin
       CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      DEVELOPER_DIR: ${{ matrix.DEVELOPER_DIR }}
+      DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
       MINIMAL_PATH: "/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin"
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       XCBEAUTIFY_PATH: /opt/homebrew/opt/xcbeautify/bin
