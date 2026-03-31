@@ -52,7 +52,7 @@ jobs:
       id-token: write
 
     env:
-      CLEAN_PWSH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-windows.ps1
+      CLEAN_PWSH_ENV: '${{ github.workspace }}\.github\scripts\clean-env-windows.ps1'
       CMAKE_PATH: 'C:\Program Files\CMake\bin;C:\Program Files\Ninja'
       CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
       GIT_PATH: 'C:\Program Files\Git\cmd'
@@ -63,7 +63,12 @@ jobs:
     steps:
       - name: Enable Windows long path
         shell: pwsh
-        run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+        run: |
+          $ErrorActionPreference = "Stop"
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -100,25 +105,32 @@ jobs:
           submodules: recursive
 
       - name: Build vcpkg of ONNX Runtime
-        shell: pwsh -NoProfile -Command ". .github/scripts/clean-env-windows.ps1 && . '{0}'"
+        shell: pwsh
         env:
           GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
           PATH: "${{ env.CMAKE_PATH }};${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}"
-          PWSH_ENV: ${{ env.CLEAN_PWSH_ENV }}
         run: |
-          python ./onnxruntime/tools/ci_build/build.py `
-            --build_dir build `
-            --update `
-            --config Release `
-            --parallel `
-            --compile_no_warning_as_error `
-            --cmake_extra_defines `
-            CMAKE_POLICY_VERSION_MINIMUM=3.5 `
-            CMAKE_PROJECT_INCLUDE_BEFORE="$env:GITHUB_WORKSPACE/no_install.cmake" `
-            --use_vcpkg `
-            --skip_submodule_sync `
-            --skip_tests `
-            --disable_rtti
+          $ErrorActionPreference = "Stop"
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          . "$env:CLEAN_PWSH_ENV"
+
+          $BUILD_PY_ARGS = @(
+            "--config", "Release",
+            "--parallel",
+            "--compile_no_warning_as_error",
+            "--use_vcpkg",
+            "--skip_submodule_sync",
+            "--skip_tests",
+            "--disable_rtti"
+          )
+          $BUILD_PY_ARGS += @(
+            "--cmake_extra_defines",
+            "CMAKE_POLICY_VERSION_MINIMUM=3.5",
+            "CMAKE_PROJECT_INCLUDE_BEFORE=$env:GITHUB_WORKSPACE/no_install.cmake"
+          )
+          python .\onnxruntime\tools\ci_build\build.py --update --build_dir build @BUILD_PY_ARGS
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
@@ -163,13 +175,13 @@ jobs:
       id-token: write
 
     env:
-      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-macos.bash
-      CMAKE_PATH: /opt/homebrew/opt/cmake/bin
+      CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-macos.bash'
+      CMAKE_PATH: '/opt/homebrew/opt/cmake/bin'
       CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      MINIMAL_PATH: "/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-      XCBEAUTIFY_PATH: /opt/homebrew/opt/xcbeautify/bin
+      DEVELOPER_DIR: '${{ matrix.os-xcode.DEVELOPER_DIR }}'
+      MINIMAL_PATH: '/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+      VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
+      XCBEAUTIFY_PATH: '/opt/homebrew/opt/xcbeautify/bin'
 
     steps:
       - name: Checkout
@@ -209,26 +221,29 @@ jobs:
       - name: Build vcpkg of ONNX Runtime
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          PATH: "${{ env.CMAKE_PATH }}:${{ env.MINIMAL_PATH }}"
+          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
+          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
+          PATH: '${{ env.CMAKE_PATH }}:${{ env.MINIMAL_PATH }}'
         run: |
-          python ./onnxruntime/tools/ci_build/build.py \
-            --build_dir build \
-            --update \
-            --config Release \
-            --parallel \
-            --compile_no_warning_as_error \
-            --cmake_extra_defines \
-            CMAKE_POLICY_VERSION_MINIMUM=3.5 \
-            CMAKE_PROJECT_INCLUDE_BEFORE="$GITHUB_WORKSPACE/no_install.cmake" \
-            CMAKE_OSX_ARCHITECTURES="${{ matrix.arch }}" \
-            CMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
-            --use_vcpkg \
-            --skip_submodule_sync \
-            --skip_tests \
-            --disable_rtti \
-            --osx_arch "${{ matrix.arch }}" \
-            --apple_deploy_target 12.0 \
+          BUILD_PY_ARGS=(
+            --apple_deploy_target 12.0
+            --compile_no_warning_as_error
+            --config Release
+            --disable_rtti
+            --parallel
+            --skip_submodule_sync
+            --skip_tests
             --use_coreml
+            --use_vcpkg
+            --osx_arch "${{ matrix.arch }}"
+          )
+          BUILD_PY_ARGS+=(
+            --cmake_extra_defines
+            CMAKE_OSX_DEPLOYMENT_TARGET=12.0
+            CMAKE_POLICY_VERSION_MINIMUM=3.5
+            "CMAKE_PROJECT_INCLUDE_BEFORE=$GITHUB_WORKSPACE/no_install.cmake"
+          )
+          python ./onnxruntime/tools/ci_build/build.py --update --build_dir build "${BUILD_PY_ARGS[@]}"
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
@@ -266,10 +281,10 @@ jobs:
       id-token: write
 
     env:
-      CLEAN_BASH_ENV: ${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash
+      CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash'
       CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      MINIMAL_PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      MINIMAL_PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+      VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
 
     steps:
       - name: Checkout
@@ -309,23 +324,25 @@ jobs:
       - name: Build vcpkg of ONNX Runtime on Ubuntu
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          BASH_ENV: ${{ env.CLEAN_BASH_ENV }}
-          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: ${{ env.MINIMAL_PATH }}
+          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
+          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
+          PATH: '${{ env.MINIMAL_PATH }}'
         run: |
-          python ./onnxruntime/tools/ci_build/build.py \
-            --build_dir build \
-            --update \
-            --config Release \
-            --parallel \
-            --compile_no_warning_as_error \
-            --cmake_extra_defines \
-            CMAKE_POLICY_VERSION_MINIMUM=3.5 \
-            CMAKE_PROJECT_INCLUDE_BEFORE="$GITHUB_WORKSPACE/no_install.cmake" \
-            --use_vcpkg \
-            --skip_submodule_sync \
-            --skip_tests \
+          BUILD_PY_ARGS=(
+            --compile_no_warning_as_error
+            --config Release
             --disable_rtti
+            --parallel
+            --skip_submodule_sync
+            --skip_tests
+            --use_vcpkg
+          )
+          BUILD_PY_ARGS+=(
+            --cmake_extra_defines
+            CMAKE_POLICY_VERSION_MINIMUM=3.5
+            "CMAKE_PROJECT_INCLUDE_BEFORE=$GITHUB_WORKSPACE/no_install.cmake"
+          )
+          python ./onnxruntime/tools/ci_build/build.py --update --build_dir build "${BUILD_PY_ARGS[@]}"
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
