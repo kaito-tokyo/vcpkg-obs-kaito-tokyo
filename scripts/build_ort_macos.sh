@@ -7,13 +7,13 @@
 # file: scripts/build_ort_macos.sh
 # description: Self-contained script to build ONNX Runtime for macOS.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.0.0
+# version: 1.0.1
 # date: 2026-04-01
 
 set -euo pipefail
 shopt -s nullglob
 
-ORT_VERSION="${ORT_VERSION:-v1.24.1}"
+ORT_VERSION="${ORT_VERSION:-v1.24.4}"
 OSX_DEPLOY_TARGET="${OSX_DEPLOY_TARGET:-12.0}"
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -64,7 +64,7 @@ fi
 clone() {
 	local -r ORT_SRC_DIR="./.deps_vendor/onnxruntime"
   if ! [[ -d "${ORT_SRC_DIR}" ]]; then
-    git clone --filter "blob:none" --branch "${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "${ORT_SRC_DIR}"
+    git clone --filter "blob:none" --depth 1 --branch "${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "${ORT_SRC_DIR}"
   fi
 	(
 		cd "${ORT_SRC_DIR}"
@@ -80,30 +80,38 @@ ensure_ort_src() {
 	fi
 }
 
+enable_ccache() {
+  BUILD_PY_ARGS+=(--use_ccache)
+}
+
 configure_arm64() {
 	ensure_ort_src
+  [[ -n "${CCACHE_DIR:-}" ]] && enable_ccache
   python3 "${BUILD_PY}" --update --build_dir "./.deps_vendor/ort_arm64" --osx_arch arm64 "${BUILD_PY_ARGS[@]}"
 }
 
 build_arm64() {
 	ensure_ort_src
+  [[ -n "${CCACHE_DIR:-}" ]] && enable_ccache
   python3 "${BUILD_PY}" --build --build_dir "./.deps_vendor/ort_arm64" --osx_arch arm64 "${BUILD_PY_ARGS[@]}"
 }
 
 configure_x86_64() {
 	ensure_ort_src
+  [[ -n "${CCACHE_DIR:-}" ]] && enable_ccache
   python3 "${BUILD_PY}" --update --build_dir "./.deps_vendor/ort_x86_64" --osx_arch x86_64 "${BUILD_PY_ARGS[@]}"
 }
 
 build_x86_64() {
 	ensure_ort_src
+  [[ -n "${CCACHE_DIR:-}" ]] && enable_ccache
   python3 "${BUILD_PY}" --build --build_dir "./.deps_vendor/ort_x86_64" --osx_arch x86_64 "${BUILD_PY_ARGS[@]}"
 }
 
 lipo_vcpkg() {
   local -r VCPKG_INSTALLED_ARM64="$1"
   local -r VCPKG_INSTALLED_X86_64="$2"
-  local VCPKG_INSTALLED_UNIVERSAL="$3"
+  local -r VCPKG_INSTALLED_UNIVERSAL="$3"
 
   rm -rf "${VCPKG_INSTALLED_UNIVERSAL}"
   mkdir -p "${VCPKG_INSTALLED_UNIVERSAL}"/{debug/lib/pkgconfig,include,lib/pkgconfig,share}
@@ -154,33 +162,33 @@ lipo_vcpkg() {
   fi
 }
 
-lipo_ort_vcpkg() {
+install_ort_vcpkg() {
   lipo_vcpkg \
-    "./.deps_vendor/ort_arm64/vcpkg_installed/osx-arm64" \
-    "./.deps_vendor/ort_x86_64/vcpkg_installed/osx-x86_64" \
+    "./.deps_vendor/ort_arm64/Release/vcpkg_installed/osx-arm64" \
+    "./.deps_vendor/ort_x86_64/Release/vcpkg_installed/osx-x86_64" \
     "./.deps_vendor/ort_vcpkg_installed/osx-universal"
 }
 
-lipo_ort() {
+install_ort() {
   local -r ORT_ARM64_DIR="./.deps_vendor/ort_arm64/Release"
   local -r ORT_X86_64_DIR="./.deps_vendor/ort_x86_64/Release"
-  local -r LIB_DIR="./.deps_vendor/lib"
+  local -r ORT_LIB_DIR="./.deps_vendor/ort_lib"
 
-  rm -rf "${LIB_DIR}"
-  mkdir -p "${LIB_DIR}"
+  rm -rf "${ORT_LIB_DIR}"
+  mkdir -p "${ORT_LIB_DIR}"
 
   local name
   for name in "${ORT_COMPONENTS[@]}"; do
     lipo -create \
       "${ORT_ARM64_DIR}/lib$name.a" \
       "${ORT_X86_64_DIR}/lib$name.a" \
-      -output "${LIB_DIR}/lib$name.a"
+      -output "${ORT_LIB_DIR}/lib$name.a"
   done
 
   lipo -create \
     "${ORT_ARM64_DIR}/_deps/pytorch_cpuinfo-build/libcpuinfo.a" \
     "${ORT_X86_64_DIR}/_deps/pytorch_cpuinfo-build/libcpuinfo.a" \
-    -output "${LIB_DIR}/libcpuinfo.a"
+    -output "${ORT_LIB_DIR}/libcpuinfo.a"
 
   echo 'void __attribute__((visibility("hidden"))) __dummy__(){}' |
     clang -x c -arch x86_64 -c -o "${ORT_X86_64_DIR}/dummy.o" -mmacosx-version-min="${OSX_DEPLOY_TARGET}" -
@@ -190,17 +198,17 @@ lipo_ort() {
   lipo -create \
     "${ORT_ARM64_DIR}/_deps/kleidiai-build/libkleidiai.a" \
     "${ORT_X86_64_DIR}/dummy.a" \
-    -output "${LIB_DIR}/libkleidiai.a"
+    -output "${ORT_LIB_DIR}/libkleidiai.a"
 }
 
 if [[ "$#" -eq 0 ]]; then
-  clone
-  configure_arm64
-  build_arm64
-  configure_x86_64
-  build_x86_64
-  lipo_ort_vcpkg
-  lipo_ort
+  bash "${BASH_SOURCE[0]}" clone
+  bash "${BASH_SOURCE[0]}" configure_arm64
+  bash "${BASH_SOURCE[0]}" build_arm64
+  bash "${BASH_SOURCE[0]}" configure_x86_64
+  bash "${BASH_SOURCE[0]}" build_x86_64
+  bash "${BASH_SOURCE[0]}" install_ort_vcpkg
+  bash "${BASH_SOURCE[0]}" install_ort
 else
   "$@"
 fi

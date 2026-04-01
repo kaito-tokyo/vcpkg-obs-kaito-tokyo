@@ -4,6 +4,11 @@
 
 name: Vcpkg CI
 
+# file: .github/workflows/vcpkg.yml
+# author: Kaito Udagawa <umireon@kaito.tokyo>
+# version: 1.0.0
+# date: 2026-04-01
+
 on:
   push:
     branches: [main]
@@ -18,20 +23,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  devcontainer:
-    permissions:
-      artifact-metadata: write
-      attestations: write
-      contents: read
-      id-token: write
-      packages: write
-    uses: ./.github/workflows/vcpkg-devcontainer.yml
-    with:
-      environment-prepare-devcontainer: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      environment-build-devcontainer: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
-    secrets: inherit
-
   manifest:
     permissions:
       attestations: write
