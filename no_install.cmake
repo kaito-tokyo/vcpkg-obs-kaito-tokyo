@@ -1,2 +1,0 @@
-macro(install)
-endmacro()

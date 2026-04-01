@@ -25,6 +25,7 @@ on:
         description: JSON array of ONNX Runtime versions to test, e.g. '["v1.24.1", "v1.24.4"]'
         required: true
         type: string
+
     secrets:
       CIPROXY_MASTER_TOKEN:
         description: The master token for ciproxy.
@@ -128,7 +129,7 @@ jobs:
           $BUILD_PY_ARGS += @(
             "--cmake_extra_defines",
             "CMAKE_POLICY_VERSION_MINIMUM=3.5",
-            "CMAKE_PROJECT_INCLUDE_BEFORE=$env:GITHUB_WORKSPACE/no_install.cmake"
+            "CMAKE_PROJECT_INCLUDE_BEFORE=$env:GITHUB_WORKSPACE/scripts/no_install.cmake"
           )
           python .\onnxruntime\tools\ci_build\build.py --update --build_dir build @BUILD_PY_ARGS
 
@@ -159,9 +160,9 @@ jobs:
           - name: Sequoia, Xcode 16.4
             runs-on: macos-15
             DEVELOPER_DIR: /Applications/Xcode_16.4.app
-          - name: Tahoe, Xcode 26.3
+          - name: Tahoe, Xcode 26.4
             runs-on: macos-26
-            DEVELOPER_DIR: /Applications/Xcode_26.3.app
+            DEVELOPER_DIR: /Applications/Xcode_26.4.app
 
     name: Build vcpkg in ORT for macOS ${{ matrix.os-xcode.name }} ${{ matrix.arch }} ${{ matrix.ort-version }}
 
@@ -215,7 +216,7 @@ jobs:
           repository: microsoft/onnxruntime
           ref: ${{ matrix.ort-version }}
           persist-credentials: false
-          path: onnxruntime
+          path: .deps_vendor/onnxruntime
           submodules: recursive
 
       - name: Build vcpkg of ONNX Runtime
@@ -225,25 +226,7 @@ jobs:
           GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
           PATH: '${{ env.CMAKE_PATH }}:${{ env.MINIMAL_PATH }}'
         run: |
-          BUILD_PY_ARGS=(
-            --apple_deploy_target 12.0
-            --compile_no_warning_as_error
-            --config Release
-            --disable_rtti
-            --parallel
-            --skip_submodule_sync
-            --skip_tests
-            --use_coreml
-            --use_vcpkg
-            --osx_arch "${{ matrix.arch }}"
-          )
-          BUILD_PY_ARGS+=(
-            --cmake_extra_defines
-            CMAKE_OSX_DEPLOYMENT_TARGET=12.0
-            CMAKE_POLICY_VERSION_MINIMUM=3.5
-            "CMAKE_PROJECT_INCLUDE_BEFORE=$GITHUB_WORKSPACE/no_install.cmake"
-          )
-          python ./onnxruntime/tools/ci_build/build.py --update --build_dir build "${BUILD_PY_ARGS[@]}"
+          ./scripts/build_ort_macos.sh "configure_${{ matrix.arch }}"
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
@@ -340,7 +323,7 @@ jobs:
           BUILD_PY_ARGS+=(
             --cmake_extra_defines
             CMAKE_POLICY_VERSION_MINIMUM=3.5
-            "CMAKE_PROJECT_INCLUDE_BEFORE=$GITHUB_WORKSPACE/no_install.cmake"
+            "CMAKE_PROJECT_INCLUDE_BEFORE=$GITHUB_WORKSPACE/scripts/no_install.cmake"
           )
           python ./onnxruntime/tools/ci_build/build.py --update --build_dir build "${BUILD_PY_ARGS[@]}"
 
