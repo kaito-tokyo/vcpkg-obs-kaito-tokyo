@@ -2,6 +2,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+name: Vcpkg in ONNX Runtime
+
+# file: .github/workflows/vcpkg-ort.yml
+# author: Kaito Udagawa <umireon@kaito.tokyo>
+# version: 1.0.0
+# date: 2026-04-01
+
 on:
   workflow_call:
     inputs:
@@ -102,10 +109,10 @@ jobs:
           repository: microsoft/onnxruntime
           ref: ${{ matrix.ort-version }}
           persist-credentials: false
-          path: onnxruntime
+          path: .deps_vendor/onnxruntime
           submodules: recursive
 
-      - name: Build vcpkg of ONNX Runtime
+      - name: Build vcpkg of ONNX Runtime on Windows
         shell: pwsh
         env:
           GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
@@ -117,21 +124,7 @@ jobs:
 
           . "$env:CLEAN_PWSH_ENV"
 
-          $BUILD_PY_ARGS = @(
-            "--config", "Release",
-            "--parallel",
-            "--compile_no_warning_as_error",
-            "--use_vcpkg",
-            "--skip_submodule_sync",
-            "--skip_tests",
-            "--disable_rtti"
-          )
-          $BUILD_PY_ARGS += @(
-            "--cmake_extra_defines",
-            "CMAKE_POLICY_VERSION_MINIMUM=3.5",
-            "CMAKE_PROJECT_INCLUDE_BEFORE=$env:GITHUB_WORKSPACE/scripts/no_install.cmake"
-          )
-          python .\onnxruntime\tools\ci_build\build.py --update --build_dir build @BUILD_PY_ARGS
+          .\scripts\build_ort_windows.ps1 configure_x64
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
@@ -219,7 +212,7 @@ jobs:
           path: .deps_vendor/onnxruntime
           submodules: recursive
 
-      - name: Build vcpkg of ONNX Runtime
+      - name: Build vcpkg of ONNX Runtime on macOS
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
           BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
@@ -301,7 +294,7 @@ jobs:
           repository: microsoft/onnxruntime
           ref: ${{ matrix.ort-version }}
           persist-credentials: false
-          path: onnxruntime
+          path: .deps_vendor/onnxruntime
           submodules: recursive
 
       - name: Build vcpkg of ONNX Runtime on Ubuntu
@@ -311,21 +304,7 @@ jobs:
           GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
           PATH: '${{ env.MINIMAL_PATH }}'
         run: |
-          BUILD_PY_ARGS=(
-            --compile_no_warning_as_error
-            --config Release
-            --disable_rtti
-            --parallel
-            --skip_submodule_sync
-            --skip_tests
-            --use_vcpkg
-          )
-          BUILD_PY_ARGS+=(
-            --cmake_extra_defines
-            CMAKE_POLICY_VERSION_MINIMUM=3.5
-            "CMAKE_PROJECT_INCLUDE_BEFORE=$GITHUB_WORKSPACE/scripts/no_install.cmake"
-          )
-          python ./onnxruntime/tools/ci_build/build.py --update --build_dir build "${BUILD_PY_ARGS[@]}"
+          ./scripts/build_ort_ubuntu.sh "configure_x86_64"
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
