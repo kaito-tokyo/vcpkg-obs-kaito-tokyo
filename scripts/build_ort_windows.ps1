@@ -3,18 +3,27 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # file: scripts/build_ort_windows.ps1
-# description: Self-contained script to build ONNX Runtime for Windows x64.
+# description: Self-contained script to build ONNX Runtime for Windows.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
 # version: 1.0.1
-# date: 2026-04-01
+# date: 2026-04-02
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $PSNativeCommandUseErrorActionPreference = $true
 
 $ORT_VERSION = if ($env:ORT_VERSION) { $env:ORT_VERSION } else { 'v1.24.4' }
+$PYTHON = if ($env:PYTHON) { $env:PYTHON } else { 'python' }
 
-Push-Location (Split-Path -Path $PSScriptRoot -Parent)
+$ROOT_DIR = Split-Path -Path $PSScriptRoot -Parent
+$ORT_SRC_DIR = "$ROOT_DIR/.deps_vendor/onnxruntime"
+$BUILD_PY = "$ORT_SRC_DIR/tools/ci_build/build.py"
+$REDUCED_OPS_CONFIG = "$ROOT_DIR/src/required_operators_and_types.with_runtime_opt.config"
+$ORT_X64_BUILD_DIR = "$ROOT_DIR/.deps_vendor/ort_x64"
+$ORT_X64_VCPKG_INSTALLED_DIR = "$ROOT_DIR/.deps_vendor/ort_vcpkg_installed/x64-windows-static-md"
+$ORT_X64_LIB_DIR = "$ROOT_DIR/.deps_vendor/ort_lib_x64"
+$CMAKE_MASQUERADE_BIN_DIR = "$ROOT_DIR/.deps_vendor/cmake_masquerade_bin"
+$CMAKE_MASQUERADE_CL_EXE = "$CMAKE_MASQUERADE_BIN_DIR/cl.exe"
 
 $ORT_COMPONENTS = @(
   'onnxruntime_session',
@@ -29,8 +38,6 @@ $ORT_COMPONENTS = @(
   'onnxruntime_flatbuffers'
 )
 
-$BUILD_PY = '.deps_vendor/onnxruntime/tools/ci_build/build.py'
-
 $BUILD_PY_ARGS = @(
   '--config', 'Release',
   '--parallel',
@@ -38,35 +45,50 @@ $BUILD_PY_ARGS = @(
   '--disable_rtti',
   '--skip_submodule_sync',
   '--skip_tests',
-  '--use_vcpkg',
-
-  '--cmake_extra_defines',
-  "CMAKE_PROJECT_INCLUDE_BEFORE=$((Get-Location).Path)/scripts/no_install.cmake",
-  "CMAKE_POLICY_VERSION_MINIMUM=3.5",
-
-  '--targets'
+  '--use_vcpkg'
 )
 
-$BUILD_PY_ARGS += $ORT_COMPONENTS
-
-if (Test-Path 'src/required_operators_and_types.with_runtime_opt.config') {
+if (Test-Path $REDUCED_OPS_CONFIG -PathType Leaf) {
   $BUILD_PY_ARGS += @(
-    '--include_ops_by_config', 'src/required_operators_and_types.with_runtime_opt.config',
+    '--include_ops_by_config', $REDUCED_OPS_CONFIG,
     '--enable_reduced_operator_type_support'
   )
 }
 
-function clone() {
-  $ORT_SRC_DIR = '.deps_vendor/onnxruntime'
+$BUILD_PY_CMAKE_EXTRA_DEFINES = @(
+  "CMAKE_PROJECT_INCLUDE_BEFORE=$ROOT_DIR/scripts/no_install.cmake",
+  "CMAKE_POLICY_VERSION_MINIMUM=3.5"
+)
 
-  if (!(Test-Path $ORT_SRC_DIR)) {
+$BUILD_PY_ARGS_CCACHE = @()
+$BUILD_PY_CMAKE_EXTRA_DEFINES_CCACHE = @()
+
+function setup_cmake() {
+  if (!(Test-Path $CMAKE_MASQUERADE_CL_EXE -PathType Leaf)) {
+    New-Item -ItemType Directory -Path $CMAKE_MASQUERADE_BIN_DIR -Force
+
+    $ccacheCommand = Get-Command ccache.exe -ErrorAction SilentlyContinue
+    if (-not $ccacheCommand) {
+      Write-Error 'ERROR: ccache.exe was not found.'
+      exit 1
+    }
+
+    Copy-Item -Path $ccacheCommand.Source -Destination $CMAKE_MASQUERADE_CL_EXE -Force
+  }
+
+  $script:BUILD_PY_ARGS_CCACHE = @('--use_cache')
+  $script:BUILD_PY_CMAKE_EXTRA_DEFINES_CCACHE = @("CMAKE_VS_GLOBALS=UseMultiToolTask=true;EnforceProcessCountAcrossBuilds=true;TrackFileAccess=false;CLToolExe=cl.exe;CLToolPath=$CMAKE_MASQUERADE_BIN_DIR")
+}
+
+function clone() {
+  if (!(Test-Path $ORT_SRC_DIR -PathType Container)) {
     git clone --filter 'blob:none' --depth 1 --branch "$ORT_VERSION" https://github.com/microsoft/onnxruntime.git "$ORT_SRC_DIR"
   }
 
   Push-Location $ORT_SRC_DIR
   try {
     git checkout "$ORT_VERSION"
-    git submodule update --init --recursive --depth 1
+    git submodule update --init --recursive --filter 'blob:none' --depth 1
   }
   catch {
     throw
@@ -75,84 +97,60 @@ function clone() {
     Pop-Location
   }
 }
+
 function ensure_ort_src() {
-  if (!(Test-Path -Path '.deps_vendor/onnxruntime' -PathType Container)) {
+  if (!(Test-Path -Path $ORT_SRC_DIR -PathType Container)) {
     Write-Error 'ERROR: ONNX Runtime tree is not found.'
     exit 1
   }
 }
 
-function enable_ccache() {
-  $WRAPPER_DIR = './.deps_vendor/wrapper'
-
-  if (!(Test-Path $WRAPPER_DIR)) {
-    New-Item -ItemType Directory -Path $WRAPPER_DIR
-  }
-
-  $WRAPPER_CL_EXE = Join-Path $WRAPPER_DIR 'cl.exe'
-
-  $ccacheCommand = Get-Command ccache.exe -ErrorAction SilentlyContinue
-  if (-not $ccacheCommand) {
-    Write-Error 'ERROR: ccache.exe was not found.'
-    exit 1
-  }
-  $CCACHE_PROGRAM_PATH = $ccacheCommand.Source
-
-  if (Test-Path $WRAPPER_CL_EXE) {
-    Remove-Item -Path $WRAPPER_CL_EXE -Force -ErrorAction SilentlyContinue
-  }
-
-  Copy-Item -Path $CCACHE_PROGRAM_PATH -Destination $WRAPPER_CL_EXE -Force
-
-  $script:BUILD_PY_ARGS += @(
-    '--use_ccache',
-    '--cmake_extra_defines',
-    "CMAKE_VS_GLOBALS=UseMultiToolTask=true;EnforceProcessCountAcrossBuilds=true;TrackFileAccess=false;CLToolExe=cl.exe;CLToolPath=$(Join-Path (Get-Location) '.deps_vendor/wrapper')"
-  )
-}
-
 function configure_x64() {
   ensure_ort_src
-  if ($env:CCACHE_DIR) { enable_ccache }
-  python "$BUILD_PY" --update --build_dir .deps_vendor/ort_x64 @BUILD_PY_ARGS
+  if ($env:CCACHE_DIR) { setup_cmake }
+
+  & $PYTHON "$BUILD_PY" --update `
+    --build_dir "$ORT_X64_BUILD_DIR" `
+    @BUILD_PY_ARGS @BUILD_PY_ARGS_CCACHE `
+    --cmake_extra_defines @BUILD_PY_CMAKE_EXTRA_DEFINES @BUILD_PY_CMAKE_EXTRA_DEFINES_CCACHE `
+    --targets @ORT_COMPONENTS
 }
 
 function build_x64() {
   ensure_ort_src
-  if ($env:CCACHE_DIR) { enable_ccache }
-  python "$BUILD_PY" --build --build_dir .deps_vendor/ort_x64 @BUILD_PY_ARGS
+  if ($env:CCACHE_DIR) { setup_cmake }
+
+  & $PYTHON "$BUILD_PY" --build `
+    --build_dir "$ORT_X64_BUILD_DIR" `
+    @BUILD_PY_ARGS @BUILD_PY_ARGS_CCACHE `
+    --cmake_extra_defines @BUILD_PY_CMAKE_EXTRA_DEFINES @BUILD_PY_CMAKE_EXTRA_DEFINES_CCACHE `
+    --targets @ORT_COMPONENTS
 }
 
 function install_ort_vcpkg_x64() {
-  $ORT_VCPKG_INSTALLED_DIR = '.deps_vendor/ort_vcpkg_installed/x64-windows-static-md'
-
-  Remove-Item -Path $ORT_VCPKG_INSTALLED_DIR -Recurse -Force -ErrorAction SilentlyContinue
-  New-Item -ItemType Directory -Path $ORT_VCPKG_INSTALLED_DIR -Force
-
-  Copy-Item -Path ./.deps_vendor/ort_x64/Release/vcpkg_installed/x64-windows-static-md/* -Destination $ORT_VCPKG_INSTALLED_DIR -Recurse -Force
+  Remove-Item -Path $ORT_X64_VCPKG_INSTALLED_DIR -Recurse -Force -ErrorAction SilentlyContinue
+  New-Item -ItemType Directory -Path $ORT_X64_VCPKG_INSTALLED_DIR -Force
+  Copy-Item -Path "$ORT_X64_BUILD_DIR/Release/vcpkg_installed/x64-windows-static-md/*" -Destination $ORT_X64_VCPKG_INSTALLED_DIR -Recurse -Force
 }
 
 function install_ort_x64() {
-  $ORT_LIB_DIR = '.deps_vendor/ort_lib'
-
-  Remove-Item -Path $ORT_LIB_DIR -Recurse -Force -ErrorAction SilentlyContinue
-  New-Item -ItemType Directory -Path $ORT_LIB_DIR -Force
-
+  Remove-Item -Path $ORT_X64_LIB_DIR -Recurse -Force -ErrorAction SilentlyContinue
+  New-Item -ItemType Directory -Path $ORT_X64_LIB_DIR -Force
   foreach ($name in $ORT_COMPONENTS) {
-    Copy-Item -Path ".deps_vendor/ort_x64/Release/Release/$name.lib" -Destination $ORT_LIB_DIR -Force
+    $libPath = "$ORT_X64_BUILD_DIR/Release/Release/$name.lib"
+    Copy-Item -Path $libPath -Destination $ORT_X64_LIB_DIR -Force
   }
 }
 
-try {
-  if ($args.Count -eq 0) {
-    & $PSCommandPath clone
-    & $PSCommandPath configure_x64
-    & $PSCommandPath build_x64
-    & $PSCommandPath install_ort_vcpkg_x64
-    & $PSCommandPath install_ort_x64
-  } else {
-    & $args[0]
-  }
-} finally {
-  Pop-Location
+if ($args.Count -eq 0) {
+  clone
+  configure_x64
+  build_x64
+  install_ort_vcpkg_x64
+  install_ort_x64
+}
+else {
+  $command = $args[0]
+  $commandArgs = $args | Select-Object -Skip 1
+  & $command @commandArgs
 }
