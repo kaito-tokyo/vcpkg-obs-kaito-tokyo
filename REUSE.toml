@@ -1,0 +1,33 @@
+version = 1
+
+[[annotations]]
+path = [
+  ".github/aw/actions-lock.json",
+  ".prettierrc.json",
+  ".python-version",
+  "requirements-build.txt",
+  "vcpkg-configuration.json",
+  "vcpkg.json"
+]
+SPDX-FileCopyrightText = "2026 Kaito Udagawa <umireon@kaito.tokyo>"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Cloudflare
+[[annotations]]
+path = [
+  "cloudflare/.node-version",
+  "cloudflare/package-lock.json",
+]
+SPDX-FileCopyrightText = "2026 Kaito Udagawa <umireon@kaito.tokyo>"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Custom registry for vcpkg
+[[annotations]]
+path = [
+  "**/go.mod",
+  "**/go.sum",
+  "ports/**",
+  "versions/**/*.json"
+]
+SPDX-FileCopyrightText = "2026 Kaito Udagawa <umireon@kaito.tokyo>"
+SPDX-License-Identifier = "CC0-1.0"
