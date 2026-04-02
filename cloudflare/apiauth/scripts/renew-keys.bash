@@ -13,7 +13,7 @@ keyname="$(date +%Y%m)${1-}"
 set -f
 keypair=()
 while IFS= read -r line; do
-  names+=("$line")
+  keypair+=("$line")
 done < <(node "$basedir/generate-keypair.js" "$keyname")
 set +f
 
