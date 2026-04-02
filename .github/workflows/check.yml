@@ -1,0 +1,146 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Check CI
+
+# file: .github/workflows/check.yml
+# author: Kaito Udagawa <umireon@kaito.tokyo>
+# version: 1.0.0
+# date: 2026-04-02
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ['*']
+
+permissions: {}
+
+jobs:
+  check-yamllint:
+    name: Check yamllint
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Check with yamllint
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          git ls-files '*.yml' '*.yaml' | xargs -r yamllint
+
+  check-shellcheck:
+    name: Check shellcheck
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Check with shellcheck
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          git ls-files '*.sh' '*.bash' | xargs -r shellcheck
+
+  check-shfmt:
+    name: Check shfmt
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install shfmt with apt
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shfmt
+
+      - name: Check with shfmt
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          git ls-files "*.sh" "*.bash" | xargs --no-run-if-empty shfmt -i 2 -d
+
+  check-gersemi:
+    name: Check gersemi
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install gersemi with Linuxbrew
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          HOMEBREW_NO_ANALYTICS: "1"
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_ENV_HINTS: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew install obsproject/tools/gersemi
+          echo "$(brew --prefix obsproject/tools/gersemi)/bin" >> "$GITHUB_PATH"
+
+      - name: Check with gersemi
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          git ls-files '*.cmake' 'CMakeFiles.txt' ':!ports/' | xargs -r gersemi -c
+
+  check-reuse:
+    name: Check reuse
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python for REUSE
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          pip-install: reuse
+
+      - name: Lint with REUSE
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          reuse lint

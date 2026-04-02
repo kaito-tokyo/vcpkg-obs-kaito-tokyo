@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: CC0-1.0
+
 # http://editorconfig.org
 root = true
 
@@ -12,3 +16,6 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+[.gitconfig*]
+indent_size = 8

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # vcpkg-obs-kaito-tokyo
 
 A custom [vcpkg](https://vcpkg.io/) registry providing custom ports for various C++ libraries.
@@ -78,18 +84,21 @@ The infrastructure uses JWT tokens with EdDSA signatures for secure authenticati
 
 ## Development
 
-### Adding Versions
+### Enable lint shortcuts
 
-After modifying a port, use the provided script to add versions:
+We provide the git aliases for easy linting. To enable these aliases, run the following command to include the git config:
 
-```bash
-./add-versions.bash
+```sh
+git config set --append include.path ../.gitconfig.lint
 ```
 
-This script will automatically update the version database for all packages in the `ports/` directory.
+- **Lint**: `git lint`
+- **Fix**: `git fix`
 
-## License
+### Adding Versions
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Update the versions database with the following command:
 
-Copyright (C) 2025 Kaito Udagawa
+```bash
+vcpkg --x-builtin-ports-root="$(git rev-parse --show-toplevel)/ports" --x-builtin-registry-versions-dir="$(git rev-parse --show-toplevel)/versions" x-add-version --overwrite-version --all
+```

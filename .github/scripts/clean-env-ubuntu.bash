@@ -4,11 +4,13 @@
 
 # file: .github/scripts/clean-env-ubuntu.bash
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.0.0
-# date: 2026-03-31
+# version: 1.0.2
+# date: 2026-04-02
 
 filter_env_ubuntu() {
-  local names=($(compgen -e))
+  local names
+  mapfile -t names < <(compgen -e)
+
   local name
   for name in "${names[@]}"; do
     case "$name" in

@@ -1,10 +1,8 @@
 #!/bin/bash
 
-# The MIT License (MIT)
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
 #
-# Copyright (c) 2025 Kaito Udagawa
-#
-# See LICENSE for more information.
+# SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
 

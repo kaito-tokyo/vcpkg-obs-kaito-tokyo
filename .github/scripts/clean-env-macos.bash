@@ -4,11 +4,17 @@
 
 # file: .github/scripts/clean-env-macos.bash
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.0.0
-# date: 2026-03-31
+# version: 1.0.2
+# date: 2026-04-02
 
 filter_env_macos() {
-  local names=($(compgen -e))
+  # Note: Stick to a Bash-3.2-compatible way for macOS support.
+  local names
+  names=()
+  while IFS= read -r line; do
+    names+=("$line")
+  done < <(compgen -e)
+
   local name
   for name in "${names[@]}"; do
     case "$name" in

@@ -2,4 +2,7 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-.github/workflows/*.lock.yml linguist-generated=true merge=ours
+extends: relaxed
+
+rules:
+  line-length: disable
