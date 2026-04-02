@@ -47,7 +47,8 @@ $CleanEnvWindowsAllowList = @(
 
   # Workflow-specific
   "VCPKG_BINARY_SOURCES",
-  "VCPKG_ROOT"
+  "VCPKG_ROOT",
+  "VCPKG_TARGET_TRIPLET"
 )
 Get-ChildItem env: | ForEach-Object {
   if ($CleanEnvWindowsAllowList -notcontains $_.Name -and $_.Name -notlike "ACTIONS_*" -and $_.Name -notlike "CCACHE_*" -and $_.Name -notlike "GIT_*" -and $_.Name -notlike "GITHUB_*" -and $_.Name -notlike "PLUGIN_*" -and $_.Name -notlike "RUNNER_*") {

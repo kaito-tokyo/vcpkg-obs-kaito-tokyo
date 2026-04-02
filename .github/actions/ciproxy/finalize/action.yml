@@ -47,7 +47,7 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        $ErrorActionPreference = "Stop"
+        $ErrorActionPreference = 'Stop'
         Set-StrictMode -Version Latest
         $PSNativeCommandUseErrorActionPreference = $true
 
