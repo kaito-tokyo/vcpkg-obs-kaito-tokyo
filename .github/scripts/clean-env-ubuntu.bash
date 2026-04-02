@@ -21,7 +21,7 @@ filter_env_ubuntu() {
     # Ubuntu
     DEBIAN_FRONTEND | ImageOS | ImageVersion | XDG_RUNTIME_DIR) ;;
     # Workflow-specific
-    VCPKG_BINARY_SOURCES | VCPKG_ROOT) ;;
+    VCPKG_BINARY_SOURCES | VCPKG_ROOT | VCPKG_TARGET_TRIPLET) ;;
     *) unset -v "$name" 2>/dev/null || true ;;
     esac
   done

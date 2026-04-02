@@ -4,153 +4,52 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: Vcpkg in ONNX Runtime
+name: Vcpkg ORT CI
 
 # file: .github/workflows/vcpkg-ort.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.0.0
-# date: 2026-04-01
+# version: 1.0.2
+# date: 2026-04-03
 
 on:
-  workflow_call:
-    inputs:
-      environment-build-ort-vcpkg-windows-x64:
-        description: The environment name for the build-ort-vcpkg-windows-x64 job, or empty string for no environment
-        required: true
-        type: string
-      environment-build-ort-vcpkg-macos:
-        description: The environment name for the build-ort-vcpkg-macos job, or empty string for no environment
-        required: true
-        type: string
-      environment-build-ort-vcpkg-ubuntu-x64:
-        description: The environment name for the build-ort-vcpkg-ubuntu-x64 job, or empty string for no environment
-        required: true
-        type: string
-      VCPKG_BINARY_SOURCES:
-        description: Default VCPKG_BINARY_SOURCES.
-        required: true
-        type: string
-      ort-versions-json:
-        description: JSON array of ONNX Runtime versions to test, e.g. '["v1.24.1", "v1.24.4"]'
-        required: true
-        type: string
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: 23 9 * * *
+  workflow_dispatch:
 
-    secrets:
-      CIPROXY_MASTER_TOKEN:
-        description: The master token for ciproxy.
-        required: false
+permissions: {}
 
-env:
-  VCPKG_BINARY_SOURCES: ${{ github.ref == 'refs/heads/main' && 'clear;http,http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || inputs.VCPKG_BINARY_SOURCES }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-ort-vcpkg-windows-x64:
+  vcpkg-ort-windows:
     strategy:
       fail-fast: false
       matrix:
-        ort-version: ${{ fromJson(inputs.ort-versions-json) }}
-
-    name: Build vcpkg in ORT for Windows x64 ${{ matrix.ort-version }}
-
-    runs-on: windows-2022
-    timeout-minutes: 180
-    environment: ${{ inputs.environment-build-ort-vcpkg-windows-x64 }}
-
+        ort-version: [v1.24.1, v1.24.4]
     permissions:
       attestations: write
       contents: read
       id-token: write
+    uses: ./.github/workflows/vcpkg-ort-windows.yml
+    with:
+      job-index: ${{ strategy.job-index }}
+      environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
+      ort-version: ${{ matrix.ort-version }}
+    secrets: inherit
 
-    env:
-      CLEAN_PWSH_ENV: '${{ github.workspace }}\.github\scripts\clean-env-windows.ps1'
-      CMAKE_PATH: 'C:\Program Files\CMake\bin;C:\Program Files\Ninja'
-      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      GIT_PATH: 'C:\Program Files\Git\cmd'
-      MINIMAL_PATH: 'C:\Windows\System32;C:\Windows'
-      POWERSHELL_PATH: 'C:\Windows\System32\WindowsPowerShell\v1.0'
-      VCPKG_ROOT: '${{ github.workspace }}\vcpkg'
-
-    steps:
-      - name: Enable Windows long path
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
-
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version-file: ".python-version"
-          pip-install: -r requirements-build.txt
-
-      - name: Set up Go for ciproxy
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: .github/actions/ciproxy/cmd/go.mod
-          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
-
-      - name: Start ciproxy
-        id: ciproxy
-        if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/ciproxy/start
-        with:
-          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
-          port: "8080"
-
-      - name: Checkout ONNX Runtime
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: microsoft/onnxruntime
-          ref: ${{ matrix.ort-version }}
-          persist-credentials: false
-          path: .deps_vendor/onnxruntime
-          submodules: recursive
-
-      - name: Build vcpkg of ONNX Runtime on Windows
-        shell: pwsh
-        env:
-          GIT_CONFIG_PARAMETERS: ${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}
-          PATH: "${{ env.CMAKE_PATH }};${{ env.GIT_PATH }};${{ env.POWERSHELL_PATH }};${{ env.MINIMAL_PATH }}"
-        run: |
-          $ErrorActionPreference = "Stop"
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
-          . "$env:CLEAN_PWSH_ENV"
-
-          .\scripts\build_ort_windows.ps1 configure_x64
-
-      - name: Finalize ciproxy
-        if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/ciproxy/finalize
-        with:
-          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
-          pid: ${{ steps.ciproxy.outputs.PID }}
-
-      - name: Upload ciproxy logs
-        if: github.ref == 'refs/heads/main' && always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
-          path: |
-            ${{ steps.ciproxy.outputs.STDOUT_LOG }}
-            ${{ steps.ciproxy.outputs.STDERR_LOG }}
-          if-no-files-found: warn
-
-  build-ort-vcpkg-macos:
+  vcpkg-ort-macos:
     strategy:
       fail-fast: false
       matrix:
         arch: [arm64, x86_64]
-        ort-version: ${{ fromJson(inputs.ort-versions-json) }}
+        ort-version: [v1.24.1, v1.24.4]
         os-xcode:
           - name: Sequoia, Xcode 16.4
             runs-on: macos-15
@@ -158,169 +57,45 @@ jobs:
           - name: Tahoe, Xcode 26.4
             runs-on: macos-26
             DEVELOPER_DIR: /Applications/Xcode_26.4.app
-
-    name: Build vcpkg in ORT for macOS ${{ matrix.os-xcode.name }} ${{ matrix.arch }} ${{ matrix.ort-version }}
-
-    runs-on: ${{ matrix.os-xcode.runs-on }}
-    timeout-minutes: 180
-    environment: ${{ inputs.environment-build-ort-vcpkg-macos }}
-
     permissions:
       attestations: write
       contents: read
       id-token: write
+    uses: ./.github/workflows/vcpkg-ort-macos.yml
+    with:
+      job-index: ${{ strategy.job-index }}
+      environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
+      ort-version: ${{ matrix.ort-version }}
+      runs-on: ${{ matrix.os-xcode.runs-on }}
+      DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
+      arch: ${{ matrix.arch }}
+    secrets: inherit
 
-    env:
-      CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-macos.bash'
-      CMAKE_PATH: '/opt/homebrew/opt/cmake/bin'
-      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      DEVELOPER_DIR: '${{ matrix.os-xcode.DEVELOPER_DIR }}'
-      MINIMAL_PATH: '/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin'
-      VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
-      XCBEAUTIFY_PATH: '/opt/homebrew/opt/xcbeautify/bin'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version-file: ".python-version"
-          pip-install: -r requirements-build.txt
-
-      - name: Set up Go for ciproxy
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: .github/actions/ciproxy/cmd/go.mod
-          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
-
-      - name: Start ciproxy
-        id: ciproxy
-        if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/ciproxy/start
-        with:
-          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
-          port: "8080"
-
-      - name: Checkout ONNX Runtime
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: microsoft/onnxruntime
-          ref: ${{ matrix.ort-version }}
-          persist-credentials: false
-          path: .deps_vendor/onnxruntime
-          submodules: recursive
-
-      - name: Build vcpkg of ONNX Runtime on macOS
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
-          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
-          PATH: '${{ env.CMAKE_PATH }}:${{ env.MINIMAL_PATH }}'
-        run: |
-          ./scripts/build_ort_macos.sh "configure_${{ matrix.arch }}"
-
-      - name: Finalize ciproxy
-        if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/ciproxy/finalize
-        with:
-          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
-          pid: ${{ steps.ciproxy.outputs.PID }}
-
-      - name: Upload ciproxy logs
-        if: github.ref == 'refs/heads/main' && always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
-          path: |
-            ${{ steps.ciproxy.outputs.STDOUT_LOG }}
-            ${{ steps.ciproxy.outputs.STDERR_LOG }}
-          if-no-files-found: warn
-
-  build-ort-vcpkg-ubuntu-x64:
+  vcpkg-ort-ubuntu:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ubuntu-22.04, ubuntu-24.04]
-        ort-version: ${{ fromJson(inputs.ort-versions-json) }}
-
-    name: Build vcpkg in ORT for Ubuntu x64 ${{ matrix.runs-on }} ${{ matrix.ort-version }}
-
-    runs-on: ${{ matrix.runs-on }}
-    timeout-minutes: 180
-    environment: ${{ inputs.environment-build-ort-vcpkg-ubuntu-x64 }}
-
+        ort-version: [v1.24.1, v1.24.4]
     permissions:
       attestations: write
       contents: read
       id-token: write
+    uses: ./.github/workflows/vcpkg-ort-ubuntu.yml
+    with:
+      job-index: ${{ strategy.job-index }}
+      environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
+      ort-version: ${{ matrix.ort-version }}
+    secrets: inherit
 
-    env:
-      CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash'
-      CREDENTIAL_GIT_CONFIG_PARAMETERS: "'url.https://x-access-token:${{ github.token }}@github.com/.insteadOf=https://github.com/'"
-      MINIMAL_PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
-      VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
-
+  accept-vcpkg-ort:
+    name: Accept vcpkg-ort
+    needs: [vcpkg-ort-windows, vcpkg-ort-macos, vcpkg-ort-ubuntu]
+    runs-on: ubuntu-slim
+    permissions: {}
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version-file: ".python-version"
-          pip-install: -r requirements-build.txt
-
-      - name: Set up Go for ciproxy
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: .github/actions/ciproxy/cmd/go.mod
-          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
-
-      - name: Start ciproxy
-        id: ciproxy
-        if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/ciproxy/start
-        with:
-          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
-          port: "8080"
-
-      - name: Checkout ONNX Runtime
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: microsoft/onnxruntime
-          ref: ${{ matrix.ort-version }}
-          persist-credentials: false
-          path: .deps_vendor/onnxruntime
-          submodules: recursive
-
-      - name: Build vcpkg of ONNX Runtime on Ubuntu
+      - name: Accept vcpkg-ort
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
-          GIT_CONFIG_PARAMETERS: '${{ env.CREDENTIAL_GIT_CONFIG_PARAMETERS }}'
-          PATH: '${{ env.MINIMAL_PATH }}'
         run: |
-          ./scripts/build_ort_ubuntu.sh "configure_x86_64"
-
-      - name: Finalize ciproxy
-        if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/ciproxy/finalize
-        with:
-          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
-          pid: ${{ steps.ciproxy.outputs.PID }}
-
-      - name: Upload ciproxy logs
-        if: github.ref == 'refs/heads/main' && always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: ciproxy-logs-${{ github.job }}-${{ strategy.job-index }}
-          path: |
-            ${{ steps.ciproxy.outputs.STDOUT_LOG }}
-            ${{ steps.ciproxy.outputs.STDERR_LOG }}
-          if-no-files-found: warn
+          echo 'The workflow vcpkg-ort has completed successfully.'

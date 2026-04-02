@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# file: .github/workflows/vcpkg-ort-windows.yml
+# author: Kaito Udagawa <umireon@kaito.tokyo>
+# version: 1.0.2
+# date: 2026-04-03
+
+on:
+  workflow_call:
+    inputs:
+      job-index:
+        description: The job index for logging.
+        required: true
+        type: number
+      environment:
+        description: The environment name for this workflow, or empty string for no environment
+        required: true
+        type: string
+      VCPKG_BINARY_SOURCES:
+        description: Default VCPKG_BINARY_SOURCES.
+        required: true
+        type: string
+      ort-version:
+        description: The version of ONNX Runtime to build.
+        required: true
+        type: string
+
+    secrets:
+      CIPROXY_MASTER_TOKEN:
+        description: The master token for ciproxy.
+        required: false
+
+permissions: {}
+
+jobs:
+  build-ort-vcpkg-windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    environment: ${{ inputs.environment }}
+
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    env:
+      CLEAN_PWSH_ENV: '${{ github.workspace }}\.github\scripts\clean-env-windows.ps1'
+      CMAKE_PATH: 'C:\Program Files\CMake\bin;C:\Program Files\Ninja'
+      GIT_PATH: 'C:\Program Files\Git\cmd'
+      MINIMAL_PATH: 'C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+      VCPKG_BINARY_SOURCES: ${{ github.ref == 'refs/heads/main' && 'clear;http,http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || inputs.VCPKG_BINARY_SOURCES }}
+
+    steps:
+      - name: Enable Windows long path
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version-file: .python-version
+          pip-install: -r requirements-build.txt
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: .github/actions/ciproxy/cmd/go.mod
+          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
+
+      - name: Start ciproxy
+        id: ciproxy
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/ciproxy/start
+        with:
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          port: '8080'
+
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ inputs.ort-version }}
+          persist-credentials: false
+          path: .deps_vendor/onnxruntime
+          submodules: recursive
+
+      - name: Build vcpkg of ONNX Runtime on Windows
+        shell: pwsh
+        env:
+          PATH: "${{ env.CMAKE_PATH }};${{ env.GIT_PATH }};${{ env.MINIMAL_PATH }}"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          . $env:CLEAN_PWSH_ENV
+
+          ./scripts/build_ort_windows.ps1 configure_x64
+
+      - name: Finalize ciproxy
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/ciproxy/finalize
+        with:
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          pid: ${{ steps.ciproxy.outputs.PID }}
+
+      - name: Upload ciproxy logs
+        if: github.ref == 'refs/heads/main' && always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ciproxy-logs-${{ github.job }}-${{ inputs.job-index }}
+          path: |
+            ${{ steps.ciproxy.outputs.STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.STDERR_LOG }}
+          if-no-files-found: warn

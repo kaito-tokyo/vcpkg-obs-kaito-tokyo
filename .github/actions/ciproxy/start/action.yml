@@ -68,7 +68,7 @@ runs:
         CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
         PORT: ${{ inputs.port }}
       run: |
-        $ErrorActionPreference = "Stop"
+        $ErrorActionPreference = 'Stop'
         Set-StrictMode -Version Latest
         $PSNativeCommandUseErrorActionPreference = $true
 

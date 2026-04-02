@@ -25,7 +25,7 @@ filter_env_macos() {
     # macOS
     DEVELOPER_DIR | ImageOS | ImageVersion | XPC_FLAGS | XPC_SERVICE_NAME) ;;
     # Workflow-specific
-    VCPKG_BINARY_SOURCES | VCPKG_ROOT) ;;
+    VCPKG_BINARY_SOURCES | VCPKG_ROOT | VCPKG_TARGET_TRIPLET) ;;
     *) unset -v "$name" 2>/dev/null || true ;;
     esac
   done
