@@ -20,8 +20,7 @@ $ORT_SRC_DIR = "$ROOT_DIR/.deps_vendor/onnxruntime"
 $BUILD_PY = "$ORT_SRC_DIR/tools/ci_build/build.py"
 $REDUCED_OPS_CONFIG = "$ROOT_DIR/src/required_operators_and_types.with_runtime_opt.config"
 $ORT_X64_BUILD_DIR = "$ROOT_DIR/.deps_vendor/ort_x64"
-$ORT_X64_VCPKG_INSTALLED_DIR = "$ROOT_DIR/.deps_vendor/ort_vcpkg_installed/x64-windows-static-md"
-$ORT_X64_LIB_DIR = "$ROOT_DIR/.deps_vendor/ort_lib_x64"
+$ORT_X64_PREFIX = "$ROOT_DIR/.deps_vendor/ort_x64-prefix"
 $CMAKE_MASQUERADE_BIN_DIR = "$ROOT_DIR/.deps_vendor/cmake_masquerade_bin"
 $CMAKE_MASQUERADE_CL_EXE = "$CMAKE_MASQUERADE_BIN_DIR/cl.exe"
 
@@ -56,15 +55,14 @@ if (Test-Path $REDUCED_OPS_CONFIG -PathType Leaf) {
 }
 
 $BUILD_PY_CMAKE_EXTRA_DEFINES = @(
-  "CMAKE_PROJECT_INCLUDE_BEFORE=$ROOT_DIR/scripts/no_install.cmake",
-  "CMAKE_POLICY_VERSION_MINIMUM=3.5"
+  "CMAKE_POLICY_VERSION_MINIMUM=3.5",
+  "onnxruntime_BUILD_UNIT_TESTS=OFF"
 )
 
-$BUILD_PY_ARGS_CCACHE = @()
-$BUILD_PY_CMAKE_EXTRA_DEFINES_CCACHE = @()
-
 function setup_cmake() {
-  if (!(Test-Path $CMAKE_MASQUERADE_CL_EXE -PathType Leaf)) {
+  if (Test-Path $CMAKE_MASQUERADE_CL_EXE -PathType Leaf) {
+    Write-Host 'Masquerading cl.exe already exists. Skipping setup.'
+  } else {
     New-Item -ItemType Directory -Path $CMAKE_MASQUERADE_BIN_DIR -Force
 
     $ccacheCommand = Get-Command ccache.exe -ErrorAction SilentlyContinue
@@ -75,79 +73,53 @@ function setup_cmake() {
 
     Copy-Item -Path $ccacheCommand.Source -Destination $CMAKE_MASQUERADE_CL_EXE -Force
   }
-
-  $script:BUILD_PY_ARGS_CCACHE = @('--use_cache')
-  $script:BUILD_PY_CMAKE_EXTRA_DEFINES_CCACHE = @("CMAKE_VS_GLOBALS=UseMultiToolTask=true;EnforceProcessCountAcrossBuilds=true;TrackFileAccess=false;CLToolExe=cl.exe;CLToolPath=$CMAKE_MASQUERADE_BIN_DIR")
 }
 
-function clone() {
-  if (!(Test-Path $ORT_SRC_DIR -PathType Container)) {
-    git clone --filter 'blob:none' --depth 1 --branch "$ORT_VERSION" https://github.com/microsoft/onnxruntime.git "$ORT_SRC_DIR"
-  }
+function run_build_py() {
+  param(
+    [string]$arch,
+    [string]$command
+  )
 
-  Push-Location $ORT_SRC_DIR
-  try {
-    git checkout "$ORT_VERSION"
-    git submodule update --init --recursive --filter 'blob:none' --depth 1
-  }
-  catch {
-    throw
-  }
-  finally {
-    Pop-Location
-  }
-}
-
-function ensure_ort_src() {
   if (!(Test-Path -Path $ORT_SRC_DIR -PathType Container)) {
     Write-Error 'ERROR: ONNX Runtime tree is not found.'
     exit 1
   }
-}
 
-function configure_x64() {
-  ensure_ort_src
-  if ($env:CCACHE_DIR) { setup_cmake }
-
-  & $PYTHON "$BUILD_PY" --update `
-    --build_dir "$ORT_X64_BUILD_DIR" `
-    @BUILD_PY_ARGS @BUILD_PY_ARGS_CCACHE `
-    --cmake_extra_defines @BUILD_PY_CMAKE_EXTRA_DEFINES @BUILD_PY_CMAKE_EXTRA_DEFINES_CCACHE `
-    --targets @ORT_COMPONENTS
-}
-
-function build_x64() {
-  ensure_ort_src
-  if ($env:CCACHE_DIR) { setup_cmake }
-
-  & $PYTHON "$BUILD_PY" --build `
-    --build_dir "$ORT_X64_BUILD_DIR" `
-    @BUILD_PY_ARGS @BUILD_PY_ARGS_CCACHE `
-    --cmake_extra_defines @BUILD_PY_CMAKE_EXTRA_DEFINES @BUILD_PY_CMAKE_EXTRA_DEFINES_CCACHE `
-    --targets @ORT_COMPONENTS
-}
-
-function install_ort_vcpkg_x64() {
-  Remove-Item -Path $ORT_X64_VCPKG_INSTALLED_DIR -Recurse -Force -ErrorAction SilentlyContinue
-  New-Item -ItemType Directory -Path $ORT_X64_VCPKG_INSTALLED_DIR -Force
-  Copy-Item -Path "$ORT_X64_BUILD_DIR/Release/vcpkg_installed/x64-windows-static-md/*" -Destination $ORT_X64_VCPKG_INSTALLED_DIR -Recurse -Force
-}
-
-function install_ort_x64() {
-  Remove-Item -Path $ORT_X64_LIB_DIR -Recurse -Force -ErrorAction SilentlyContinue
-  New-Item -ItemType Directory -Path $ORT_X64_LIB_DIR -Force
-  foreach ($name in $ORT_COMPONENTS) {
-    $libPath = "$ORT_X64_BUILD_DIR/Release/Release/$name.lib"
-    Copy-Item -Path $libPath -Destination $ORT_X64_LIB_DIR -Force
+  $commandlineArgs = @("$BUILD_PY")
+  $commandlineArgs += $BUILD_PY_ARGS
+  $commandlineArgs += @('--targets')
+  $commandlineArgs += $ORT_COMPONENTS
+  $commandlineArgs += @('--cmake_extra_defines')
+  $commandlineArgs += $BUILD_PY_CMAKE_EXTRA_DEFINES
+  if ($env:CCACHE_DIR) {
+    $commandlineArgs += @("CMAKE_VS_GLOBALS=UseMultiToolTask=true;EnforceProcessCountAcrossBuilds=true;TrackFileAccess=false;CLToolExe=cl.exe;CLToolPath=$CMAKE_MASQUERADE_BIN_DIR")
+    $commandlineArgs += @('--use_cache')
   }
+
+  switch ($arch) {
+    'x64' { $commandlineArgs += @('--build_dir', $ORT_X64_BUILD_DIR) }
+    default {
+      Write-Error "ERROR: Invalid arch $arch"
+      exit 1
+    }
+  }
+
+  switch ($command) {
+    'update' { $commandlineArgs += '--update' }
+    'build' { $commandlineArgs += '--build' }
+    default {
+      Write-Error "ERROR: Invalid command $command."
+      exit 1
+    }
+  }
+
+  & $PYTHON @commandlineArgs
 }
 
 if ($args.Count -eq 0) {
-  clone
-  configure_x64
-  build_x64
-  install_ort_vcpkg_x64
-  install_ort_x64
+  run_build_py x64 update
+  run_build_py x64 build
 }
 else {
   $command = $args[0]

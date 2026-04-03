@@ -8,12 +8,11 @@
 # description: Self-contained script to build ONNX Runtime for macOS.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
 # version: 1.1.0
-# date: 2026-04-03
+# date: 2026-04-04
 
 set -euo pipefail
 shopt -s nullglob
 
-ORT_VERSION="${ORT_VERSION:-v1.24.4}"
 PYTHON="${PYTHON:-python3}"
 OSX_DEPLOY_TARGET="${OSX_DEPLOY_TARGET:-12.0}"
 
@@ -68,17 +67,6 @@ BUILD_PY_CMAKE_EXTRA_DEFINES=(
   "CMAKE_POLICY_VERSION_MINIMUM=3.5"
   "onnxruntime_BUILD_UNIT_TESTS=OFF"
 )
-
-clone_ort() {
-  if ! [[ -d "${ORT_SRC_DIR}" ]]; then
-    mkdir -p "$(dirname "${ORT_SRC_DIR}")"
-    git clone --filter 'blob:none' --depth 1 --branch "${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "${ORT_SRC_DIR}"
-  fi
-  git -C "${ORT_SRC_DIR}" reset --hard
-  git -C "${ORT_SRC_DIR}" clean -fd
-  git -C "${ORT_SRC_DIR}" checkout "${ORT_VERSION}"
-  git -C "${ORT_SRC_DIR}" submodule update --init --recursive --filter 'blob:none' --depth 1
-}
 
 # https://github.com/microsoft/onnxruntime/pull/27960
 # shellcheck disable=SC2016
