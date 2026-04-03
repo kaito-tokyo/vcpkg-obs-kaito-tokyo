@@ -64,6 +64,7 @@ jobs:
       CMAKE_PATH: '/opt/homebrew/opt/cmake/bin'
       DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
       MINIMAL_PATH: '/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+      NINJA_PATH: '/opt/homebrew/opt/ninja/bin'
       VCPKG_BINARY_SOURCES: ${{ github.ref == 'refs/heads/main' && 'clear;http,http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || inputs.VCPKG_BINARY_SOURCES }}
       XCBEAUTIFY_PATH: '/opt/homebrew/opt/xcbeautify/bin'
 
@@ -84,6 +85,27 @@ jobs:
         with:
           go-version-file: .github/actions/ciproxy/cmd/go.mod
           cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
+
+      - name: Print CMake version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          PATH: '${{ env.CMAKE_PATH }}:${{ env.MINIMAL_PATH }}'
+        run: |
+          cmake --version
+
+      - name: Print Ninja version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          PATH: '${{ env.NINJA_PATH }}:${{ env.MINIMAL_PATH }}'
+        run: |
+          ninja --version
+
+      - name: Print CMake version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          PATH: '${{ env.XCBEAUTIFY_PATH }}:${{ env.MINIMAL_PATH }}'
+        run: |
+          xcbeautify --version
 
       - name: Start ciproxy
         id: ciproxy
@@ -106,10 +128,11 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
           BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
-          PATH: '${{ env.CMAKE_PATH }}:${{ env.MINIMAL_PATH }}'
+          PATH: '${{ env.NINJA_PATH }}:${{ env.CMAKE_PATH }}:${{ env.MINIMAL_PATH }}'
           PLUGIN_ARCH: ${{ inputs.arch }}
         run: |
-          ./scripts/build_ort_macos.sh "configure_${PLUGIN_ARCH}"
+          ./scripts/build_ort_macos.sh patch_ort
+          ./scripts/build_ort_macos.sh run_build_py "${PLUGIN_ARCH}" update
 
       - name: Finalize ciproxy
         if: github.ref == 'refs/heads/main'
