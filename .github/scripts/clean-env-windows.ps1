@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# file: .github/scripts/clean-env-ubuntu.bash
+# file: .github/scripts/clean-env-windows.ps1
 # author: Kaito Udagawa <umireon@kaito.tokyo>
 # version: 1.0.0
 # date: 2026-03-31

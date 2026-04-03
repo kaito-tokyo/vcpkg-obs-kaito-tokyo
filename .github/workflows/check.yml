@@ -36,10 +36,15 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Print yamllint version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          yamllint --version
+
       - name: Check with yamllint
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          git ls-files '*.yml' '*.yaml' | xargs -r yamllint
+          git ls-files '*.yml' '*.yaml' ':!.github/workflows/*.lock.yml' | xargs -r yamllint
 
   check-shellcheck:
     name: Check shellcheck
@@ -55,6 +60,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+
+      - name: Print shellcheck version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          shellcheck --version
 
       - name: Check with shellcheck
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}

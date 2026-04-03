@@ -6,7 +6,7 @@
 
 # file: .github/workflows/vcpkg-ort-windows.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.0.2
+# version: 1.1.0
 # date: 2026-04-03
 
 on:
@@ -49,10 +49,7 @@ jobs:
 
     env:
       CLEAN_PWSH_ENV: '${{ github.workspace }}\.github\scripts\clean-env-windows.ps1'
-      CMAKE_PATH: 'C:\Program Files\CMake\bin;C:\Program Files\Ninja'
-      GIT_PATH: 'C:\Program Files\Git\cmd'
-      MINIMAL_PATH: 'C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-      VCPKG_BINARY_SOURCES: ${{ github.ref == 'refs/heads/main' && 'clear;http,http://127.0.0.1:8080/{name}/{version}/{sha},readwrite' || inputs.VCPKG_BINARY_SOURCES }}
+      FILTERED_PATH: 'C:\ProgramData\chocolatey\bin;C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
 
     steps:
       - name: Enable Windows long path
@@ -70,10 +67,13 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version-file: .python-version
           pip-install: -r requirements-build.txt
+
+      # ASSERT: The directory of python3 executable is always prepended to the PATH specified in the env section.
 
       - name: Set up Go for ciproxy
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
@@ -81,13 +81,40 @@ jobs:
           go-version-file: .github/actions/ciproxy/cmd/go.mod
           cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
+      # ASSERT: The directory of go executable is always prepended to the PATH specified in the env section.
+
+      - name: Print CMake version on Windows
+        shell: pwsh
+        env:
+          PATH: '${{ env.FILTERED_PATH }}'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          . $env:CLEAN_PWSH_ENV
+
+          cmake --version
+
+      - name: Print Ninja version on Windows
+        shell: pwsh
+        env:
+          PATH: '${{ env.FILTERED_PATH }}'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          . $env:CLEAN_PWSH_ENV
+
+          ninja --version
+
       - name: Start ciproxy
         id: ciproxy
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/ciproxy/start
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
-          port: '8080'
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -101,7 +128,8 @@ jobs:
       - name: Build vcpkg of ONNX Runtime on Windows
         shell: pwsh
         env:
-          PATH: "${{ env.CMAKE_PATH }};${{ env.GIT_PATH }};${{ env.MINIMAL_PATH }}"
+          PATH: "${{ env.FILTERED_PATH }}"
+          VCPKG_BINARY_SOURCES: ${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
         run: |
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
