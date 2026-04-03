@@ -80,6 +80,20 @@ jobs:
           go-version-file: .github/actions/ciproxy/cmd/go.mod
           cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
+      - name: Print CMake version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          PATH: '${{ env.CMAKE_PATH }}:${{ env.MINIMAL_PATH }}'
+        run: |
+          cmake --version
+
+      - name: Print CMake version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          PATH: '${{ env.XCBEAUTIFY_PATH }}:${{ env.MINIMAL_PATH }}'
+        run: |
+          xcbeautify --version
+
       - name: Checkout vcpkg
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

@@ -7,8 +7,8 @@
 # file: scripts/build_ort_macos.sh
 # description: Self-contained script to build ONNX Runtime for macOS.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.0.1
-# date: 2026-04-02
+# version: 1.1.0
+# date: 2026-04-03
 
 set -euo pipefail
 shopt -s nullglob
@@ -22,9 +22,11 @@ ORT_SRC_DIR="${ROOT_DIR}/.deps_vendor/onnxruntime"
 BUILD_PY="${ORT_SRC_DIR}/tools/ci_build/build.py"
 REDUCED_OPS_CONFIG="${ROOT_DIR}/src/required_operators_and_types.with_runtime_opt.config"
 ORT_ARM64_BUILD_DIR="${ROOT_DIR}/.deps_vendor/ort_arm64"
+ORT_ARM64_PREFIX="${ROOT_DIR}/.deps_vendor/ort_arm64-prefix"
 ORT_X86_64_BUILD_DIR="${ROOT_DIR}/.deps_vendor/ort_x86_64"
-ORT_UNIVERSAL_VCPKG_INSTALLED_DIR="${ROOT_DIR}/.deps_vendor/ort_vcpkg_installed/osx-universal"
-ORT_UNIVERSAL_LIB_DIR="${ROOT_DIR}/.deps_vendor/ort_lib_universal"
+ORT_X86_64_PREFIX="${ROOT_DIR}/.deps_vendor/ort_x86_64-prefix"
+ORT_UNIVERSAL_PREFIX="${ROOT_DIR}/.deps_vendor/ort_universal-prefix"
+ORT_UNIVERSAL_VCPKG_INSTALLED_DIR="${ROOT_DIR}/.deps_vendor/ort_universal_vcpkg_installed/universal-osx"
 
 ORT_COMPONENTS=(
   onnxruntime_session
@@ -43,6 +45,7 @@ ORT_COMPONENTS=(
 
 BUILD_PY_ARGS=(
   --apple_deploy_target "${OSX_DEPLOY_TARGET}"
+  --cmake_generator Ninja
   --compile_no_warning_as_error
   --config Release
   --disable_rtti
@@ -63,136 +66,121 @@ fi
 BUILD_PY_CMAKE_EXTRA_DEFINES=(
   "CMAKE_OSX_DEPLOYMENT_TARGET=${OSX_DEPLOY_TARGET}"
   "CMAKE_POLICY_VERSION_MINIMUM=3.5"
-  "CMAKE_PROJECT_INCLUDE_BEFORE=${ROOT_DIR}/scripts/no_install.cmake"
+  "onnxruntime_BUILD_UNIT_TESTS=OFF"
 )
 
-BUILD_PY_ARGS_CCACHE=()
-
-clone() {
+clone_ort() {
   if ! [[ -d "${ORT_SRC_DIR}" ]]; then
+    mkdir -p "$(dirname "${ORT_SRC_DIR}")"
     git clone --filter 'blob:none' --depth 1 --branch "${ORT_VERSION}" https://github.com/microsoft/onnxruntime.git "${ORT_SRC_DIR}"
   fi
-  (
-    cd "${ORT_SRC_DIR}"
-    git checkout "${ORT_VERSION}"
-    git submodule update --init --recursive --filter 'blob:none' --depth 1
-  )
+  git -C "${ORT_SRC_DIR}" reset --hard
+  git -C "${ORT_SRC_DIR}" clean -fd
+  git -C "${ORT_SRC_DIR}" checkout "${ORT_VERSION}"
+  git -C "${ORT_SRC_DIR}" submodule update --init --recursive --filter 'blob:none' --depth 1
 }
 
-ensure_ort_src() {
+# https://github.com/microsoft/onnxruntime/pull/27960
+# shellcheck disable=SC2016
+patch_27960='
+diff --git a/cmake/onnxruntime_providers_coreml.cmake b/cmake/onnxruntime_providers_coreml.cmake
+index 757198ffb651d..bf46a73e43839 100644
+--- a/cmake/onnxruntime_providers_coreml.cmake
++++ b/cmake/onnxruntime_providers_coreml.cmake
+@@ -26,7 +26,7 @@ file(GLOB coreml_proto_srcs "${COREML_PROTO_ROOT}/*.proto")
+ onnxruntime_add_static_library(coreml_proto ${coreml_proto_srcs})
+ target_include_directories(coreml_proto
+                            PUBLIC $<TARGET_PROPERTY:${PROTOBUF_LIB},INTERFACE_INCLUDE_DIRECTORIES>
+-                           "${CMAKE_CURRENT_BINARY_DIR}")
++                           $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+ target_compile_definitions(coreml_proto
+                            PUBLIC $<TARGET_PROPERTY:${PROTOBUF_LIB},INTERFACE_COMPILE_DEFINITIONS>)
+ set_target_properties(coreml_proto PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+@@ -42,6 +42,7 @@ onnxruntime_protobuf_generate(
+
+ if (NOT onnxruntime_BUILD_SHARED_LIB)
+   install(TARGETS coreml_proto
++          EXPORT ${PROJECT_NAME}Targets
+           ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+           LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+           RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR}
+'
+
+patch_ort() {
   if ! [[ -d "${ORT_SRC_DIR}" ]]; then
     echo "ERROR: ONNX Runtime tree is not found." >&2
     exit 1
   fi
+
+  if git -C "${ORT_SRC_DIR}" apply --reverse --check <<<"${patch_27960}" >/dev/null 2>&1; then
+    echo "Patch #27960 is already applied, skipping."
+  else
+    git -C "${ORT_SRC_DIR}" apply <<<"${patch_27960}"
+    echo "Applied patch #27960."
+  fi
 }
 
-enable_ccache() {
-  BUILD_PY_ARGS_CCACHE=(--use_cache)
-}
+run_build_py() {
+  local -r arch="$1"
+  local -r command="$2"
 
-configure_arm64() {
-  ensure_ort_src
-
-  if [[ -n "${CCACHE_DIR:-}" ]]; then
-    enable_ccache
+  if ! [[ -d "${ORT_SRC_DIR}" ]]; then
+    echo "ERROR: ONNX Runtime tree is not found." >&2
+    exit 1
   fi
 
-  local cmd=(
+  local commandline=(
     "${PYTHON}"
     "${BUILD_PY}"
-    --update
-    --build_dir "${ORT_ARM64_BUILD_DIR}"
     "${BUILD_PY_ARGS[@]}"
     --cmake_extra_defines "${BUILD_PY_CMAKE_EXTRA_DEFINES[@]}"
-    --osx_arch arm64
-    --targets "${ORT_COMPONENTS[@]}" cpuinfo kleidiai
   )
 
-  if [[ "${#BUILD_PY_ARGS_CCACHE[@]}" -gt 0 ]]; then
-    cmd+=("${BUILD_PY_ARGS_CCACHE[@]}")
-  fi
+  case "${arch}" in
+  arm64)
+    commandline+=(
+      --build_dir "${ORT_ARM64_BUILD_DIR}"
+      --osx_arch arm64
+      --targets "${ORT_COMPONENTS[@]}" cpuinfo kleidiai
+    )
+    ;;
+  x86_64)
+    commandline+=(
+      --build_dir "${ORT_X86_64_BUILD_DIR}"
+      --osx_arch x86_64
+      --targets "${ORT_COMPONENTS[@]}" cpuinfo
+    )
+    ;;
+  *)
+    echo "ERROR: Invalid arch ${arch}." >&2
+    exit 1
+    ;;
+  esac
 
-  "${cmd[@]}"
-}
-
-build_arm64() {
-  ensure_ort_src
-  if [[ -n "${CCACHE_DIR:-}" ]]; then
-    enable_ccache
-  fi
-
-  local cmd=(
-    "${PYTHON}"
-    "${BUILD_PY}"
-    --build
-    --build_dir "${ORT_ARM64_BUILD_DIR}"
-    "${BUILD_PY_ARGS[@]}"
-    --cmake_extra_defines "${BUILD_PY_CMAKE_EXTRA_DEFINES[@]}"
-    --osx_arch arm64
-    --targets "${ORT_COMPONENTS[@]}" cpuinfo kleidiai
-  )
-
-  if [[ "${#BUILD_PY_ARGS_CCACHE[@]}" -gt 0 ]]; then
-    cmd+=("${BUILD_PY_ARGS_CCACHE[@]}")
-  fi
-
-  "${cmd[@]}"
-}
-
-configure_x86_64() {
-  ensure_ort_src
+  case "${command}" in
+  update)
+    commandline+=(--update)
+    ;;
+  build)
+    commandline+=(--build)
+    ;;
+  *)
+    echo "ERROR: Invalid command ${command}." >&2
+    exit 1
+    ;;
+  esac
 
   if [[ -n "${CCACHE_DIR:-}" ]]; then
-    enable_ccache
+    commandline+=(--use_cache)
   fi
 
-  local cmd=(
-    "${PYTHON}"
-    "${BUILD_PY}"
-    --update
-    --build_dir "${ORT_X86_64_BUILD_DIR}"
-    "${BUILD_PY_ARGS[@]}"
-    --cmake_extra_defines "${BUILD_PY_CMAKE_EXTRA_DEFINES[@]}"
-    --osx_arch x86_64
-    --targets "${ORT_COMPONENTS[@]}" cpuinfo
-  )
-
-  if [[ "${#BUILD_PY_ARGS_CCACHE[@]}" -gt 0 ]]; then
-    cmd+=("${BUILD_PY_ARGS_CCACHE[@]}")
-  fi
-
-  "${cmd[@]}"
-}
-
-build_x86_64() {
-  ensure_ort_src
-
-  if [[ -n "${CCACHE_DIR:-}" ]]; then
-    enable_ccache
-  fi
-
-  local cmd=(
-    "${PYTHON}"
-    "${BUILD_PY}"
-    --build
-    --build_dir "${ORT_X86_64_BUILD_DIR}"
-    "${BUILD_PY_ARGS[@]}"
-    --cmake_extra_defines "${BUILD_PY_CMAKE_EXTRA_DEFINES[@]}"
-    --osx_arch x86_64
-    --targets "${ORT_COMPONENTS[@]}" cpuinfo
-  )
-
-  if [[ "${#BUILD_PY_ARGS_CCACHE[@]}" -gt 0 ]]; then
-    cmd+=("${BUILD_PY_ARGS_CCACHE[@]}")
-  fi
-
-  "${cmd[@]}"
+  "${commandline[@]}"
 }
 
 lipo_vcpkg() {
-  local -r VCPKG_INSTALLED_ARM64="$1"
-  local -r VCPKG_INSTALLED_X86_64="$2"
-  local -r VCPKG_INSTALLED_UNIVERSAL="$3"
+  local -r VCPKG_INSTALLED_UNIVERSAL="$1"
+  local -r VCPKG_INSTALLED_ARM64="$2"
+  local -r VCPKG_INSTALLED_X64="$3"
 
   rm -rf "${VCPKG_INSTALLED_UNIVERSAL}"
   mkdir -p "${VCPKG_INSTALLED_UNIVERSAL}"/{debug/lib/pkgconfig,include,lib/pkgconfig,share}
@@ -201,94 +189,86 @@ lipo_vcpkg() {
   cp -a "${VCPKG_INSTALLED_ARM64}/lib/pkgconfig/." "${VCPKG_INSTALLED_UNIVERSAL}/lib/pkgconfig/"
   cp -a "${VCPKG_INSTALLED_ARM64}/share/." "${VCPKG_INSTALLED_UNIVERSAL}/share/"
 
-  local lib
-  for lib in "${VCPKG_INSTALLED_ARM64}/lib/"*.a; do
-    local name="${lib##*/}"
-
-    if ! [[ -f "${VCPKG_INSTALLED_X86_64}/lib/${name}" ]]; then
-      echo "ERROR: ${name} does not exist for x86_64." >&2
-      exit 1
-    fi
-
-    lipo \
-      "${VCPKG_INSTALLED_ARM64}/lib/${name}" \
-      "${VCPKG_INSTALLED_X86_64}/lib/${name}" \
-      -create \
-      -output "${VCPKG_INSTALLED_UNIVERSAL}/lib/${name}"
-  done
-
   if [[ -d "${VCPKG_INSTALLED_ARM64}/debug" ]]; then
     cp -a "${VCPKG_INSTALLED_ARM64}/debug/lib/pkgconfig/." "${VCPKG_INSTALLED_UNIVERSAL}/debug/lib/pkgconfig/"
-
-    local lib
-    for lib in "${VCPKG_INSTALLED_ARM64}/debug/lib/"*.a; do
-      local name="${lib##*/}"
-
-      if ! [[ -f "${VCPKG_INSTALLED_X86_64}/debug/lib/${name}" ]]; then
-        echo "ERROR: ${name} does not exist for x86_64." >&2
-        exit 1
-      fi
-
-      lipo \
-        "${VCPKG_INSTALLED_ARM64}/debug/lib/$name" \
-        "${VCPKG_INSTALLED_X86_64}/debug/lib/$name" \
-        -create \
-        -output "${VCPKG_INSTALLED_UNIVERSAL}/debug/lib/$name"
-    done
   fi
 
   if [[ -d "${VCPKG_INSTALLED_ARM64}/tools" ]]; then
     mkdir -p "${VCPKG_INSTALLED_UNIVERSAL}/tools"
     cp -a "${VCPKG_INSTALLED_ARM64}/tools/." "${VCPKG_INSTALLED_UNIVERSAL}/tools/"
   fi
+
+  local lib_full_path lib_rel_path arm64_path x64_path universal_path
+  for lib_full_path in "${VCPKG_INSTALLED_ARM64}"/lib/*.a "${VCPKG_INSTALLED_ARM64}"/debug/lib/*.a; do
+    lib_rel_path="${lib_full_path#"${VCPKG_INSTALLED_ARM64}"/}"
+
+    arm64_path="${VCPKG_INSTALLED_ARM64}/${lib_rel_path}"
+    x64_path="${VCPKG_INSTALLED_X64}/${lib_rel_path}"
+    universal_path="${VCPKG_INSTALLED_UNIVERSAL}/${lib_rel_path}"
+
+    if ! [[ -f "${x64_path}" ]]; then
+      echo "ERROR: ${x64_path} does not exist." >&2
+      exit 1
+    fi
+
+    lipo "${arm64_path}" "${x64_path}" -create -output "${universal_path}"
+  done
 }
 
-install_ort_vcpkg_universal() {
-  rm -rf "${ORT_UNIVERSAL_VCPKG_INSTALLED_DIR}"
-  mkdir -p "${ORT_UNIVERSAL_VCPKG_INSTALLED_DIR}"
+install_ort() {
+  rm -rf "${ORT_UNIVERSAL_PREFIX}" "${ORT_ARM64_PREFIX}" "${ORT_X86_64_PREFIX}"
 
-  lipo_vcpkg \
-    "${ORT_ARM64_BUILD_DIR}/Release/vcpkg_installed/osx-arm64" \
-    "${ORT_X86_64_BUILD_DIR}/Release/vcpkg_installed/osx-x64" \
-    "${ORT_UNIVERSAL_VCPKG_INSTALLED_DIR}"
-}
-
-install_ort_universal() {
-  rm -rf "${ORT_UNIVERSAL_LIB_DIR}"
-  mkdir -p "${ORT_UNIVERSAL_LIB_DIR}"
+  cmake --install "${ORT_ARM64_BUILD_DIR}/Release" --config Release --prefix "${ORT_UNIVERSAL_PREFIX}"
+  cmake --install "${ORT_ARM64_BUILD_DIR}/Release" --config Release --prefix "${ORT_ARM64_PREFIX}"
+  cmake --install "${ORT_X86_64_BUILD_DIR}/Release" --config Release --prefix "${ORT_X86_64_PREFIX}"
 
   local name
   for name in "${ORT_COMPONENTS[@]}"; do
+    rm -f "${ORT_UNIVERSAL_PREFIX}/lib/lib${name}.a"
     lipo -create \
-      "${ORT_ARM64_BUILD_DIR}/Release/lib$name.a" \
-      "${ORT_X86_64_BUILD_DIR}/Release/lib$name.a" \
-      -output "${ORT_UNIVERSAL_LIB_DIR}/lib$name.a"
+      "${ORT_ARM64_PREFIX}/lib/lib${name}.a" \
+      "${ORT_X86_64_PREFIX}/lib/lib${name}.a" \
+      -output "${ORT_UNIVERSAL_PREFIX}/lib/lib${name}.a"
   done
+
+  echo 'void __attribute__((visibility("hidden"))) __dummy__(){}' |
+    clang -x c -arch x86_64 -c -o "${ORT_X86_64_BUILD_DIR}/dummy.o" -mmacosx-version-min="${OSX_DEPLOY_TARGET}" -
+
+  libtool -static -o "${ORT_X86_64_BUILD_DIR}/dummy.a" "${ORT_X86_64_BUILD_DIR}/dummy.o"
+
+  lipo -create \
+    "${ORT_ARM64_PREFIX}/lib/libkleidiai.a" \
+    "${ORT_X86_64_BUILD_DIR}/dummy.a" \
+    -output "${ORT_UNIVERSAL_PREFIX}/lib/libkleidiai.a"
 
   lipo -create \
     "${ORT_ARM64_BUILD_DIR}/Release/_deps/pytorch_cpuinfo-build/libcpuinfo.a" \
     "${ORT_X86_64_BUILD_DIR}/Release/_deps/pytorch_cpuinfo-build/libcpuinfo.a" \
-    -output "${ORT_UNIVERSAL_LIB_DIR}/libcpuinfo.a"
+    -output "${ORT_UNIVERSAL_PREFIX}/lib/libcpuinfo.a"
 
-  echo 'void __attribute__((visibility("hidden"))) __dummy__(){}' |
-    clang -x c -arch x86_64 -c -o "${ORT_X86_64_BUILD_DIR}/Release/dummy.o" -mmacosx-version-min="${OSX_DEPLOY_TARGET}" -
+  mkdir -p "${ORT_UNIVERSAL_PREFIX}/lib/cmake/cpuinfo"
+  cat <<'EOF' >"${ORT_UNIVERSAL_PREFIX}/lib/cmake/cpuinfo/cpuinfoConfig.cmake"
+add_library(cpuinfo::cpuinfo STATIC IMPORTED GLOBAL)
+get_filename_component(_CPUINFO_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+set_target_properties(cpuinfo::cpuinfo PROPERTIES
+  IMPORTED_LOCATION "${_CPUINFO_PREFIX}/lib/libcpuinfo.a"
+)
+EOF
 
-  libtool -static -o "${ORT_X86_64_BUILD_DIR}/Release/dummy.a" "${ORT_X86_64_BUILD_DIR}/Release/dummy.o"
-
-  lipo -create \
-    "${ORT_ARM64_BUILD_DIR}/Release/_deps/kleidiai-build/libkleidiai.a" \
-    "${ORT_X86_64_BUILD_DIR}/Release/dummy.a" \
-    -output "${ORT_UNIVERSAL_LIB_DIR}/libkleidiai.a"
+  lipo_vcpkg \
+    "${ORT_UNIVERSAL_VCPKG_INSTALLED_DIR}" \
+    "${ORT_ARM64_BUILD_DIR}/Release/vcpkg_installed/arm64-osx" \
+    "${ORT_X86_64_BUILD_DIR}/Release/vcpkg_installed/x64-osx"
 }
 
 if [[ "$#" -eq 0 ]]; then
-  clone
-  configure_arm64
-  build_arm64
-  configure_x86_64
-  build_x86_64
-  install_ort_vcpkg_universal
-  install_ort_universal
+  clone_ort
+  patch_ort
+  run_build_py arm64 update
+  run_build_py x86_64 update
+  run_build_py arm64 build
+  run_build_py x86_64 build
+  install_ort
 else
   "$@"
 fi
