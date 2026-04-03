@@ -9,7 +9,8 @@ description: Start CIProxy for vcpkg binary caching
 inputs:
   port:
     description: Port to listen on.
-    required: true
+    required: false
+    default: '8080'
   ciproxy-master-token:
     description: CIProxy master token.
     required: true
@@ -28,32 +29,13 @@ outputs:
   STDERR_LOG:
     description: "Path to ciproxy stderr log"
     value: ${{ inputs.working-directory }}/stderr.log
+  VCPKG_BINARY_SOURCES:
+    description: The VCPKG_BINARY_SOURCES value to use for vcpkg commands.
+    value: 'clear;http,http://127.0.0.1:${{ inputs.port }}/{name}/{version}/{sha},readwrite'
 
 runs:
   using: composite
   steps:
-    - name: Validate inputs
-      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-      env:
-        CIPROXY_MASTER_TOKEN: ${{ inputs.ciproxy-master-token }}
-        PORT: ${{ inputs.port }}
-        WORKING_DIRECTORY: ${{ inputs.working-directory }}
-      run: |
-        if [[ -z "$CIPROXY_MASTER_TOKEN" ]]; then
-          echo "CIPROXY_MASTER_TOKEN is required." >&2
-          exit 1
-        fi
-
-        if [[ -z "$PORT" ]]; then
-          echo "PORT is required." >&2
-          exit 1
-        fi
-
-        if [[ ! -d "$WORKING_DIRECTORY" ]]; then
-          echo "WORKING_DIRECTORY '$WORKING_DIRECTORY' does not exist." >&2
-          exit 1
-        fi
-
     - name: Build CIProxy
       shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
       working-directory: ${{ github.action_path }}/../cmd

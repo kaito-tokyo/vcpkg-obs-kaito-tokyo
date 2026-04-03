@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [alias]
-        lint-yamllint = "!git ls-files '*.yml' '*.yaml' | xargs -r yamllint"
+        lint-yamllint = "!git ls-files '*.yml' '*.yaml' ':!.github/workflows/*.lock.yml' | xargs -r yamllint"
         lint-shellcheck = "!git ls-files '*.sh' '*.bash' | xargs -r shellcheck"
         lint-shfmt = "!git ls-files '*.sh' '*.bash' | xargs -r shfmt -i 2 -d"
         lint-gersemi = "!git ls-files '*.cmake' 'CMakeFiles.txt' ':!ports/' | xargs -r gersemi -c"
