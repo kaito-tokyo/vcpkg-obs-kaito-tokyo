@@ -48,8 +48,9 @@ BUILD_PY_ARGS=(
 
 if [[ -f "${REDUCED_OPS_CONFIG}" ]]; then
   BUILD_PY_ARGS+=(
-    --include_ops_by_config "${REDUCED_OPS_CONFIG}"
     --enable_reduced_operator_type_support
+    --include_ops_by_config "${REDUCED_OPS_CONFIG}"
+    --minimal_build
   )
 fi
 
