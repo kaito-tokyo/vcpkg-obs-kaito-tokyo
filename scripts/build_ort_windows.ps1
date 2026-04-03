@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # file: scripts/build_ort_windows.ps1
-# description: Self-contained script to build ONNX Runtime for Windows.
+# description: Helper script to build ONNX Runtime for Windows.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
 # version: 1.0.1
 # date: 2026-04-02
@@ -59,7 +59,7 @@ $BUILD_PY_CMAKE_EXTRA_DEFINES = @(
   "onnxruntime_BUILD_UNIT_TESTS=OFF"
 )
 
-function setup_cmake() {
+function setup_ccache() {
   if (Test-Path $CMAKE_MASQUERADE_CL_EXE -PathType Leaf) {
     Write-Host 'Masquerading cl.exe already exists. Skipping setup.'
   } else {
@@ -115,6 +115,12 @@ function run_build_py() {
   }
 
   & $PYTHON @commandlineArgs
+}
+
+
+function install_ort() {
+  Remove-Item -Path $ORT_X64_PREFIX -Recurse -Force -ErrorAction SilentlyContinue
+  cmake --install "${ORT_X64_BUILD_DIR}/Release" --config Release --prefix "$ORT_X64_PREFIX"
 }
 
 if ($args.Count -eq 0) {

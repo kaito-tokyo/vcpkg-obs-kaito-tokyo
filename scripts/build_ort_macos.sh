@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # file: scripts/build_ort_macos.sh
-# description: Self-contained script to build ONNX Runtime for macOS.
+# description: Helper script to build ONNX Runtime for macOS.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
 # version: 1.1.0
 # date: 2026-04-04

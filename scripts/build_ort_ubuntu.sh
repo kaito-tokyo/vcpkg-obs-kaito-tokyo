@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # file: scripts/build_ort_ubuntu.sh
-# description: Self-contained script to build ONNX Runtime for Ubuntu.
+# description: Helper script to build ONNX Runtime for Ubuntu.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
 # version: 1.1.0
 # date: 2026-04-04
@@ -108,7 +108,7 @@ run_build_py() {
 }
 
 install_ort() {
-  rm "${ORT_X86_64_PREFIX}"
+  rm -rf "${ORT_X86_64_PREFIX}"
   cmake --install "${ORT_X86_64_BUILD_DIR}/Release" --config Release --prefix "${ORT_X86_64_PREFIX}"
 }
 
