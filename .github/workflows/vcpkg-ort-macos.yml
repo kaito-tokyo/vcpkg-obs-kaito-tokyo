@@ -125,6 +125,15 @@ jobs:
           path: .deps_vendor/onnxruntime
           submodules: recursive
 
+      - name: Patch ONNX Runtime
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          GIT_CONFIG_PARAMETERS: "'user.name=github-actions[bot]' 'user.email=41898282+github-actions[bot]@users.noreply.github.com'"
+        run: |
+          for patch in scripts/ort_patches/*.patch; do
+            git -C .deps_vendor/onnxruntime am --no-gpg-sign --3way "../../${patch}"
+          done
+
       - name: Build vcpkg of ONNX Runtime on macOS
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
@@ -133,7 +142,6 @@ jobs:
           PLUGIN_ARCH: ${{ inputs.arch }}
           VCPKG_BINARY_SOURCES: ${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
         run: |
-          ./scripts/build_ort_macos.sh patch_ort
           ./scripts/build_ort_macos.sh run_build_py "${PLUGIN_ARCH}" update
 
       - name: Stop ciproxy and upload binary packages
