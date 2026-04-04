@@ -50,7 +50,8 @@ $BUILD_PY_ARGS = @(
 if (Test-Path $REDUCED_OPS_CONFIG -PathType Leaf) {
   $BUILD_PY_ARGS += @(
     '--include_ops_by_config', $REDUCED_OPS_CONFIG,
-    '--enable_reduced_operator_type_support'
+    '--enable_reduced_operator_type_support',
+    '--minimal_build'
   )
 }
 

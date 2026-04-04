@@ -57,8 +57,9 @@ BUILD_PY_ARGS=(
 
 if [[ -f "${REDUCED_OPS_CONFIG}" ]]; then
   BUILD_PY_ARGS+=(
-    --include_ops_by_config "${REDUCED_OPS_CONFIG}"
     --enable_reduced_operator_type_support
+    --include_ops_by_config "${REDUCED_OPS_CONFIG}"
+    --minimal_build extended
   )
 fi
 
@@ -250,7 +251,6 @@ EOF
 }
 
 if [[ "$#" -eq 0 ]]; then
-  clone_ort
   patch_ort
   run_build_py arm64 update
   run_build_py x86_64 update
