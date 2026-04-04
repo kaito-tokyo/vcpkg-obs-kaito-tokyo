@@ -59,7 +59,6 @@ if [[ -f "${REDUCED_OPS_CONFIG}" ]]; then
   BUILD_PY_ARGS+=(
     --enable_reduced_operator_type_support
     --include_ops_by_config "${REDUCED_OPS_CONFIG}"
-    --minimal_build extended
   )
 fi
 
@@ -68,46 +67,6 @@ BUILD_PY_CMAKE_EXTRA_DEFINES=(
   "CMAKE_POLICY_VERSION_MINIMUM=3.5"
   "onnxruntime_BUILD_UNIT_TESTS=OFF"
 )
-
-# https://github.com/microsoft/onnxruntime/pull/27960
-# shellcheck disable=SC2016
-patch_27960='
-diff --git a/cmake/onnxruntime_providers_coreml.cmake b/cmake/onnxruntime_providers_coreml.cmake
-index 757198ffb651d..bf46a73e43839 100644
---- a/cmake/onnxruntime_providers_coreml.cmake
-+++ b/cmake/onnxruntime_providers_coreml.cmake
-@@ -26,7 +26,7 @@ file(GLOB coreml_proto_srcs "${COREML_PROTO_ROOT}/*.proto")
- onnxruntime_add_static_library(coreml_proto ${coreml_proto_srcs})
- target_include_directories(coreml_proto
-                            PUBLIC $<TARGET_PROPERTY:${PROTOBUF_LIB},INTERFACE_INCLUDE_DIRECTORIES>
--                           "${CMAKE_CURRENT_BINARY_DIR}")
-+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
- target_compile_definitions(coreml_proto
-                            PUBLIC $<TARGET_PROPERTY:${PROTOBUF_LIB},INTERFACE_COMPILE_DEFINITIONS>)
- set_target_properties(coreml_proto PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-@@ -42,6 +42,7 @@ onnxruntime_protobuf_generate(
-
- if (NOT onnxruntime_BUILD_SHARED_LIB)
-   install(TARGETS coreml_proto
-+          EXPORT ${PROJECT_NAME}Targets
-           ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-           LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-           RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR}
-'
-
-patch_ort() {
-  if ! [[ -d "${ORT_SRC_DIR}" ]]; then
-    echo "ERROR: ONNX Runtime tree is not found." >&2
-    exit 1
-  fi
-
-  if git -C "${ORT_SRC_DIR}" apply --reverse --check <<<"${patch_27960}" >/dev/null 2>&1; then
-    echo "Patch #27960 is already applied, skipping."
-  else
-    git -C "${ORT_SRC_DIR}" apply <<<"${patch_27960}"
-    echo "Applied patch #27960."
-  fi
-}
 
 run_build_py() {
   local -r arch="$1"
@@ -251,7 +210,6 @@ EOF
 }
 
 if [[ "$#" -eq 0 ]]; then
-  patch_ort
   run_build_py arm64 update
   run_build_py x86_64 update
   run_build_py arm64 build

@@ -5,7 +5,7 @@
 # file: scripts/build_ort_windows.ps1
 # description: Helper script to build ONNX Runtime for Windows.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.0
+# version: 1.1.1
 # date: 2026-04-04
 
 $ErrorActionPreference = 'Stop'
@@ -49,8 +49,7 @@ $BUILD_PY_ARGS = @(
 if (Test-Path $REDUCED_OPS_CONFIG -PathType Leaf) {
   $BUILD_PY_ARGS += @(
     '--include_ops_by_config', $REDUCED_OPS_CONFIG,
-    '--enable_reduced_operator_type_support',
-    '--minimal_build'
+    '--enable_reduced_operator_type_support'
   )
 }
 
@@ -62,7 +61,8 @@ $BUILD_PY_CMAKE_EXTRA_DEFINES = @(
 function setup_ccache() {
   if (Test-Path $CMAKE_MASQUERADE_CL_EXE -PathType Leaf) {
     Write-Host 'Masquerading cl.exe already exists. Skipping setup.'
-  } else {
+  }
+  else {
     New-Item -ItemType Directory -Path $CMAKE_MASQUERADE_BIN_DIR -Force
 
     $ccacheCommand = Get-Command ccache.exe -ErrorAction SilentlyContinue
@@ -117,7 +117,6 @@ function run_build_py() {
   & $PYTHON @commandlineArgs
 }
 
-
 function install_ort() {
   Remove-Item -Path $ORT_X64_PREFIX -Recurse -Force -ErrorAction SilentlyContinue
   cmake --install "${ORT_X64_BUILD_DIR}/Release" --config Release --prefix "$ORT_X64_PREFIX"
@@ -126,6 +125,7 @@ function install_ort() {
 if ($args.Count -eq 0) {
   run_build_py x64 update
   run_build_py x64 build
+  install_ort
 }
 else {
   $command = $args[0]
