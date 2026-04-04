@@ -12,7 +12,6 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $PSNativeCommandUseErrorActionPreference = $true
 
-$ORT_VERSION = if ($env:ORT_VERSION) { $env:ORT_VERSION } else { 'v1.24.4' }
 $PYTHON = if ($env:PYTHON) { $env:PYTHON } else { 'python' }
 
 $ROOT_DIR = Split-Path -Path $PSScriptRoot -Parent

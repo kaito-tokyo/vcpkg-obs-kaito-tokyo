@@ -138,8 +138,6 @@ jobs:
           . $env:CLEAN_PWSH_ENV
 
           ./scripts/build_ort_windows.ps1 run_build_py x64 update
-          ./scripts/build_ort_windows.ps1 run_build_py x64 build
-          ./scripts/build_ort_windows.ps1 install_ort
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

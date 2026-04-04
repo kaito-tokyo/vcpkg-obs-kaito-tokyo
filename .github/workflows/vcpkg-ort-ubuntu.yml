@@ -112,8 +112,6 @@ jobs:
           VCPKG_BINARY_SOURCES: ${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
         run: |
           ./scripts/build_ort_ubuntu.sh run_build_py x86_64 update
-          ./scripts/build_ort_ubuntu.sh run_build_py x86_64 build
-          ./scripts/build_ort_ubuntu.sh install_ort
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
