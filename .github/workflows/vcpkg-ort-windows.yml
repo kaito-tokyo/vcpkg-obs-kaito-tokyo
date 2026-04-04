@@ -137,9 +137,9 @@ jobs:
 
           . $env:CLEAN_PWSH_ENV
 
-          ./scripts/build_ort_windows.ps1 configure_x64
+          ./scripts/build_ort_windows.ps1 run_build_py x64 update
 
-      - name: Finalize ciproxy
+      - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/ciproxy/finalize
         with:

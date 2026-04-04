@@ -136,7 +136,7 @@ jobs:
           ./scripts/build_ort_macos.sh patch_ort
           ./scripts/build_ort_macos.sh run_build_py "${PLUGIN_ARCH}" update
 
-      - name: Finalize ciproxy
+      - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/ciproxy/finalize
         with:
