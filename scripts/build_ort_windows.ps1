@@ -5,8 +5,8 @@
 # file: scripts/build_ort_windows.ps1
 # description: Helper script to build ONNX Runtime for Windows.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.0.1
-# date: 2026-04-02
+# version: 1.1.0
+# date: 2026-04-04
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
