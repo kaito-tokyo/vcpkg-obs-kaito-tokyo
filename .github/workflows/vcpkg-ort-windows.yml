@@ -6,8 +6,8 @@
 
 # file: .github/workflows/vcpkg-ort-windows.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.0
-# date: 2026-04-03
+# version: 1.1.1
+# date: 2026-04-05
 
 on:
   workflow_call:
@@ -140,7 +140,7 @@ jobs:
         shell: pwsh
         env:
           PATH: "${{ env.FILTERED_PATH }}"
-          VCPKG_BINARY_SOURCES: ${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
+          VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
         run: |
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
