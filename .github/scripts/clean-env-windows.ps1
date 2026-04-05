@@ -4,8 +4,8 @@
 
 # file: .github/scripts/clean-env-windows.ps1
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.0.0
-# date: 2026-03-31
+# version: 1.1.0
+# date: 2026-04-05
 
 $CleanEnvWindowsAllowList = @(
   # System
@@ -21,6 +21,7 @@ $CleanEnvWindowsAllowList = @(
   "HOMEPATH",
   "ImageOS",
   "ImageVersion",
+  "KEEP_ENV_VARS",
   "LOCALAPPDATA",
   "NUMBER_OF_PROCESSORS",
   "OS",
@@ -50,8 +51,9 @@ $CleanEnvWindowsAllowList = @(
   "VCPKG_ROOT",
   "VCPKG_TARGET_TRIPLET"
 )
+$CleanEnvWindowsAllowList += ($env:KEEP_ENV_VARS -split ';').Where({$_})
 Get-ChildItem env: | ForEach-Object {
-  if ($CleanEnvWindowsAllowList -notcontains $_.Name -and $_.Name -notlike "ACTIONS_*" -and $_.Name -notlike "CCACHE_*" -and $_.Name -notlike "GIT_*" -and $_.Name -notlike "GITHUB_*" -and $_.Name -notlike "PLUGIN_*" -and $_.Name -notlike "RUNNER_*") {
+  if ($CleanEnvWindowsAllowList -notcontains $_.Name -and $_.Name -notlike "ACTIONS_*" -and $_.Name -notlike "CCACHE_*" -and $_.Name -notlike "GIT_*" -and $_.Name -notlike "GITHUB_*" -and $_.Name -notlike "RUNNER_*") {
     Remove-Item $_.PSPath -Force
   }
 }

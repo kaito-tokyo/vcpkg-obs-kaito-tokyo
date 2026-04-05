@@ -6,8 +6,8 @@
 
 # file: .github/workflows/vcpkg-manifest-macos.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.0
-# date: 2026-04-03
+# version: 1.1.1
+# date: 2026-04-05
 
 on:
   workflow_call:
@@ -129,7 +129,7 @@ jobs:
         env:
           BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
           PATH: '${{ env.FILTERED_PATH }}'
-          VCPKG_BINARY_SOURCES: ${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
+          VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
           VCPKG_ROOT: '${{ env.ROOT_VCPKG_ROOT }}'
           VCPKG_TARGET_TRIPLET: ${{ inputs.VCPKG_TARGET_TRIPLET }}
         run: |
