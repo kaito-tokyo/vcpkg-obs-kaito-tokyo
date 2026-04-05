@@ -127,12 +127,14 @@ jobs:
 
       - name: Patch ONNX Runtime
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        working-directory: .deps_vendor/onnxruntime
         env:
           GIT_CONFIG_PARAMETERS: "'user.name=github-actions[bot]' 'user.email=41898282+github-actions[bot]@users.noreply.github.com'"
         run: |
-          for patch in scripts/ort_patches/*.patch; do
-            git -C .deps_vendor/onnxruntime am --no-gpg-sign --3way "../../${patch}"
-          done
+          patches=(../../scripts/ort_patches/*.patch)
+          if [[ "${#patches[@]}" -gt 0 ]]; then
+            git am --no-gpg-sign --3way "${patches[@]}"
+          fi
 
       - name: Build vcpkg of ONNX Runtime on macOS
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
