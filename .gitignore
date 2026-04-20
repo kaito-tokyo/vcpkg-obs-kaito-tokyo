@@ -9,3 +9,4 @@
 .vscode/settings.json
 .wrangler/
 node_modules/
+vcpkg_installed*/
