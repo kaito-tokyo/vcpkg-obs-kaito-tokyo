@@ -8,8 +8,8 @@ name: Vcpkg ORT CI
 
 # file: .github/workflows/vcpkg-ort.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.0
-# date: 2026-04-03
+# version: 1.2.0
+# date: 2026-04-22
 
 on:
   push:
@@ -27,11 +27,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  config:
+    permissions: {}
+    outputs:
+      VCPKG_BINARY_SOURCES: ${{ steps.config.outputs.VCPKG_BINARY_SOURCES }}
+      ORT_VERSION_JSON: ${{ steps.config.outputs.ORT_VERSION_JSON }}
+    runs-on: ubuntu-slim
+    steps:
+      - name: Output config
+        id: config
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          echo 'VCPKG_BINARY_SOURCES=clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' >> "${GITHUB_OUTPUT}"
+          echo 'ORT_VERSION_JSON=["v1.24.4"]' >> "${GITHUB_OUTPUT}"
+
   vcpkg-ort-windows:
+    needs: config
     strategy:
       fail-fast: false
       matrix:
-        ort-version: [v1.24.1, v1.24.4]
+        ort-version: ${{ fromJSON(needs.config.outputs.ORT_VERSION_JSON) }}
+    name: ORT ${{ matrix.ort-version }} on Windows x64
     permissions:
       attestations: write
       contents: read
@@ -40,16 +56,17 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
+      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
       ort-version: ${{ matrix.ort-version }}
     secrets: inherit
 
   vcpkg-ort-macos:
+    needs: config
     strategy:
       fail-fast: false
       matrix:
         arch: [arm64, x86_64]
-        ort-version: [v1.24.1, v1.24.4]
+        ort-version: ${{ fromJSON(needs.config.outputs.ORT_VERSION_JSON) }}
         os-xcode:
           - name: Sequoia, Xcode 16.4
             runs-on: macos-15
@@ -57,6 +74,7 @@ jobs:
           - name: Tahoe, Xcode 26.4
             runs-on: macos-26
             DEVELOPER_DIR: /Applications/Xcode_26.4.app
+    name: ORT ${{ matrix.ort-version }} on macOS ${{ matrix.arch }} with ${{ matrix.os-xcode.name }}
     permissions:
       attestations: write
       contents: read
@@ -65,7 +83,7 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
+      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
       ort-version: ${{ matrix.ort-version }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
@@ -73,10 +91,12 @@ jobs:
     secrets: inherit
 
   vcpkg-ort-ubuntu:
+    needs: config
     strategy:
       fail-fast: false
       matrix:
-        ort-version: [v1.24.1, v1.24.4]
+        ort-version: ${{ fromJSON(needs.config.outputs.ORT_VERSION_JSON) }}
+    name: ORT ${{ matrix.ort-version }} on Ubuntu x64
     permissions:
       attestations: write
       contents: read
@@ -85,13 +105,13 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
+      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
       ort-version: ${{ matrix.ort-version }}
     secrets: inherit
 
   accept-vcpkg-ort:
-    name: Accept vcpkg-ort
     needs: [vcpkg-ort-windows, vcpkg-ort-macos, vcpkg-ort-ubuntu]
+    name: Accept vcpkg-ort
     runs-on: ubuntu-slim
     permissions: {}
     steps:

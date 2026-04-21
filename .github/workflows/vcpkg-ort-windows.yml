@@ -6,8 +6,8 @@
 
 # file: .github/workflows/vcpkg-ort-windows.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.1
-# date: 2026-04-05
+# version: 1.2.0
+# date: 2026-04-22
 
 on:
   workflow_call:
@@ -50,15 +50,13 @@ jobs:
     env:
       CLEAN_PWSH_ENV: '${{ github.workspace }}\.github\scripts\clean-env-windows.ps1'
       FILTERED_PATH: 'C:\ProgramData\chocolatey\bin;C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+      ORT_SRC_DIR: '.deps_vendor/onnxruntime'
+      ORT_PATCH_DIR: 'scripts/ort_patches'
 
     steps:
       - name: Enable Windows long path
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
 
       - name: Checkout
@@ -83,30 +81,14 @@ jobs:
 
       # ASSERT: The directory of go executable is always prepended to the PATH specified in the env section.
 
-      - name: Print CMake version on Windows
-        shell: pwsh
-        env:
-          PATH: '${{ env.FILTERED_PATH }}'
+      - name: Print CMake version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
-          . $env:CLEAN_PWSH_ENV
-
           cmake --version
 
-      - name: Print Ninja version on Windows
-        shell: pwsh
-        env:
-          PATH: '${{ env.FILTERED_PATH }}'
+      - name: Print Ninja version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
-          . $env:CLEAN_PWSH_ENV
-
           ninja --version
 
       - name: Start ciproxy
@@ -122,32 +104,25 @@ jobs:
           repository: microsoft/onnxruntime
           ref: ${{ inputs.ort-version }}
           persist-credentials: false
-          path: .deps_vendor/onnxruntime
+          path: ${{ env.ORT_SRC_DIR }}
           submodules: recursive
 
       - name: Patch ONNX Runtime
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        working-directory: .deps_vendor/onnxruntime
-        env:
-          GIT_CONFIG_PARAMETERS: "'user.name=github-actions[bot]' 'user.email=41898282+github-actions[bot]@users.noreply.github.com'"
+        shell: pwsh
         run: |
-          patches=(../../scripts/ort_patches/*.patch)
-          if [[ "${#patches[@]}" -gt 0 ]]; then
-            git am --no-gpg-sign --3way "${patches[@]}"
-          fi
+          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
+          Get-ChildItem -Path $env:ORT_PATCH_DIR -Filter *.patch | Sort-Object | ForEach-Object {
+            git -C "$env:ORT_SRC_DIR" apply "$($_.FullName)"
+          }
 
       - name: Build vcpkg of ONNX Runtime on Windows
         shell: pwsh
         env:
-          PATH: "${{ env.FILTERED_PATH }}"
+          PATH: '${{ env.FILTERED_PATH }}'
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
         run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
+          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
           . $env:CLEAN_PWSH_ENV
-
           ./scripts/build_ort_windows.ps1 run_build_py x64 update
 
       - name: Stop ciproxy and upload binary packages

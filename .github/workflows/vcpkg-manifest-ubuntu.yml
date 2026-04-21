@@ -6,8 +6,8 @@
 
 # file: .github/workflows/vcpkg-manifest-ubuntu.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.1
-# date: 2026-04-05
+# version: 1.2.0
+# date: 2026-04-22
 
 on:
   workflow_call:
@@ -50,33 +50,12 @@ jobs:
     env:
       CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash'
       FILTERED_PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
-      ROOT_VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
-      - name: Set up Go for ciproxy
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: .github/actions/ciproxy/cmd/go.mod
-          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
-
-      - name: Print CMake version on Ubuntu
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          PATH: '${{ env.FILTERED_PATH }}'
-        run: |
-          cmake --version
-
-      - name: Print Ninja version on Ubuntu
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          PATH: '${{ env.FILTERED_PATH }}'
-        run: |
-          ninja --version
 
       - name: Checkout vcpkg
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -85,16 +64,30 @@ jobs:
           ref: ${{ inputs.vcpkg-version }}
           persist-credentials: false
           path: vcpkg
-          filter: 'blob:none'
+          filter: blob:none
 
-      - name: Run bootstrap-vcpkg.sh
+      - name: Set up vcpkg using Bash
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
-          PATH: '${{ env.FILTERED_PATH }}'
-          VCPKG_ROOT: '${{ env.ROOT_VCPKG_ROOT }}'
         run: |
-          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: .github/actions/ciproxy/cmd/go.mod
+          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
+
+      # ASSERT: The directory of go executable is always prepended to the PATH specified in the env section.
+
+      - name: Print CMake version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          cmake --version
+
+      - name: Print Ninja version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          ninja --version
 
       - name: Start ciproxy
         id: ciproxy
@@ -109,9 +102,9 @@ jobs:
           BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
           PATH: '${{ env.FILTERED_PATH }}'
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          VCPKG_ROOT: '${{ env.ROOT_VCPKG_ROOT }}'
+          VCPKG_ROOT: 'vcpkg'
         run: |
-          "$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-obs
+          "${VCPKG_ROOT}/vcpkg" install --triplet=x64-linux-obs
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

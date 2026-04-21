@@ -6,8 +6,8 @@
 
 # file: .github/workflows/vcpkg-ort-ubuntu.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.1
-# date: 2026-04-05
+# version: 1.2.0
+# date: 2026-04-22
 
 on:
   workflow_call:
@@ -50,6 +50,8 @@ jobs:
     env:
       CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-ubuntu.bash'
       FILTERED_PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+      ORT_SRC_DIR: '.deps_vendor/onnxruntime'
+      ORT_PATCH_DIR: '${{ github.workspace }}/scripts/ort_patches'
 
     steps:
       - name: Checkout
@@ -58,7 +60,6 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version-file: .python-version
@@ -74,17 +75,13 @@ jobs:
 
       # ASSERT: The directory of go executable is always prepended to the PATH specified in the env section.
 
-      - name: Print CMake version on Ubuntu
+      - name: Print CMake version
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          PATH: '${{ env.FILTERED_PATH }}'
         run: |
           cmake --version
 
-      - name: Print Ninja version on Ubuntu
+      - name: Print Ninja version
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          PATH: '${{ env.FILTERED_PATH }}'
         run: |
           ninja --version
 
@@ -101,19 +98,16 @@ jobs:
           repository: microsoft/onnxruntime
           ref: ${{ inputs.ort-version }}
           persist-credentials: false
-          path: .deps_vendor/onnxruntime
+          path: ${{ env.ORT_SRC_DIR }}
           submodules: recursive
 
       - name: Patch ONNX Runtime
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        working-directory: .deps_vendor/onnxruntime
-        env:
-          GIT_CONFIG_PARAMETERS: "'user.name=github-actions[bot]' 'user.email=41898282+github-actions[bot]@users.noreply.github.com'"
+        shell: pwsh
         run: |
-          patches=(../../scripts/ort_patches/*.patch)
-          if [[ "${#patches[@]}" -gt 0 ]]; then
-            git am --no-gpg-sign --3way "${patches[@]}"
-          fi
+          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
+          Get-ChildItem -Path $env:ORT_PATCH_DIR -Filter *.patch | Sort-Object | ForEach-Object {
+            git -C "$env:ORT_SRC_DIR" apply "$($_.FullName)"
+          }
 
       - name: Build vcpkg of ONNX Runtime on Ubuntu
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}

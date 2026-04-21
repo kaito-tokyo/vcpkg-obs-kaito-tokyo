@@ -6,8 +6,8 @@
 
 # file: .github/workflows/vcpkg-manifest-windows.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.1
-# date: 2026-04-05
+# version: 1.2.0
+# date: 2026-04-22
 
 on:
   workflow_call:
@@ -50,54 +50,17 @@ jobs:
     env:
       CLEAN_PWSH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-windows.ps1'
       FILTERED_PATH: 'C:\ProgramData\chocolatey\bin;C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-      ROOT_VCPKG_ROOT: '${{ github.workspace }}\vcpkg'
 
     steps:
       - name: Enable Windows long path
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
-      - name: Set up Go for ciproxy
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: .github/actions/ciproxy/cmd/go.mod
-          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
-
-      - name: Print CMake version on Windows
-        shell: pwsh
-        env:
-          PATH: '${{ env.FILTERED_PATH }}'
-        run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
-          . $env:CLEAN_PWSH_ENV
-
-          cmake --version
-
-      - name: Print Ninja version on Windows
-        shell: pwsh
-        env:
-          PATH: '${{ env.FILTERED_PATH }}'
-        run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
-          . $env:CLEAN_PWSH_ENV
-
-          ninja --version
 
       - name: Checkout vcpkg
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -106,22 +69,31 @@ jobs:
           ref: ${{ inputs.vcpkg-version }}
           persist-credentials: false
           path: vcpkg
-          filter: "blob:none"
+          filter: blob:none
 
-      - name: Run bootstrap-vcpkg.bat
+      - name: Set up vcpkg using PowerShell
         shell: pwsh
-        env:
-          PATH: '${{ env.FILTERED_PATH }}'
-          VCPKG_ROOT: '${{ env.ROOT_VCPKG_ROOT }}'
         run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
+          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
+          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
-          . $env:CLEAN_PWSH_ENV
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: .github/actions/ciproxy/cmd/go.mod
+          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
-          $bootstrapVcpkgPath = "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
-          & $bootstrapVcpkgPath -disableMetrics
+      # ASSERT: The directory of go executable is always prepended to the PATH specified in the env section.
+
+      - name: Print CMake version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          cmake --version
+
+      - name: Print Ninja version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          ninja --version
 
       - name: Start ciproxy
         id: ciproxy
@@ -135,16 +107,11 @@ jobs:
         env:
           PATH: '${{ env.FILTERED_PATH }}'
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          VCPKG_ROOT: '${{ env.ROOT_VCPKG_ROOT }}'
+          VCPKG_ROOT: 'vcpkg'
         run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $PSNativeCommandUseErrorActionPreference = $true
-
+          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
           . $env:CLEAN_PWSH_ENV
-
-          $vcpkgPath = "$env:VCPKG_ROOT\vcpkg.exe"
-          & $vcpkgPath install --x-install-root=.deps_vendor/vcpkg_installed --triplet=x64-windows-static-md-obs
+          & "$env:VCPKG_ROOT/vcpkg.exe" install --triplet=x64-windows-static-md-obs
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
