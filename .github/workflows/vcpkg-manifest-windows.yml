@@ -57,6 +57,11 @@ jobs:
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
 
+      - name: Disable autocrlf
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          git config --global core.autocrlf false
+
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

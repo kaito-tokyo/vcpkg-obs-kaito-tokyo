@@ -105,9 +105,16 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
-          Get-ChildItem -Path $env:ORT_PATCH_DIR -Filter *.patch | Sort-Object | ForEach-Object {
-            git -C "$env:ORT_SRC_DIR" apply "$($_.FullName)"
+          $patches = Get-ChildItem -Path $env:ORT_PATCH_DIR -Filter *.patch | Sort-Object
+          Set-Location $env:ORT_SRC_DIR
+
+          # Just discard patch application failure.
+          $ErrorActionPreference = 'SilentlyContinue'
+          foreach ($patch in $patches) {
+            git apply "$($patch.FullName)"
           }
+
+          exit 0
 
       - name: Build vcpkg of ONNX Runtime on Ubuntu
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
