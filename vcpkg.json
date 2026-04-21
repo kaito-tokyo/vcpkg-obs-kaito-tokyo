@@ -43,6 +43,7 @@
       ]
     },
     "quickjs-ng",
+    "ruy",
     "sqlite3",
     "tesseract",
     {
