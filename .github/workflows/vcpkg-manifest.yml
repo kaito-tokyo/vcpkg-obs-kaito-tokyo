@@ -8,8 +8,8 @@ name: Vcpkg Manifest CI
 
 # file: .github/workflows/vcpkg-manifest.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.0
-# date: 2026-04-03
+# version: 1.2.0
+# date: 2026-04-22
 
 on:
   push:
@@ -27,7 +27,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  config:
+    permissions: {}
+    outputs:
+      VCPKG_BINARY_SOURCES: ${{ steps.config.outputs.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ steps.config.outputs.VCPKG_VERSION }}
+    runs-on: ubuntu-slim
+    steps:
+      - name: Output config
+        id: config
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          echo 'VCPKG_BINARY_SOURCES=clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' >> "${GITHUB_OUTPUT}"
+          echo 'VCPKG_VERSION=2025.08.27' >> "${GITHUB_OUTPUT}"
+
   vcpkg-manifest-windows:
+    needs: config
+    name: Manifest on Windows x64
     permissions:
       attestations: write
       contents: read
@@ -36,15 +52,15 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
-      vcpkg-version: '2025.08.27'
+      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      vcpkg-version: ${{ needs.config.outputs.VCPKG_VERSION }}
     secrets: inherit
 
   vcpkg-manifest-macos:
+    needs: config
     strategy:
       fail-fast: false
       matrix:
-        triplet: [arm64-osx-obs, x64-osx-obs]
         os-xcode:
           - name: Sequoia, Xcode 16.4
             runs-on: macos-15
@@ -52,6 +68,7 @@ jobs:
           - name: Tahoe, Xcode 26.4
             runs-on: macos-26
             DEVELOPER_DIR: /Applications/Xcode_26.4.app
+    name: Manifest on macOS ${{ matrix.os-xcode.name }}
     permissions:
       attestations: write
       contents: read
@@ -60,14 +77,15 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
-      vcpkg-version: '2025.08.27'
+      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      vcpkg-version: ${{ needs.config.outputs.VCPKG_VERSION }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      VCPKG_TARGET_TRIPLET: ${{ matrix.triplet }}
     secrets: inherit
 
   vcpkg-manifest-ubuntu:
+    needs: config
+    name: Manifest on Ubuntu x64
     permissions:
       attestations: write
       contents: read
@@ -76,13 +94,13 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: "clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read"
-      vcpkg-version: '2025.08.27'
+      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      vcpkg-version: ${{ needs.config.outputs.VCPKG_VERSION }}
     secrets: inherit
 
   accept-vcpkg-manifest:
-    name: Accept vcpkg-manifest
     needs: [vcpkg-manifest-windows, vcpkg-manifest-macos, vcpkg-manifest-ubuntu]
+    name: Accept vcpkg-manifest
     runs-on: ubuntu-slim
     permissions: {}
     steps:
