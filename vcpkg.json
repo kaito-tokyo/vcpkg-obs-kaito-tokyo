@@ -3,10 +3,6 @@
   "dependencies": [
     "abseil",
     {
-      "name": "abseil",
-      "version>=": "20240722.0"
-    },
-    {
       "name": "cpp-httplib",
       "default-features": false,
       "features": [
