@@ -42,6 +42,7 @@
         "webp"
       ]
     },
+    "pthreadpool",
     "quickjs-ng",
     "ruy",
     "sqlite3",
@@ -51,6 +52,12 @@
       "features": [
         "zlib"
       ]
+    }
+  ],
+  "overrides": [
+    {
+      "name": "abseil",
+      "version": "20240722.0"
     }
   ]
 }
