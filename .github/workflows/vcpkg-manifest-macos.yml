@@ -56,9 +56,7 @@ jobs:
       id-token: write
 
     env:
-      CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-macos.bash'
       DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
-      FILTERED_PATH: '/opt/homebrew/opt/xcbeautify/bin:/opt/homebrew/opt/ninja/bin:/opt/homebrew/opt/cmake/bin:/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin'
 
     steps:
       - name: Checkout
@@ -113,22 +111,30 @@ jobs:
       - name: Install dependencies from macOS vcpkg (arm64-osx-obs)
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
-          PATH: '${{ env.FILTERED_PATH }}'
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          VCPKG_ROOT: 'vcpkg'
         run: |
-          "${VCPKG_ROOT}/vcpkg" install --triplet=arm64-osx-obs --x-install-root=vcpkg_installed_arm64
+          vars=(
+            DEVELOPER_DIR="${DEVELOPER_DIR}"
+            HOME="${HOME}"
+            PATH=/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+            VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES}"
+            VCPKG_ROOT=vcpkg
+          )
+          env -i "${vars[@]}" ./vcpkg/vcpkg install --triplet=arm64-osx-obs --x-install-root=vcpkg_installed_arm64
 
       - name: Install dependencies from macOS vcpkg (x64-osx-obs)
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
-          PATH: '${{ env.FILTERED_PATH }}'
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          VCPKG_ROOT: 'vcpkg'
         run: |
-          "${VCPKG_ROOT}/vcpkg" install --triplet=x64-osx-obs --x-install-root=vcpkg_installed_x64
+          vars=(
+            DEVELOPER_DIR="${DEVELOPER_DIR}"
+            HOME="${HOME}"
+            PATH=/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+            VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES}"
+            VCPKG_ROOT=vcpkg
+          )
+          env -i "${vars[@]}" ./vcpkg/vcpkg install --triplet=x64-osx-obs --x-install-root=vcpkg_installed_x64
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

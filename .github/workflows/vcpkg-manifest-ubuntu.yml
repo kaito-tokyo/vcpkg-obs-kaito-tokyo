@@ -99,12 +99,15 @@ jobs:
       - name: Install dependencies from Ubuntu vcpkg (x64-linux-obs)
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
-          PATH: '${{ env.FILTERED_PATH }}'
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          VCPKG_ROOT: 'vcpkg'
         run: |
-          "${VCPKG_ROOT}/vcpkg" install --triplet=x64-linux-obs
+          vars=(
+            HOME="${HOME}"
+            PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+            VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES}"
+            VCPKG_ROOT=vcpkg
+          )
+          env -i "${vars[@]}" ./vcpkg/vcpkg install --triplet=x64-linux-obs
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
