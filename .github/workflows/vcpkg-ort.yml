@@ -39,7 +39,7 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
           echo 'VCPKG_BINARY_SOURCES=clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' >> "${GITHUB_OUTPUT}"
-          echo 'ORT_VERSION_JSON=["v1.24.4"]' >> "${GITHUB_OUTPUT}"
+          echo 'ORT_VERSION_JSON=["v1.20.1", "v1.24.4"]' >> "${GITHUB_OUTPUT}"
 
   vcpkg-ort-windows:
     needs: config
