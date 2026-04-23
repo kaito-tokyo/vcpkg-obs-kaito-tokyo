@@ -96,6 +96,11 @@ jobs:
         run: |
           ninja --version
 
+      - name: Print Xcode version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          xcodebuild -version
+
       - name: Print xcbeautify version
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
@@ -116,7 +121,7 @@ jobs:
           vars=(
             DEVELOPER_DIR="${DEVELOPER_DIR}"
             HOME="${HOME}"
-            PATH=/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+            PATH=/usr/bin:/bin:/usr/sbin:/sbin
             VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES}"
             VCPKG_ROOT=vcpkg
           )
@@ -130,7 +135,7 @@ jobs:
           vars=(
             DEVELOPER_DIR="${DEVELOPER_DIR}"
             HOME="${HOME}"
-            PATH=/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+            PATH=/usr/bin:/bin:/usr/sbin:/sbin
             VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES}"
             VCPKG_ROOT=vcpkg
           )

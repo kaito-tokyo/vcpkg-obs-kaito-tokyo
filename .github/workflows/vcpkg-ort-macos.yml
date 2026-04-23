@@ -98,6 +98,11 @@ jobs:
         run: |
           ninja --version
 
+      - name: Print Xcode version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          xcodebuild -version
+
       - name: Print xcbeautify version
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
