@@ -65,9 +65,9 @@ jobs:
           - name: Sequoia, Xcode 16.4
             runs-on: macos-15
             DEVELOPER_DIR: /Applications/Xcode_16.4.app
-          - name: Tahoe, Xcode 26.4
-            runs-on: macos-26
-            DEVELOPER_DIR: /Applications/Xcode_26.4.app
+          - name: Tahoe, Xcode 26.4.1
+            runs-on: kaito-tokyo-macos-26
+            DEVELOPER_DIR: /Applications/Xcode_26.4.1.app
     name: Manifest on macOS ${{ matrix.os-xcode.name }}
     permissions:
       attestations: write
