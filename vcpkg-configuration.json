@@ -8,6 +8,15 @@
   "registries": [
     {
       "kind": "git",
+      "baseline": "754cb2f9daef4b91f5d0f16f5f341cab5782f54b",
+      "repository": "https://github.com/kaito-tokyo/vcpkg-registry-kaito-tokyo",
+      "packages": [
+        "mlx",
+        "wolfssl"
+      ]
+    },
+    {
+      "kind": "git",
       "baseline": "ab4cbd85a768bcc1442aaf8c087058c9b02f850b",
       "repository": "https://github.com/kaito-tokyo/vcpkg-tensorflow-kaito-tokyo",
       "packages": [
@@ -24,8 +33,7 @@
         "kaldi",
         "openfst",
         "tesseract",
-        "vosk",
-        "wolfssl"
+        "vosk"
       ]
     }
   ],
