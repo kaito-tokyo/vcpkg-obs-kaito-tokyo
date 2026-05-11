@@ -1,0 +1,145 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# file: .github/workflows/vcpkg-manifest-macos.yml
+# author: Kaito Udagawa <umireon@kaito.tokyo>
+# date: 2026-05-11
+
+on:
+  workflow_call:
+    inputs:
+      job-index:
+        description: The job index for logging.
+        required: true
+        type: number
+      environment:
+        description: The environment name for this workflow, or empty string for no environment.
+        required: true
+        type: string
+      VCPKG_BINARY_SOURCES:
+        description: Default VCPKG_BINARY_SOURCES.
+        required: true
+        type: string
+      vcpkg-version:
+        description: The version of vcpkg to clone.
+        required: true
+        type: string
+      runs-on:
+        description: The runner label to run this workflow on.
+        required: true
+        type: string
+      DEVELOPER_DIR:
+        description: The value of DEVELOPER_DIR environment variable.
+        required: true
+        type: string
+
+    secrets:
+      CIPROXY_MASTER_TOKEN:
+        description: CIProxy master token.
+        required: false
+
+permissions: {}
+
+jobs:
+  build-manifest-macos-arm64-14:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 180
+    environment: ${{ inputs.environment }}
+
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    env:
+      DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ inputs.vcpkg-version }}
+          persist-credentials: false
+          path: vcpkg
+          filter: blob:none
+
+      - name: Set up vcpkg using Bash
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: .github/actions/ciproxy/cmd/go.mod
+          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
+
+      # ASSERT: The directory of go executable is always prepended to the PATH specified in the env section.
+
+      - name: Print CMake version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          cmake --version
+
+      - name: Print Ninja version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          ninja --version
+
+      - name: Print Xcode version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          xcodebuild -version
+
+      - name: Print xcbeautify version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          xcbeautify --version
+
+      - name: Start ciproxy
+        id: ciproxy
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/ciproxy/start
+        with:
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+
+      - name: Install dependencies from macOS vcpkg (arm64-osx-obs-arm64-14)
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        working-directory: environments/arm64-osx-obs-14
+        env:
+          VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
+        run: |
+          vars=(
+            DEVELOPER_DIR="$DEVELOPER_DIR"
+            HOME="$HOME"
+            PATH=/usr/bin:/bin:/usr/sbin:/sbin
+            VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES"
+            VCPKG_ROOT="$GITHUB_WORKSPACE/vcpkg"
+          )
+          env -i "${vars[@]}" "$GITHUB_WORKSPACE/vcpkg/vcpkg" install --triplet=arm64-osx-obs-14 --x-install-root=vcpkg_installed_arm64
+
+      - name: Stop ciproxy and upload binary packages
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/ciproxy/finalize
+        with:
+          ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+          pid: ${{ steps.ciproxy.outputs.PID }}
+
+      - name: Upload ciproxy logs
+        if: github.ref == 'refs/heads/main' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ciproxy-logs-${{ github.job }}-${{ inputs.job-index }}
+          path: |
+            ${{ steps.ciproxy.outputs.STDOUT_LOG }}
+            ${{ steps.ciproxy.outputs.STDERR_LOG }}
+          if-no-files-found: warn

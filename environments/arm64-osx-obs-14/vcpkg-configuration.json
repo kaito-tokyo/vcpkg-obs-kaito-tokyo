@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
+  "default-registry": {
+    "kind": "git",
+    "baseline": "5e6578b62d9e4ac5a563e816802a56818540cd2e",
+    "repository": "https://github.com/microsoft/vcpkg"
+  },
+  "registries": [
+    {
+      "kind": "git",
+      "baseline": "754cb2f9daef4b91f5d0f16f5f341cab5782f54b",
+      "repository": "https://github.com/kaito-tokyo/vcpkg-registry-kaito-tokyo",
+      "packages": [
+        "mlx",
+        "wolfssl"
+      ]
+    }
+  ],
+  "overlay-triplets": [
+    "../../vcpkg-triplets"
+  ]
+}
