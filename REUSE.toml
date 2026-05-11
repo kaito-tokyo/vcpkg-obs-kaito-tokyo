@@ -5,9 +5,11 @@ path = [
   ".github/aw/actions-lock.json",
   ".prettierrc.json",
   ".python-version",
+  "environments/*/vcpkg-configuration.json",
+  "environments/*/vcpkg.json",
   "requirements-build.txt",
   "vcpkg-configuration.json",
-  "vcpkg.json"
+  "vcpkg.json",
 ]
 SPDX-FileCopyrightText = "2026 Kaito Udagawa <umireon@kaito.tokyo>"
 SPDX-License-Identifier = "CC0-1.0"
