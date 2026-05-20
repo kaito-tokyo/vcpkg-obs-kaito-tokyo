@@ -39,7 +39,7 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
           echo 'VCPKG_BINARY_SOURCES=clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' >> "${GITHUB_OUTPUT}"
-          echo 'VCPKG_VERSION=2025.08.27' >> "${GITHUB_OUTPUT}"
+          echo 'VCPKG_VERSION=2026.04.27' >> "${GITHUB_OUTPUT}"
 
   vcpkg-manifest-windows:
     needs: config
