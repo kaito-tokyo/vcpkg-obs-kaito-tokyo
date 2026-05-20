@@ -8,6 +8,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    exclude-paths:
+      - ".github/workflows/*.lock.yml"
+
   - package-ecosystem: "npm"
     directory: "/cloudflare"
     schedule:
