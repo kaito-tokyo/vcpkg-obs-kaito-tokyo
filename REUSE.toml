@@ -2,7 +2,6 @@ version = 1
 
 [[annotations]]
 path = [
-  ".github/aw/actions-lock.json",
   ".prettierrc.json",
   ".python-version",
   "environments/*/vcpkg-configuration.json",

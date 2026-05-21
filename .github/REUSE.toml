@@ -1,0 +1,9 @@
+version = 1
+
+[[annotations]]
+path = [
+  "aw/actions-lock.json",
+  "workflows/*.lock.yml",
+]
+SPDX-FileCopyrightText = "2025-2026 Kaito Udagawa <umireon@kaito.tokyo>"
+SPDX-License-Identifier = "CC0-1.0"
