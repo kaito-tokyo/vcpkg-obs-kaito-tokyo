@@ -119,7 +119,7 @@ jobs:
 
           & $CMAKE_EXE --version
           & $NINJA_EXE --version
-          & $VSWHERE_EXE --version
+          & $VSWHERE_EXE
 
       - name: Patch ONNX Runtime
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
