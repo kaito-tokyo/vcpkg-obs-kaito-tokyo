@@ -16,24 +16,11 @@ shopt -s nullglob
 PYTHON="${PYTHON:-python3}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ORT_SRC_DIR="${ROOT_DIR}/.deps_vendor/onnxruntime"
+ORT_SRC_DIR="${ROOT_DIR}/onnxruntime"
 BUILD_PY="${ORT_SRC_DIR}/tools/ci_build/build.py"
 REDUCED_OPS_CONFIG="${ROOT_DIR}/src/required_operators_and_types.with_runtime_opt.config"
 ORT_X86_64_BUILD_DIR="${ROOT_DIR}/.deps_vendor/ort_x86_64"
 ORT_X86_64_PREFIX="${ROOT_DIR}/.deps_vendor/ort_x86_64-prefix"
-
-ORT_COMPONENTS=(
-  onnxruntime_session
-  onnxruntime_optimizer
-  onnxruntime_providers
-  onnxruntime_lora
-  onnxruntime_framework
-  onnxruntime_graph
-  onnxruntime_util
-  onnxruntime_mlas
-  onnxruntime_common
-  onnxruntime_flatbuffers
-)
 
 BUILD_PY_ARGS=(
   --cmake_generator Ninja
@@ -78,7 +65,6 @@ run_build_py() {
   x86_64)
     commandline+=(
       --build_dir "${ORT_X86_64_BUILD_DIR}"
-      --targets "${ORT_COMPONENTS[@]}"
     )
     ;;
   *)

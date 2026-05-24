@@ -8,8 +8,7 @@ name: Vcpkg ORT CI
 
 # file: .github/workflows/vcpkg-ort.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.2.0
-# date: 2026-04-22
+# date: 2026-05-25
 
 on:
   push:
@@ -32,6 +31,7 @@ jobs:
     permissions: {}
     outputs:
       VCPKG_BINARY_SOURCES: ${{ steps.config.outputs.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ steps.config.outputs.VCPKG_VERSION }}
       ORT_VERSION_JSON: ${{ steps.config.outputs.ORT_VERSION_JSON }}
     runs-on: ubuntu-slim
     steps:
@@ -39,8 +39,9 @@ jobs:
         id: config
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
+          echo 'ORT_VERSION_JSON=["v1.23.2"]' >> "${GITHUB_OUTPUT}"
           echo 'VCPKG_BINARY_SOURCES=clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' >> "${GITHUB_OUTPUT}"
-          echo 'ORT_VERSION_JSON=["v1.24.4"]' >> "${GITHUB_OUTPUT}"
+          echo 'VCPKG_VERSION=2026.04.27' >> "${GITHUB_OUTPUT}"
 
   vcpkg-ort-windows:
     needs: config
@@ -57,8 +58,9 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
-      ort-version: ${{ matrix.ort-version }}
+      ORT_VERSION: ${{ matrix.ort-version }}
     secrets: inherit
 
   vcpkg-ort-macos:
@@ -84,11 +86,12 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
-      ort-version: ${{ matrix.ort-version }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
-      DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
       arch: ${{ matrix.arch }}
+      DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
+      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      ORT_VERSION: ${{ matrix.ort-version }}
     secrets: inherit
 
   vcpkg-ort-ubuntu:
@@ -106,8 +109,9 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
-      ort-version: ${{ matrix.ort-version }}
+      ORT_VERSION: ${{ matrix.ort-version }}
     secrets: inherit
 
   accept-vcpkg-ort:

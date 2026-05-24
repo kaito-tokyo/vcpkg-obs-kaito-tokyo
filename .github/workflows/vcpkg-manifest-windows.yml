@@ -87,8 +87,8 @@ jobs:
           VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
         run: |
           $env:Path = $env:MINIMAL_PATH
-          ./vcpkg/vcpkg fetch cmake
-          ./vcpkg/vcpkg fetch ninja
+          ./vcpkg/vcpkg.exe fetch cmake
+          ./vcpkg/vcpkg.exe fetch ninja
 
       - name: Start ciproxy
         id: ciproxy
@@ -103,7 +103,7 @@ jobs:
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
         run: |
           $env:Path = $env:MINIMAL_PATH
-          ./vcpkg/vcpkg install --triplet=x64-windows-static-md-obs  --x-install-root=vcpkg_installed_x64-windows-static-md-obs
+          ./vcpkg/vcpkg.exe install --triplet=x64-windows-static-md-obs  --x-install-root=vcpkg_installed_x64-windows-static-md-obs
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

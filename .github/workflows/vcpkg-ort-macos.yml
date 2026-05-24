@@ -6,8 +6,7 @@
 
 # file: .github/workflows/vcpkg-ort-macos.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.2.0
-# date: 2026-04-22
+# date: 2026-05-25
 
 on:
   workflow_call:
@@ -20,24 +19,28 @@ on:
         description: The environment name for this workflow, or empty string for no environment
         required: true
         type: string
-      VCPKG_BINARY_SOURCES:
-        description: Default VCPKG_BINARY_SOURCES.
-        required: true
-        type: string
-      ort-version:
-        description: The version of ONNX Runtime to build.
-        required: true
-        type: string
       runs-on:
         description: The runner label to run this workflow on.
+        required: true
+        type: string
+      arch:
+        description: The architecture to build for.
         required: true
         type: string
       DEVELOPER_DIR:
         description: The value of DEVELOPER_DIR environment variable.
         required: true
         type: string
-      arch:
-        description: The architecture to build for.
+      VCPKG_VERSION:
+        description: The version of vcpkg to clone.
+        required: true
+        type: string
+      VCPKG_BINARY_SOURCES:
+        description: Default VCPKG_BINARY_SOURCES.
+        required: true
+        type: string
+      ORT_VERSION:
+        description: The version of ONNX Runtime to build.
         required: true
         type: string
 
@@ -60,11 +63,11 @@ jobs:
       id-token: write
 
     env:
-      CLEAN_BASH_ENV: '${{ github.workspace }}/.github/scripts/clean-env-macos.bash'
       DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
-      FILTERED_PATH: '/opt/homebrew/opt/xcbeautify/bin:/opt/homebrew/opt/ninja/bin:/opt/homebrew/opt/cmake/bin:/opt/homebrew/opt/curl/bin:/opt/homebrew/opt/wget/bin:/usr/bin:/bin:/usr/sbin:/sbin'
-      ORT_SRC_DIR: '.deps_vendor/onnxruntime'
-      ORT_PATCH_DIR: '${{ github.workspace }}/scripts/ort_patches'
+      MINIMAL_PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
+      ORT_VERSION: '${{ inputs.ORT_VERSION }}'
+      TARGET_ARCH: '${{ inputs.arch }}'
+      VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
 
     steps:
       - name: Checkout
@@ -72,13 +75,30 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ env.VCPKG_VERSION }}
+          persist-credentials: false
+          path: vcpkg
+          filter: blob:none
+
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ env.ORT_VERSION }}
+          persist-credentials: false
+          path: onnxruntime
+          submodules: recursive
+
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version-file: .python-version
           pip-install: -r requirements-build.txt
-
-      # ASSERT: The directory of python3 executable is always prepended to the PATH specified in the env section.
 
       - name: Set up Go for ciproxy
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
@@ -86,27 +106,39 @@ jobs:
           go-version-file: .github/actions/ciproxy/cmd/go.mod
           cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
-      # ASSERT: The directory of go executable is always prepended to the PATH specified in the env section.
-
-      - name: Print CMake version
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          cmake --version
-
-      - name: Print Ninja version
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          ninja --version
-
       - name: Print Xcode version
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
           xcodebuild -version
 
-      - name: Print xcbeautify version
+      - name: Set up vcpkg using Bash
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          xcbeautify --version
+          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
+      - name: Set up vcpkg toolchains using Bash
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
+        run: |
+          export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+          CMAKE_EXE="$(./vcpkg/vcpkg fetch cmake | tail -n 1)"
+          NINJA_EXE="$(./vcpkg/vcpkg fetch ninja | tail -n 1)"
+
+          printf 'CMAKE_DIR=%s\n' "${CMAKE_EXE%/*}" >> "$GITHUB_ENV"
+          printf 'NINJA_DIR=%s\n' "${NINJA_EXE%/*}" >> "$GITHUB_ENV"
+
+          "$CMAKE_EXE" --version
+          "$NINJA_EXE" --version
+
+      - name: Patch ONNX Runtime
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          patches=(scripts/ort_patches/*.patch)
+          for patch in "${patches[@]}"; do
+            git -C onnxruntime apply "../$patch"
+          done
 
       - name: Start ciproxy
         id: ciproxy
@@ -115,33 +147,20 @@ jobs:
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
 
-      - name: Checkout ONNX Runtime
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: microsoft/onnxruntime
-          ref: ${{ inputs.ort-version }}
-          persist-credentials: false
-          path: ${{ env.ORT_SRC_DIR }}
-          submodules: recursive
-
-      - name: Patch ONNX Runtime
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
-          Get-ChildItem -Path $env:ORT_PATCH_DIR -Filter *.patch | Sort-Object | ForEach-Object {
-            git -C "$env:ORT_SRC_DIR" apply "$($_.FullName)"
-          }
-
       - name: Build vcpkg of ONNX Runtime on macOS
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          BASH_ENV: '${{ env.CLEAN_BASH_ENV }}'
-          PATH: '${{ env.FILTERED_PATH }}'
+          PYTHON_EXE: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          KEEP_ENV_VARS: 'ARCH'
-          ARCH: ${{ inputs.arch }}
         run: |
-          ./scripts/build_ort_macos.sh run_build_py "${ARCH}" update
+          vars=(
+            DEVELOPER_DIR="$DEVELOPER_DIR"
+            HOME="$HOME"
+            PATH="${PYTHON_EXE%/*}:$CMAKE_DIR:$NINJA_DIR:$MINIMAL_PATH"
+            VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES"
+            VCPKG_INSTALLATION_ROOT="$GITHUB_WORKSPACE/vcpkg"
+          )
+          env -i "${vars[@]}" ./scripts/build_ort_macos.sh run_build_py "$TARGET_ARCH" update
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

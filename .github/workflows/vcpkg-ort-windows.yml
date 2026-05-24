@@ -6,8 +6,7 @@
 
 # file: .github/workflows/vcpkg-ort-windows.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.2.0
-# date: 2026-04-22
+# date: 2026-05-25
 
 on:
   workflow_call:
@@ -20,11 +19,15 @@ on:
         description: The environment name for this workflow, or empty string for no environment
         required: true
         type: string
+      VCPKG_VERSION:
+        description: Default VCPKG_BINARY_SOURCES.
+        required: true
+        type: string
       VCPKG_BINARY_SOURCES:
         description: Default VCPKG_BINARY_SOURCES.
         required: true
         type: string
-      ort-version:
+      ORT_VERSION:
         description: The version of ONNX Runtime to build.
         required: true
         type: string
@@ -48,10 +51,9 @@ jobs:
       id-token: write
 
     env:
-      CLEAN_PWSH_ENV: '${{ github.workspace }}\.github\scripts\clean-env-windows.ps1'
-      FILTERED_PATH: 'C:\ProgramData\chocolatey\bin;C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-      ORT_SRC_DIR: '.deps_vendor/onnxruntime'
-      ORT_PATCH_DIR: 'scripts/ort_patches'
+      MINIMAL_PATH: 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+      ORT_VERSION: '${{ inputs.ORT_VERSION }}'
+      VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
 
     steps:
       - name: Enable Windows long path
@@ -64,6 +66,24 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Checkout vcpkg
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ env.VCPKG_VERSION }}
+          persist-credentials: false
+          path: vcpkg
+          filter: blob:none
+
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ env.ORT_VERSION }}
+          persist-credentials: false
+          path: onnxruntime
+          submodules: recursive
+
       - name: Set up Python
         id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -71,25 +91,43 @@ jobs:
           python-version-file: .python-version
           pip-install: -r requirements-build.txt
 
-      # ASSERT: The directory of python3 executable is always prepended to the PATH specified in the env section.
-
       - name: Set up Go for ciproxy
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: .github/actions/ciproxy/cmd/go.mod
           cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
-      # ASSERT: The directory of go executable is always prepended to the PATH specified in the env section.
+      - name: Set up vcpkg using PowerShell
+        shell: pwsh
+        run: |
+          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
-      - name: Print CMake version
+      - name: Set up vcpkg toolchains using PowerShell
+        shell: pwsh
+        env:
+          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
+        run: |
+          $env:Path = $env:MINIMAL_PATH
+
+          $CMAKE_EXE = ./vcpkg/vcpkg.exe fetch cmake | Select-Object -Last 1
+          $NINJA_EXE = ./vcpkg/vcpkg.exe fetch ninja | Select-Object -Last 1
+          $VSWHERE_EXE = ./vcpkg/vcpkg.exe fetch vswhere | Select-Object -Last 1
+
+          Add-Content -Path $env:GITHUB_ENV -Value "CMAKE_DIR=$(Split-Path -Parent $CMAKE_EXE)" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "NINJA_DIR=$(Split-Path -Parent $NINJA_EXE)" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "VSWHERE_DIR=$(Split-Path -Parent $VSWHERE_EXE)" -Encoding utf8
+
+          & $CMAKE_EXE --version
+          & $NINJA_EXE --version
+          & $VSWHERE_EXE
+
+      - name: Patch ONNX Runtime
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          cmake --version
-
-      - name: Print Ninja version
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          ninja --version
+          patches=(scripts/ort_patches/*.patch)
+          for patch in "${patches[@]}"; do
+            git -C onnxruntime apply "../$patch"
+          done
 
       - name: Start ciproxy
         id: ciproxy
@@ -98,31 +136,14 @@ jobs:
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
 
-      - name: Checkout ONNX Runtime
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: microsoft/onnxruntime
-          ref: ${{ inputs.ort-version }}
-          persist-credentials: false
-          path: ${{ env.ORT_SRC_DIR }}
-          submodules: recursive
-
-      - name: Patch ONNX Runtime
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
-          Get-ChildItem -Path $env:ORT_PATCH_DIR -Filter *.patch | Sort-Object | ForEach-Object {
-            git -C "$env:ORT_SRC_DIR" apply "$($_.FullName)"
-          }
-
       - name: Build vcpkg of ONNX Runtime on Windows
         shell: pwsh
         env:
-          PATH: '${{ env.FILTERED_PATH }}'
+          PYTHON_EXE: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
         run: |
-          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
-          . $env:CLEAN_PWSH_ENV
+          $env:Path = "$(Split-Path -Parent $env:PYTHON_EXE);$env:CMAKE_DIR;$env:NINJA_DIR;$env:VSWHERE_DIR;$env:MINIMAL_PATH"
+          $env:VCPKG_INSTALLATION_ROOT = "$env:GITHUB_WORKSPACE\vcpkg"
           ./scripts/build_ort_windows.ps1 run_build_py x64 update
 
       - name: Stop ciproxy and upload binary packages
