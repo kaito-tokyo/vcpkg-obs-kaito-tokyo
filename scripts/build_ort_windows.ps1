@@ -23,19 +23,6 @@ $ORT_X64_PREFIX = "$ROOT_DIR/.deps_vendor/ort_x64-prefix"
 $CMAKE_MASQUERADE_BIN_DIR = "$ROOT_DIR/.deps_vendor/cmake_masquerade_bin"
 $CMAKE_MASQUERADE_CL_EXE = "$CMAKE_MASQUERADE_BIN_DIR/cl.exe"
 
-$ORT_COMPONENTS = @(
-  'onnxruntime_session',
-  'onnxruntime_optimizer',
-  'onnxruntime_providers',
-  'onnxruntime_lora',
-  'onnxruntime_framework',
-  'onnxruntime_graph',
-  'onnxruntime_util',
-  'onnxruntime_mlas',
-  'onnxruntime_common',
-  'onnxruntime_flatbuffers'
-)
-
 $BUILD_PY_ARGS = @(
   '--config', 'Release',
   '--parallel',
@@ -88,8 +75,6 @@ function run_build_py() {
 
   $commandlineArgs = @("$BUILD_PY")
   $commandlineArgs += $BUILD_PY_ARGS
-  $commandlineArgs += @('--targets')
-  $commandlineArgs += $ORT_COMPONENTS
   $commandlineArgs += @('--cmake_extra_defines')
   $commandlineArgs += $BUILD_PY_CMAKE_EXTRA_DEFINES
   if ($env:CCACHE_DIR) {

@@ -89,14 +89,12 @@ run_build_py() {
     commandline+=(
       --build_dir "${ORT_ARM64_BUILD_DIR}"
       --osx_arch arm64
-      --targets "${ORT_COMPONENTS[@]}" cpuinfo kleidiai
     )
     ;;
   x86_64)
     commandline+=(
       --build_dir "${ORT_X86_64_BUILD_DIR}"
       --osx_arch x86_64
-      --targets "${ORT_COMPONENTS[@]}" cpuinfo
     )
     ;;
   *)
