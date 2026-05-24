@@ -99,7 +99,7 @@ jobs:
       - name: Set up vcpkg using PowerShell
         shell: pwsh
         run: |
-          ./vcpkg/bootstrap-vcpkg.ps1 -disableMetrics
+          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
       - name: Set up vcpkg toolchains using PowerShell
         shell: pwsh
@@ -108,9 +108,9 @@ jobs:
         run: |
           $env:Path = $env:MINIMAL_PATH
 
-          $CMAKE_EXE = ./vcpkg/vcpkg.exe fetch cmake
-          $NINJA_EXE = ./vcpkg/vcpkg.exe fetch ninja
-          $VSWHERE_EXE = ./vcpkg/vcpkg.exe fetch vswhere
+          $CMAKE_EXE = ./vcpkg/vcpkg.exe fetch cmake | Select-Object -Last 1
+          $NINJA_EXE = ./vcpkg/vcpkg.exe fetch ninja | Select-Object -Last 1
+          $VSWHERE_EXE = ./vcpkg/vcpkg.exe fetch vswhere | Select-Object -Last 1
 
           Add-Content -Path $env:GITHUB_ENV -Value "CMAKE_DIR=$(Split-Path -Parent $CMAKE_EXE)" -Encoding utf8
           Add-Content -Path $env:GITHUB_ENV -Value "NINJA_DIR=$(Split-Path -Parent $NINJA_EXE)" -Encoding utf8
@@ -125,7 +125,7 @@ jobs:
         run: |
           patches=(scripts/ort_patches/*.patch)
           for patch in "${patches[@]}"; do
-            git -C onnxruntime apply "../../$patch"
+            git -C onnxruntime apply "../$patch"
           done
 
       - name: Start ciproxy
@@ -141,6 +141,7 @@ jobs:
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
         run: |
           $env:Path = "$env:CMAKE_DIR;$env:NINJA_DIR;$env:VSWHERE_DIR;$env:MINIMAL_PATH"
+          $env:VCPKG_INSTALLATION_ROOT = "$env:GITHUB_WORKSPACE\vcpkg"
           ./scripts/build_ort_windows.ps1 run_build_py x64 update
 
       - name: Stop ciproxy and upload binary packages

@@ -122,8 +122,8 @@ jobs:
         run: |
           export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
-          CMAKE_EXE="$(./vcpkg/vcpkg fetch cmake)"
-          NINJA_EXE="$(./vcpkg/vcpkg fetch ninja)"
+          CMAKE_EXE="$(./vcpkg/vcpkg fetch cmake | tail -n 1)"
+          NINJA_EXE="$(./vcpkg/vcpkg fetch ninja | tail -n 1)"
 
           printf 'CMAKE_DIR=%s\n' "${CMAKE_EXE%/*}" >> "$GITHUB_ENV"
           printf 'NINJA_DIR=%s\n' "${NINJA_EXE%/*}" >> "$GITHUB_ENV"
@@ -136,7 +136,7 @@ jobs:
         run: |
           patches=(scripts/ort_patches/*.patch)
           for patch in "${patches[@]}"; do
-            git -C onnxruntime apply "../../$patch"
+            git -C onnxruntime apply "../$patch"
           done
 
       - name: Start ciproxy
@@ -156,6 +156,7 @@ jobs:
             HOME="$HOME"
             PATH="$CMAKE_DIR:$NINJA_DIR:$MINIMAL_PATH"
             VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES"
+            VCPKG_INSTALLATION_ROOT="$GITHUB_WORKSPACE/vcpkg"
           )
           env -i "${vars[@]}" ./scripts/build_ort_macos.sh run_build_py "$TARGET_ARCH" update
 
