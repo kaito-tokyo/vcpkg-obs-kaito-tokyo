@@ -80,6 +80,7 @@ jobs:
           submodules: recursive
 
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version-file: .python-version
@@ -130,11 +131,12 @@ jobs:
       - name: Build vcpkg of ONNX Runtime on Ubuntu
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
+          PYTHON_EXE: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
         run: |
           vars=(
             HOME="$HOME"
-            PATH="$CMAKE_DIR:$NINJA_DIR:$MINIMAL_PATH"
+            PATH="${PYTHON_EXE%/*}:$CMAKE_DIR:$NINJA_DIR:$MINIMAL_PATH"
             VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES"
             VCPKG_INSTALLATION_ROOT="$GITHUB_WORKSPACE/vcpkg"
           )

@@ -85,6 +85,7 @@ jobs:
           submodules: recursive
 
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version-file: .python-version
@@ -138,9 +139,10 @@ jobs:
       - name: Build vcpkg of ONNX Runtime on Windows
         shell: pwsh
         env:
+          PYTHON_EXE: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
         run: |
-          $env:Path = "$env:CMAKE_DIR;$env:NINJA_DIR;$env:VSWHERE_DIR;$env:MINIMAL_PATH"
+          $env:Path = "$(Split-Path -Parent $env:PYTHON_PATH);$env:CMAKE_DIR;$env:NINJA_DIR;$env:VSWHERE_DIR;$env:MINIMAL_PATH"
           $env:VCPKG_INSTALLATION_ROOT = "$env:GITHUB_WORKSPACE\vcpkg"
           ./scripts/build_ort_windows.ps1 run_build_py x64 update
 
