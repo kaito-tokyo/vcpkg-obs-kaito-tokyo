@@ -8,8 +8,7 @@ name: Vcpkg Manifest CI
 
 # file: .github/workflows/vcpkg-manifest.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.2.0
-# date: 2026-04-22
+# date: 2026-05-25
 
 on:
   push:
@@ -53,8 +52,8 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
-      vcpkg-version: ${{ needs.config.outputs.VCPKG_VERSION }}
     secrets: inherit
 
   vcpkg-manifest-macos:
@@ -78,10 +77,10 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
-      vcpkg-version: ${{ needs.config.outputs.VCPKG_VERSION }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
+      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-macos-arm64-14:
@@ -102,10 +101,10 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
-      vcpkg-version: ${{ needs.config.outputs.VCPKG_VERSION }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
+      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-ubuntu:
@@ -119,8 +118,8 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
-      vcpkg-version: ${{ needs.config.outputs.VCPKG_VERSION }}
     secrets: inherit
 
   accept-vcpkg-manifest:
@@ -129,7 +128,4 @@ jobs:
     runs-on: ubuntu-slim
     permissions: {}
     steps:
-      - name: Accept vcpkg-manifest
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          echo 'The workflow vcpkg-manifest has completed successfully.'
+      - run: echo OK
