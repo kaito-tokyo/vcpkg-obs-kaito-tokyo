@@ -141,9 +141,11 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
           patches=(scripts/ort_patches/"$ORT_VERSION"/*.patch)
-          for patch in "${patches[@]}"; do
-            git -C onnxruntime apply "../$patch"
-          done
+          if [[ "${#patches[@]}" -gt 0 ]]; then
+            for patch in "${patches[@]}"; do
+              git -C onnxruntime apply "../$patch"
+            done
+          fi
 
       - name: Start ciproxy
         id: ciproxy
