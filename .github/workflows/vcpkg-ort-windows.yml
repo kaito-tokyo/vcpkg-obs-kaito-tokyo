@@ -31,6 +31,10 @@ on:
         description: The version of ONNX Runtime to build.
         required: true
         type: string
+      ORT_OVERLAY_TRIPLET_DIR:
+        description: The overlay triplet dir of ONNX Runtime's vcpkg to build.
+        required: true
+        type: string
 
     secrets:
       CIPROXY_MASTER_TOKEN:
@@ -52,6 +56,7 @@ jobs:
 
     env:
       MINIMAL_PATH: 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+      ORT_OVERLAY_TRIPLET_DIR: '${{ inputs.ORT_OVERLAY_TRIPLET_DIR }}'
       ORT_VERSION: '${{ inputs.ORT_VERSION }}'
       VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
 
@@ -107,6 +112,8 @@ jobs:
         env:
           VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
         run: |
+          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
+
           $env:Path = $env:MINIMAL_PATH
 
           $CMAKE_EXE = ./vcpkg/vcpkg.exe fetch cmake | Select-Object -Last 1
@@ -115,7 +122,7 @@ jobs:
 
           Add-Content -Path $env:GITHUB_ENV -Value "CMAKE_DIR=$(Split-Path -Parent $CMAKE_EXE)" -Encoding utf8
           Add-Content -Path $env:GITHUB_ENV -Value "NINJA_DIR=$(Split-Path -Parent $NINJA_EXE)" -Encoding utf8
-          Add-Content -Path $env:GITHUB_ENV -Value "VSWHERE_DIR=$(Split-Path -Parent $VSWHERE_EXE)" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "VSWHERE_EXE=$VSWHERE_EXE" -Encoding utf8
 
           & $CMAKE_EXE --version
           & $NINJA_EXE --version
@@ -142,9 +149,37 @@ jobs:
           PYTHON_EXE: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
         run: |
-          $env:Path = "$(Split-Path -Parent $env:PYTHON_EXE);$env:CMAKE_DIR;$env:NINJA_DIR;$env:VSWHERE_DIR;$env:MINIMAL_PATH"
-          $env:VCPKG_INSTALLATION_ROOT = "$env:GITHUB_WORKSPACE\vcpkg"
-          ./scripts/build_ort_windows.ps1 run_build_py x64 update
+          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
+
+          $env:Path = "$env:CMAKE_DIR;$env:NINJA_DIR;$env:MINIMAL_PATH"
+          Remove-Item env:VCPKG_INSTALLATION_ROOT -ErrorAction SilentlyContinue
+
+          $vsInstallationPath = & $env:VSWHERE_EXE -version 17 -property installationPath
+
+          . (Join-Path $vsInstallationPath 'Common7\Tools\Launch-VsDevShell.ps1')
+
+          $opts = @(
+            '--update',
+            '--build_dir', 'build_ort_windows_x64',
+            '--cmake_extra_defines',
+            'CMAKE_POLICY_VERSION_MINIMUM=3.5',
+            'onnxruntime_BUILD_UNIT_TESTS=OFF',
+            '--cmake_generator', 'Ninja',
+            '--compile_no_warning_as_error',
+            '--config', 'Release',
+            '--skip_submodule_sync',
+            '--skip_tests',
+            '--use_vcpkg'
+          )
+
+          if ( $env:ORT_OVERLAY_TRIPLET_DIR -eq 'nortti' ) {
+            $opts += @('--disable_rtti')
+          } else {
+            Write-Error "ERROR: $env:ORT_OVERLAY_TRIPLET_DIR is not supported."
+            exit 1
+          }
+
+          & $env:PYTHON_EXE ./onnxruntime/tools/ci_build/build.py @opts
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
