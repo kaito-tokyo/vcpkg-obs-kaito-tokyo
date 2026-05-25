@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-.deps_vendor/
 .dev.*
 .DS_Store
 .venv/
@@ -10,3 +9,6 @@
 .wrangler/
 node_modules/
 vcpkg_installed*/
+
+/build_*/
+/onnxruntime/

@@ -31,10 +31,6 @@ on:
         description: The version of ONNX Runtime to build.
         required: true
         type: string
-      ORT_OVERLAY_TRIPLET_DIR:
-        description: The overlay triplet dir of ONNX Runtime's vcpkg to build.
-        required: true
-        type: string
 
     secrets:
       CIPROXY_MASTER_TOKEN:
@@ -56,7 +52,6 @@ jobs:
 
     env:
       MINIMAL_PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
-      ORT_OVERLAY_TRIPLET_DIR: '${{ inputs.ORT_OVERLAY_TRIPLET_DIR }}'
       ORT_VERSION: '${{ inputs.ORT_VERSION }}'
       VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
 
@@ -121,10 +116,12 @@ jobs:
       - name: Patch ONNX Runtime
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          patches=(scripts/ort_patches/*.patch)
-          for patch in "${patches[@]}"; do
-            git -C onnxruntime apply "../$patch"
-          done
+          patches=(scripts/ort_patches/"$ORT_VERSION"/*.patch)
+          if [[ "${#patches[@]}" -gt 0 ]]; then
+            for patch in "${patches[@]}"; do
+              git -C onnxruntime apply "../$patch"
+            done
+          fi
 
       - name: Start ciproxy
         id: ciproxy
@@ -147,25 +144,18 @@ jobs:
 
           opts=(
             --update
-            --build_dir "build_ort_ubuntu_x64"
+            --build_dir "build_ort_x64"
             --cmake_extra_defines
             "CMAKE_POLICY_VERSION_MINIMUM=3.5"
             "onnxruntime_BUILD_UNIT_TESTS=OFF"
             --cmake_generator Ninja
             --compile_no_warning_as_error
             --config Release
+            --disable_rtti
             --skip_submodule_sync
             --skip_tests
             --use_vcpkg
           )
-
-          case "$ORT_OVERLAY_TRIPLET_DIR" in
-          nortti) opts+=(--disable_rtti) ;;
-          *)
-            printf 'ERROR: %s is not supported.\n' "$ORT_OVERLAY_TRIPLET_DIR"
-            exit 1
-            ;;
-          esac
 
           env -i "${vars[@]}" "$PYTHON_EXE" ./onnxruntime/tools/ci_build/build.py "${opts[@]}"
 
