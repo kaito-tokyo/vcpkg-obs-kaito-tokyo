@@ -86,6 +86,8 @@ jobs:
         env:
           VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
         run: |
+          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
+
           $env:Path = $env:MINIMAL_PATH
           ./vcpkg/vcpkg.exe fetch cmake
           ./vcpkg/vcpkg.exe fetch ninja

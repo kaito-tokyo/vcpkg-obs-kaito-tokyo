@@ -23,12 +23,16 @@ on:
         description: The runner label to run this workflow on.
         required: true
         type: string
-      arch:
+      OSX_ARCH:
         description: The architecture to build for.
         required: true
         type: string
       DEVELOPER_DIR:
         description: The value of DEVELOPER_DIR environment variable.
+        required: true
+        type: string
+      OSX_DEPLOYMENT_TARGET:
+        description: The deployment target of macOS.
         required: true
         type: string
       VCPKG_VERSION:
@@ -41,6 +45,10 @@ on:
         type: string
       ORT_VERSION:
         description: The version of ONNX Runtime to build.
+        required: true
+        type: string
+      ORT_OVERLAY_TRIPLET_DIR:
+        description: The overlay triplet dir of ONNX Runtime's vcpkg to build.
         required: true
         type: string
 
@@ -65,8 +73,10 @@ jobs:
     env:
       DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
       MINIMAL_PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
+      ORT_OVERLAY_TRIPLET_DIR: '${{ inputs.ORT_OVERLAY_TRIPLET_DIR }}'
       ORT_VERSION: '${{ inputs.ORT_VERSION }}'
-      TARGET_ARCH: '${{ inputs.arch }}'
+      OSX_DEPLOYMENT_TARGET: '${{ inputs.OSX_DEPLOYMENT_TARGET }}'
+      OSX_ARCH: '${{ inputs.OSX_ARCH }}'
       VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
 
     steps:
@@ -156,11 +166,36 @@ jobs:
           vars=(
             DEVELOPER_DIR="$DEVELOPER_DIR"
             HOME="$HOME"
-            PATH="${PYTHON_EXE%/*}:$CMAKE_DIR:$NINJA_DIR:$MINIMAL_PATH"
+            PATH="$CMAKE_DIR:$NINJA_DIR:$MINIMAL_PATH"
             VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES"
-            VCPKG_INSTALLATION_ROOT="$GITHUB_WORKSPACE/vcpkg"
           )
-          env -i "${vars[@]}" ./scripts/build_ort_macos.sh run_build_py "$TARGET_ARCH" update
+
+          opts=(
+            --update
+            --build_dir "build_ort_macos_$OSX_ARCH"
+            --cmake_extra_defines
+            "CMAKE_POLICY_VERSION_MINIMUM=3.5"
+            "onnxruntime_BUILD_UNIT_TESTS=OFF"
+            --apple_deploy_target "$OSX_DEPLOYMENT_TARGET"
+            --cmake_generator Ninja
+            --compile_no_warning_as_error
+            --config Release
+            --osx_arch "$OSX_ARCH"
+            --skip_submodule_sync
+            --skip_tests
+            --use_coreml
+            --use_vcpkg
+          )
+
+          case "$ORT_OVERLAY_TRIPLET_DIR" in
+          nortti) opts+=(--disable_rtti) ;;
+          *)
+            printf 'ERROR: %s is not supported.\n' "$ORT_OVERLAY_TRIPLET_DIR"
+            exit 1
+            ;;
+          esac
+
+          env -i "${vars[@]}" "$PYTHON_EXE" ./onnxruntime/tools/ci_build/build.py "${opts[@]}"
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
