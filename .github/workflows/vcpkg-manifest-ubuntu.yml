@@ -103,7 +103,7 @@ jobs:
             VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES"
             VCPKG_ROOT="$GITHUB_WORKSPACE/vcpkg"
           )
-          env -i "${vars[@]}" "$GITHUB_WORKSPACE/vcpkg/vcpkg" install --triplet=x64-linux-obs --x-install-root=vcpkg_installed_x64-linux-obs
+          env -i "${vars[@]}" ./vcpkg/vcpkg install --triplet=x64-linux-obs --x-install-root=vcpkg_installed_x64-linux-obs
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
