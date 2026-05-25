@@ -140,7 +140,7 @@ jobs:
       - name: Patch ONNX Runtime
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          patches=(scripts/ort_patches/*.patch)
+          patches=(scripts/ort_patches/"$ORT_VERSION"/*.patch)
           for patch in "${patches[@]}"; do
             git -C onnxruntime apply "../$patch"
           done
@@ -167,7 +167,7 @@ jobs:
 
           opts=(
             --update
-            --build_dir "build_ort_macos_$OSX_ARCH"
+            --build_dir "build_ort_$OSX_ARCH"
             --cmake_extra_defines
             "CMAKE_POLICY_VERSION_MINIMUM=3.5"
             "onnxruntime_BUILD_UNIT_TESTS=OFF"
