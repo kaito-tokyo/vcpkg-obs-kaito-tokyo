@@ -56,6 +56,8 @@ jobs:
 
     env:
       MINIMAL_PATH: 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+      VCPKG_PORTS: '${{ inputs.VCPKG_PORTS }}'
+      VCPKG_TARGET_TRIPLET: '${{ inputs.VCPKG_TARGET_TRIPLET }}'
       VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
 
     steps:
@@ -114,7 +116,7 @@ jobs:
         run: |
           $env:Path = $env:MINIMAL_PATH
           $ports = $env:VCPKG_PORTS -Split ' '
-          ./vcpkg/vcpkg.exe install --triplet="$env:VCPKG_TARGET_TRIPLET" @ports
+          ./vcpkg/vcpkg.exe install --classic --triplet="$env:VCPKG_TARGET_TRIPLET" @ports
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

@@ -114,7 +114,7 @@ jobs:
             VCPKG_ROOT="$GITHUB_WORKSPACE/vcpkg"
           )
           IFS=' ' read -r -a ports <<< "$VCPKG_PORTS"
-          env -i "${vars[@]}" ./vcpkg/vcpkg install --triplet="$VCPKG_TARGET_TRIPLET" "${ports[@]}"
+          env -i "${vars[@]}" ./vcpkg/vcpkg install --classic --triplet="$VCPKG_TARGET_TRIPLET" "${ports[@]}"
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
