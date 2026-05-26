@@ -8,7 +8,7 @@ name: Vcpkg ORT CI
 
 # file: .github/workflows/vcpkg-ort.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-05-25
+# date: 2026-05-27
 
 on:
   push:
@@ -74,9 +74,9 @@ jobs:
           - name: Sequoia, Xcode 16.4
             runs-on: macos-15
             DEVELOPER_DIR: /Applications/Xcode_16.4.app
-          - name: Tahoe, Xcode 26.4
+          - name: Tahoe, Xcode 26.5
             runs-on: macos-26
-            DEVELOPER_DIR: /Applications/Xcode_26.4.app
+            DEVELOPER_DIR: /Applications/Xcode_26.5.app
     name: ORT ${{ matrix.ort-version }} on macOS ${{ matrix.osx-arch }} with ${{ matrix.os-xcode.name }}
     permissions:
       attestations: write

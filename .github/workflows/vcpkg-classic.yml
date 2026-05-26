@@ -4,9 +4,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: Vcpkg Manifest CI
+name: Vcpkg Classic CI
 
-# file: .github/workflows/vcpkg-manifest.yml
+# file: .github/workflows/vcpkg-classic.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
 # date: 2026-05-27
 
@@ -17,7 +17,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: 23 11 * * *
+    - cron: 23 9 * * *
   workflow_dispatch:
 
 permissions: {}
@@ -41,22 +41,24 @@ jobs:
           echo 'VCPKG_BINARY_SOURCES=clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' >> "${GITHUB_OUTPUT}"
           echo 'VCPKG_VERSION=2026.04.27' >> "${GITHUB_OUTPUT}"
 
-  vcpkg-manifest-windows:
+  vcpkg-classic-windows:
     needs: config
-    name: Manifest on Windows x64
+    name: classic on Windows x64
     permissions:
       attestations: write
       contents: read
       id-token: write
-    uses: ./.github/workflows/vcpkg-manifest-windows.yml
+    uses: ./.github/workflows/vcpkg-classic-windows.yml
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      VCPKG_TARGET_TRIPLET: 'x64-windows-static-md-obs'
+      VCPKG_PORTS: 'opencv4[core]'
     secrets: inherit
 
-  vcpkg-manifest-macos:
+  vcpkg-classic-macos:
     needs: config
     strategy:
       fail-fast: false
@@ -68,12 +70,15 @@ jobs:
           - name: Tahoe, Xcode 26.5
             runs-on: macos-26
             DEVELOPER_DIR: /Applications/Xcode_26.5.app
-    name: Manifest on macOS ${{ matrix.os-xcode.name }}
+        triplets:
+          - arm64-osx-obs
+          - x64-osx-obs
+    name: classic on macOS ${{ matrix.os-xcode.name }}
     permissions:
       attestations: write
       contents: read
       id-token: write
-    uses: ./.github/workflows/vcpkg-manifest-macos.yml
+    uses: ./.github/workflows/vcpkg-classic-macos.yml
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
@@ -81,50 +86,30 @@ jobs:
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
       VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      VCPKG_TARGET_TRIPLET: ${{ matrix.triplets }}
+      VCPKG_PORTS: 'opencv4[core]'
     secrets: inherit
 
-  vcpkg-manifest-macos-arm64-14:
+  vcpkg-classic-ubuntu:
     needs: config
-    strategy:
-      fail-fast: false
-      matrix:
-        os-xcode:
-          - name: Tahoe, Xcode 26.5
-            runs-on: macos-26
-            DEVELOPER_DIR: /Applications/Xcode_26.5.app
-    name: Manifest on macOS ${{ matrix.os-xcode.name }}
+    name: classic on Ubuntu x64
     permissions:
       attestations: write
       contents: read
       id-token: write
-    uses: ./.github/workflows/vcpkg-manifest-macos-arm64-14.yml
-    with:
-      job-index: ${{ strategy.job-index }}
-      environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      runs-on: ${{ matrix.os-xcode.runs-on }}
-      DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
-    secrets: inherit
-
-  vcpkg-manifest-ubuntu:
-    needs: config
-    name: Manifest on Ubuntu x64
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/vcpkg-manifest-ubuntu.yml
+    uses: ./.github/workflows/vcpkg-classic-ubuntu.yml
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      VCPKG_TARGET_TRIPLET: 'x64-linux-obs'
+      VCPKG_PORTS: 'opencv4[core]'
     secrets: inherit
 
-  accept-vcpkg-manifest:
-    needs: [vcpkg-manifest-windows, vcpkg-manifest-macos, vcpkg-manifest-macos-arm64-14, vcpkg-manifest-ubuntu]
-    name: Accept vcpkg-manifest
+  accept-vcpkg-classic:
+    needs: [vcpkg-classic-windows, vcpkg-classic-macos, vcpkg-classic-ubuntu]
+    name: Accept vcpkg-classic
     runs-on: ubuntu-slim
     permissions: {}
     steps:
