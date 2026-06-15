@@ -14,14 +14,18 @@ function Update-OrtSourceWithPatches {
         [string]$RootDir = $PWD,
         [string]$PluginBuildDir = $env:PLUGIN_BUILD_DIR ?? $RootDir,
         [string]$OrtSourceDir = (Join-Path $PluginBuildDir 'onnxruntime'),
-        [string]$OrtPatchesDir = (Join-Path $RootDir 'scripts' 'ort_patches')
+        [string]$OrtPatchesDir = (Join-Path $RootDir 'scripts' 'ort_patches'),
+        [string]$OrtVersion = $null
     )
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
-        $buildspec = Get-Content -LiteralPath (Join-Path $RootDir 'buildspec.props') -Raw | ConvertFrom-StringData
+        if (-not $OrtVersion) {
+            $buildspec = Get-Content -LiteralPath (Join-Path $RootDir 'buildspec.props') -Raw | ConvertFrom-StringData
+            $OrtVersion = $buildspec.onnxruntime_git_tag
+        }
 
-        if ($buildspec.onnxruntime_git_tag -eq 'v1.23.2') {
+        if ($OrtVersion -eq 'v1.23.2') {
             $patches = @(
                 Join-Path $OrtPatchesDir '0000-27960.patch'
                 Join-Path $OrtPatchesDir '0001-27981.patch'
@@ -208,7 +212,7 @@ function Invoke-OrtBuildPy {
         $env:PATH = ($ortToolchain.pathComponents + ($env:PATH -split [System.IO.Path]::PathSeparator)) -join [System.IO.Path]::PathSeparator
 
         if ($IsWindows) {
-            $vsInstallationPath = & $ortToolchain.vswhereExe -version "$VsVersionRange" -property installationPath
+            $vsInstallationPath = vswhere -version "$VsVersionRange" -property installationPath
 
             . (Join-Path $vsInstallationPath 'Common7' 'Tools' 'Launch-VsDevShell.ps1') -Arch amd64 -NoLogo
 

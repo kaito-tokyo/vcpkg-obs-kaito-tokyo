@@ -132,6 +132,7 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
           PYTHON: '${{ steps.setup-python.outputs.python-path }}'
+          VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
           VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
         run: |
           PWSH_EXE="$("$VCPKG_ROOT/vcpkg" fetch powershell-core | tail -n1)"
@@ -153,10 +154,9 @@ jobs:
               "$PWSH_EXE" "$@"
           }
 
-          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Update-OrtSourceWithPatches -OrtVersion \"$ORT_VERSION\""
+          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Update-OrtSourceWithPatches"
           pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch arm64"
           pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch x86_64"
-          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Install-Ort"
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

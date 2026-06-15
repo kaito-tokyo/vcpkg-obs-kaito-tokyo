@@ -132,9 +132,9 @@ jobs:
             ;;
           v1.23.2)
             patches=(
-              scripts/ort_patches/000-27960.patch
-              scripts/ort_patches/000-27981.patch
-              scripts/ort_patches/000-27982.patch
+              scripts/ort_patches/0000-27960.patch
+              scripts/ort_patches/0001-27981.patch
+              scripts/ort_patches/0002-27982.patch
             )
             ;;
           esac
