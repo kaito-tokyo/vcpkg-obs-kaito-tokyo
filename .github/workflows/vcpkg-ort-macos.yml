@@ -153,7 +153,7 @@ jobs:
               "$PWSH_EXE" "$@"
           }
 
-          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Update-OrtSourceWithPatches"
+          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Update-OrtSourceWithPatches -OrtVersion \"$ORT_VERSION\""
           pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch arm64"
           pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch x86_64"
           pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Install-Ort"

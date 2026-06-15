@@ -137,7 +137,7 @@ jobs:
               scripts/ort_patches/000-27982.patch
             )
             ;;
-          easc
+          esac
           if [[ "${#patches[@]}" -gt 0 ]]; then
             for patch in "${patches[@]}"; do
               git -C onnxruntime apply "../$patch"
