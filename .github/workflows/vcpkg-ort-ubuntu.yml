@@ -116,7 +116,18 @@ jobs:
       - name: Patch ONNX Runtime
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          patches=(scripts/ort_patches/"$ORT_VERSION"/*.patch)
+          case "$ORT_VERSION" in
+          v1.21.0)
+            patches=()
+            ;;
+          v1.23.2)
+            patches=(
+              scripts/ort_patches/000-27960.patch
+              scripts/ort_patches/000-27981.patch
+              scripts/ort_patches/000-27982.patch
+            )
+            ;;
+          easc
           if [[ "${#patches[@]}" -gt 0 ]]; then
             for patch in "${patches[@]}"; do
               git -C onnxruntime apply "../$patch"
