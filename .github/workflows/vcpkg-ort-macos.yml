@@ -138,13 +138,9 @@ jobs:
           PWSH_EXE="$("$VCPKG_ROOT/vcpkg" fetch powershell-core | tail -n1)"
           CMAKE_EXE="$("$VCPKG_ROOT/vcpkg" fetch cmake | tail -n1)"
           NINJA_EXE="$("$VCPKG_ROOT/vcpkg" fetch ninja | tail -n1)"
-          CCACHE_EXE="$(command -v ccache)"
 
           pwsh() {
             env -i \
-              CCACHE_DIR="$GITHUB_WORKSPACE/.ccache_ort" \
-              CCACHE_BASEDIR="$GITHUB_WORKSPACE" \
-              CCACHE_SLOPPINESS='include_file_mtime,time_macros' \
               DEVELOPER_DIR="$DEVELOPER_DIR" \
               HOME="$HOME" \
               PATH="${CMAKE_EXE%/*}:${NINJA_EXE%/*}:${CCACHE_EXE%/*}:/usr/bin:/bin:/usr/sbin:/sbin" \
@@ -154,9 +150,9 @@ jobs:
               "$PWSH_EXE" "$@"
           }
 
-          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Update-OrtSourceWithPatches"
-          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch arm64"
-          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch x86_64"
+          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Update-OrtSourceWithPatches -OrtVersion \"$ORT_VERSION\""
+          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch arm64 -OsxDeploymentTarget \"$OSX_DEPLOYMENT_TARGET\""
+          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch x86_64 -OsxDeploymentTarget \"$OSX_DEPLOYMENT_TARGET\""
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

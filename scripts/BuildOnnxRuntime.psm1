@@ -116,7 +116,9 @@ function Invoke-OrtBuildPy {
         [string]$Config = 'Release',
         [string]$ReducedOpsConfigPath = (Join-Path $RootDir 'src' 'required_operators_and_types.with_runtime_opt.config'),
         [string]$PythonExe = $env:PYTHON,
-        [string]$VsVersionRange = '[17,]'
+        [string]$VsVersionRange = '[17,]',
+        [string]$OsxDeploymentTarget = $null,
+        [string]$WindowsSystemVersion = $null
     )
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
@@ -153,14 +155,18 @@ function Invoke-OrtBuildPy {
         }
 
         if ($IsWindows) {
-            $windowsPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'windows' }
+            if (-not $WindowsSystemVersion) {
+                $cmakePresets = Get-Content -LiteralPath (Join-Path $RootDir 'CMakePresets.json') -Raw | ConvertFrom-Json
+                $windowsPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'windows' }
+                $WindowsSystemVersion = $windowsPreset.cacheVariables.CMAKE_SYSTEM_VERSION
+            }
 
             $ortBuildDir = Join-Path $PluginBuildDir 'build_ort'
 
             $buildPyArgs += @(
                 '--build_dir', $ortBuildDir,
                 '--cmake_generator', 'Ninja',
-                '--windows_sdk_version', $windowsPreset.cacheVariables.CMAKE_SYSTEM_VERSION
+                '--windows_sdk_version', $WindowsSystemVersion
             )
 
             if ($env:CCACHE_DIR) {
@@ -176,19 +182,23 @@ function Invoke-OrtBuildPy {
                 throw 'Arch not provided'
             }
 
-            $macOSPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'macos' }
+            if (-not $OsxDeploymentTarget) {
+                $cmakePresets = Get-Content -LiteralPath (Join-Path $RootDir 'CMakePresets.json') -Raw | ConvertFrom-Json
+                $macOSPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'macos' }
+                $OsxDeploymentTarget = $macOSPreset.cacheVariables.CMAKE_OSX_DEPLOYMENT_TARGET
+            }
 
             $ortBuildDir = Join-Path $PluginBuildDir "build_ort_$Arch"
 
             $buildPyArgs += @(
                 '--build_dir', $ortBuildDir,
                 '--cmake_generator', 'Ninja',
-                '--apple_deploy_target', $macOSPreset.cacheVariables.CMAKE_OSX_DEPLOYMENT_TARGET,
+                '--apple_deploy_target', $OsxDeploymentTarget,
                 '--osx_arch', $Arch,
                 '--use_coreml'
             )
 
-            $buildPyCMakeExtraDefines += "CMAKE_OSX_DEPLOYMENT_TARGET=$($macOSPreset.cacheVariables.CMAKE_OSX_DEPLOYMENT_TARGET)"
+            $buildPyCMakeExtraDefines += "CMAKE_OSX_DEPLOYMENT_TARGET=$OsxDeploymentTarget"
 
             if (-not $PythonExe) {
                 $PythonExe = Join-Path $PluginBuildDir '.venv' 'bin' 'python3'
@@ -233,14 +243,12 @@ function Install-Ort {
         [string]$RootDir = $PWD,
         [string]$PluginBuildDir = $PWD,
         [string]$VcpkgRoot = $env:VCPKG_ROOT ? $env:VCPKG_ROOT : (Join-Path $PluginBuildDir 'vcpkg'),
-        [string]$Config = "Release"
+        [string]$Config = 'Release',
+        [string]$OsxDeploymentTarget = $null
     )
     process {
         $ortToolchain = Initialize-OrtToolchain
         $env:PATH = ($ortToolchain.pathComponents + ($env:PATH -split [System.IO.Path]::PathSeparator)) -join [System.IO.Path]::PathSeparator
-
-        $cmakePresets = Get-Content -LiteralPath (Join-Path $RootDir 'CMakePresets.json') -Raw | ConvertFrom-Json
-        $macOSPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'macos' }
 
         if ($IsWindows) {
             $ortBuildDir = Join-Path $PluginBuildDir 'build_ort' $Config
@@ -248,6 +256,12 @@ function Install-Ort {
             cmake --install $ortBuildDir --config $Config --prefix $ortInstalledDir
         }
         elseif ($IsMacOS) {
+            if (-not $OsxDeploymentTarget) {
+                $cmakePresets = Get-Content -LiteralPath (Join-Path $RootDir 'CMakePresets.json') -Raw | ConvertFrom-Json
+                $macOSPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'macos' }
+                $OsxDeploymentTarget = $macOSPreset.cacheVariables.CMAKE_OSX_DEPLOYMENT_TARGET
+            }
+
             $ortBuildDirs = @{
                 arm64  = Join-Path $PluginBuildDir 'build_ort_arm64' $Config
                 x86_64 = Join-Path $PluginBuildDir 'build_ort_x86_64' $Config
@@ -277,7 +291,7 @@ function Install-Ort {
             $dummyO = Join-Path $ortPrefixDirs.x86_64 'dummy.o'
             $dummyA = Join-Path $ortPrefixDirs.x86_64 'dummy.a'
 
-            'void __attribute__((visibility("hidden"))) __dummy__(){}' | clang -x c -arch x86_64 -c -o $dummyO -mmacosx-version-min="$($macOSPreset.cacheVariables.CMAKE_OSX_DEPLOYMENT_TARGET)" -
+            'void __attribute__((visibility("hidden"))) __dummy__(){}' | clang -x c -arch x86_64 -c -o $dummyO -mmacosx-version-min="$OsxDeploymentTarget" -
 
             libtool -static -o $dummyA $dummyO
 
