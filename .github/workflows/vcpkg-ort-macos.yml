@@ -6,7 +6,7 @@
 
 # file: .github/workflows/vcpkg-ort-macos.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-05-25
+# date: 2026-06-15
 
 on:
   workflow_call:
@@ -23,12 +23,12 @@ on:
         description: The runner label to run this workflow on.
         required: true
         type: string
-      OSX_ARCH:
-        description: The architecture to build for.
-        required: true
-        type: string
       DEVELOPER_DIR:
         description: The value of DEVELOPER_DIR environment variable.
+        required: true
+        type: string
+      OSX_ARCHITECTURES:
+        description: The architecture to build for.
         required: true
         type: string
       OSX_DEPLOYMENT_TARGET:
@@ -68,13 +68,17 @@ jobs:
 
     env:
       DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
-      MINIMAL_PATH: '/usr/bin:/bin:/usr/sbin:/sbin'
       ORT_VERSION: '${{ inputs.ORT_VERSION }}'
+      OSX_ARCHITECTURES: '${{ inputs.OSX_ARCHITECTURES }}'
       OSX_DEPLOYMENT_TARGET: '${{ inputs.OSX_DEPLOYMENT_TARGET }}'
-      OSX_ARCH: '${{ inputs.OSX_ARCH }}'
       VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
 
     steps:
+      - name: Print Xcode version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          xcodebuild -version
+
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -89,16 +93,12 @@ jobs:
           path: vcpkg
           filter: blob:none
 
-      - name: Checkout ONNX Runtime
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          repository: microsoft/onnxruntime
-          ref: ${{ env.ORT_VERSION }}
-          persist-credentials: false
-          path: onnxruntime
-          submodules: recursive
+      - name: Run bootstrap-vcpkg.sh
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
-      - name: Set up Python
+      - name: Set up Python for build requirements
         id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -111,41 +111,14 @@ jobs:
           go-version-file: .github/actions/ciproxy/cmd/go.mod
           cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
-      - name: Print Xcode version
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          xcodebuild -version
-
-      - name: Set up vcpkg using Bash
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
-
-      - name: Set up vcpkg toolchains using Bash
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
-        run: |
-          export PATH=/usr/bin:/bin:/usr/sbin:/sbin
-
-          CMAKE_EXE="$(./vcpkg/vcpkg fetch cmake | tail -n 1)"
-          NINJA_EXE="$(./vcpkg/vcpkg fetch ninja | tail -n 1)"
-
-          printf 'CMAKE_DIR=%s\n' "${CMAKE_EXE%/*}" >> "$GITHUB_ENV"
-          printf 'NINJA_DIR=%s\n' "${NINJA_EXE%/*}" >> "$GITHUB_ENV"
-
-          "$CMAKE_EXE" --version
-          "$NINJA_EXE" --version
-
-      - name: Patch ONNX Runtime
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          patches=(scripts/ort_patches/"$ORT_VERSION"/*.patch)
-          if [[ "${#patches[@]}" -gt 0 ]]; then
-            for patch in "${patches[@]}"; do
-              git -C onnxruntime apply "../$patch"
-            done
-          fi
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ env.ORT_VERSION }}
+          persist-credentials: false
+          path: onnxruntime
+          submodules: recursive
 
       - name: Start ciproxy
         id: ciproxy
@@ -154,38 +127,31 @@ jobs:
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
 
-      - name: Build vcpkg of ONNX Runtime on macOS
+      - name: Install dependencies from ONNX Runtime's vcpkg (macOS)
+        id: build-onnxruntime
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          PYTHON_EXE: ${{ steps.setup-python.outputs.python-path }}
+          PYTHON: '${{ steps.setup-python.outputs.python-path }}'
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
+          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
         run: |
-          vars=(
-            DEVELOPER_DIR="$DEVELOPER_DIR"
-            HOME="$HOME"
-            PATH="$CMAKE_DIR:$NINJA_DIR:$MINIMAL_PATH"
-            VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES"
-          )
+          PWSH_EXE="$("$VCPKG_ROOT/vcpkg" fetch powershell-core | tail -n1)"
+          CMAKE_EXE="$("$VCPKG_ROOT/vcpkg" fetch cmake | tail -n1)"
+          NINJA_EXE="$("$VCPKG_ROOT/vcpkg" fetch ninja | tail -n1)"
 
-          opts=(
-            --update
-            --build_dir "build_ort_$OSX_ARCH"
-            --cmake_extra_defines
-            "CMAKE_POLICY_VERSION_MINIMUM=3.5"
-            "onnxruntime_BUILD_UNIT_TESTS=OFF"
-            --apple_deploy_target "$OSX_DEPLOYMENT_TARGET"
-            --cmake_generator Ninja
-            --compile_no_warning_as_error
-            --config Release
-            --disable_rtti
-            --osx_arch "$OSX_ARCH"
-            --skip_submodule_sync
-            --skip_tests
-            --use_coreml
-            --use_vcpkg
-          )
+          pwsh() {
+            env -i \
+              DEVELOPER_DIR="$DEVELOPER_DIR" \
+              HOME="$HOME" \
+              PATH="${CMAKE_EXE%/*}:${NINJA_EXE%/*}:/usr/bin:/bin:/usr/sbin:/sbin" \
+              PLUGIN_BUILD_DIR="$GITHUB_WORKSPACE" \
+              PYTHON="$PYTHON" \
+              VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES" \
+              "$PWSH_EXE" "$@"
+          }
 
-          env -i "${vars[@]}" "$PYTHON_EXE" ./onnxruntime/tools/ci_build/build.py "${opts[@]}"
+          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Update-OrtSourceWithPatches -OrtVersion \"$ORT_VERSION\""
+          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch \"$OSX_ARCHITECTURES\" -OsxDeploymentTarget \"$OSX_DEPLOYMENT_TARGET\""
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
