@@ -123,8 +123,6 @@ function Invoke-OrtBuildPy {
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
-        $cmakePresets = Get-Content -LiteralPath (Join-Path $RootDir 'CMakePresets.json') -Raw | ConvertFrom-Json
-
         $buildPyPath = Join-Path $RootDir 'onnxruntime' 'tools' 'ci_build' 'build.py'
         $ortBuildPyLauncherWindowsPath = Join-Path $RootDir 'scripts' 'ort_build_py_launcher_windows.py'
 
