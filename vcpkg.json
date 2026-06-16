@@ -9,6 +9,7 @@
         "zlib"
       ]
     },
+    "cpuinfo",
     {
       "name": "curl",
       "default-features": false,
