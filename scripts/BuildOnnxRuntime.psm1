@@ -5,8 +5,8 @@
 # file: scripts/BuildOnnxRuntime.psm1
 # description: Helper module to build the ONNX Runtime.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.0.0
-# date: 2026-05-30
+# version: 1.1.0
+# date: 2026-06-16
 
 function Update-OrtSourceWithPatches {
     [CmdletBinding()]
@@ -308,8 +308,7 @@ function Get-OrtToolchainReport {
         [string]$VcpkgRoot = $env:VCPKG_ROOT ? $env:VCPKG_ROOT : (Join-Path $PluginBuildDir 'vcpkg'),
         [string]$ReducedOpsConfigPath = (Join-Path $RootDir 'src' 'required_operators_and_types.with_runtime_opt.config'),
         [string]$PythonExe = $env:PYTHON,
-        [string]$VsVersionRange = '[17,]',
-        [string]$WindowsSdkVersion = '10.0.22621'
+        [string]$VsVersionRange = '[17,]'
     )
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
