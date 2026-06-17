@@ -6,7 +6,7 @@
 
 # file: .github/workflows/vcpkg-ort-macos.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-06-15
+# date: 2026-06-18
 
 on:
   workflow_call:
@@ -68,10 +68,10 @@ jobs:
 
     env:
       DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
-      ORT_VERSION: '${{ inputs.ORT_VERSION }}'
       OSX_ARCHITECTURES: '${{ inputs.OSX_ARCHITECTURES }}'
       OSX_DEPLOYMENT_TARGET: '${{ inputs.OSX_DEPLOYMENT_TARGET }}'
-      VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
+      PLUGIN_VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
+      PLUGIN_ORT_VERSION: '${{ inputs.ORT_VERSION }}'
 
     steps:
       - name: Print Xcode version
@@ -88,7 +88,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: microsoft/vcpkg
-          ref: ${{ env.VCPKG_VERSION }}
+          ref: ${{ env.PLUGIN_VCPKG_VERSION }}
           persist-credentials: false
           path: vcpkg
           filter: blob:none
@@ -115,7 +115,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: microsoft/onnxruntime
-          ref: ${{ env.ORT_VERSION }}
+          ref: ${{ env.PLUGIN_ORT_VERSION }}
           persist-credentials: false
           path: onnxruntime
           submodules: recursive
@@ -126,6 +126,30 @@ jobs:
         uses: ./.github/actions/ciproxy/start
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
+
+      - name: Install dependencies from ONNX Runtime's vcpkg (macOS)
+        shell: pwsh
+        env:
+          PYTHON: ${{ steps.setup-python.outputs.python-path }}
+          VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
+        run: |
+          Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
+
+          Import-Module ./scripts/BuildOnnxRuntime.psm1
+
+          $env:VCPKG_ROOT = Join-Path $env:GITHUB_WORKSPACE 'vcpkg'
+
+          $env:PATH = @(
+              Split-Path (Get-OrtToolchain -Name cmake) -Parent
+              Split-Path (Get-OrtToolchain -Name ninja) -Parent
+              '/usr/bin',
+              '/bin',
+              '/usr/sbin',
+              '/sbin'
+          ) -join ':'
+
+          Update-OrtSourceWithPatches
+          Invoke-OrtBuildPy -Command update -Arch $env:OSX_ARCHITECTURES -OsxDeploymentTarget $env:OSX_DEPLOYMENT_TARGET
 
       - name: Install dependencies from ONNX Runtime's vcpkg (macOS)
         id: build-onnxruntime
