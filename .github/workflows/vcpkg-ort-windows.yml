@@ -121,13 +121,11 @@ jobs:
           $pwshExe = & $vcpkgExe fetch powershell-core | Select-Object -Last 1
           $cmakeExe = & $vcpkgExe fetch cmake | Select-Object -Last 1
           $ninjaExe = & $vcpkgExe fetch ninja | Select-Object -Last 1
-          $ccacheExe = Get-Command ccache
 
           $path = @(
             Split-Path $pwshExe -Parent
             Split-Path $cmakeExe -Parent
             Split-Path $ninjaExe -Parent
-            Split-Path $ccacheExe.Source -Parent
             'C:\Program Files\Git\cmd',
             'C:\Windows\System32\WindowsPowerShell\v1.0',
             'C:\Windows\System32',
@@ -136,9 +134,6 @@ jobs:
 
           Import-Module ./scripts/BuildOnnxRuntime.psm1
 
-          $env:CCACHE_DIR = '.ccache_ort'
-          $env:CCACHE_BASEDIR = $env:GITHUB_WORKSPACE
-          $env:CCACHE_SLOPPINESS = 'include_file_mtime,time_macros'
           $env:PATH = $path -join ';'
           $env:PLUGIN_BUILD_DIR = $env:GITHUB_WORKSPACE
 
