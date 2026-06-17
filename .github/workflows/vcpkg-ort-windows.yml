@@ -142,7 +142,7 @@ jobs:
           $env:PATH = $path -join ';'
           $env:PLUGIN_BUILD_DIR = $env:GITHUB_WORKSPACE
 
-          Update-OrtSourceWithPatches
+          Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
           Invoke-OrtBuildPy -Command update
           Invoke-OrtBuildPy -Command build
           Install-Ort
