@@ -54,6 +54,7 @@ function Get-OrtToolchain {
         $vcpkgToolsJsonPath = Join-Path $VcpkgRoot 'scripts' 'vcpkg-tools.json'
         $vcpkgToolsJson = Get-Content -LiteralPath $vcpkgToolsJsonPath | Out-String | ConvertFrom-Json -AsHashtable
         $vcpkgTools = $vcpkgToolsJson.tools | Group-Object { "$($_['arch'] ?? 'unknown')_$($_['os'])_$($_['name'])" } -AsHashTable -AsString
+        $OrtToolchainDir = New-Item $OrtToolchainDir -ItemType 'Directory' -Force
 
         function Install-VcpkgTool {
             param(
