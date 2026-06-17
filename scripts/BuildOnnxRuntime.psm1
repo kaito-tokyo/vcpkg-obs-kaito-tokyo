@@ -118,13 +118,12 @@ function Invoke-OrtBuildPy {
         [string]$PythonExe = $env:PYTHON,
         [string]$VsVersionRange = '[17,]',
         [string]$OsxDeploymentTarget = $null,
-        [string]$WindowsSystemVersion = $null
+        [string]$WindowsSdkVersion = $env:PLUGIN_WINDOWS_SDK_VERSION
     )
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
         $buildPyPath = Join-Path $RootDir 'onnxruntime' 'tools' 'ci_build' 'build.py'
-        $ortBuildPyLauncherWindowsPath = Join-Path $RootDir 'scripts' 'ort_build_py_launcher_windows.py'
 
         $buildPyArgs = @(
             '--config', $Config,
@@ -148,15 +147,19 @@ function Invoke-OrtBuildPy {
             )
         }
 
+        if ($env:ORT_CCACHE_DIR) {
+            $env:CCACHE_DIR = $env:ORT_CCACHE_DIR
+        }
+
         if ($env:CCACHE_DIR) {
             $buildPyArgs += '--use_cache'
         }
 
         if ($IsWindows) {
-            if (-not $WindowsSystemVersion) {
+            if (-not $WindowsSdkVersion) {
                 $cmakePresets = Get-Content -LiteralPath (Join-Path $RootDir 'CMakePresets.json') -Raw | ConvertFrom-Json
                 $windowsPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'windows' }
-                $WindowsSystemVersion = $windowsPreset.cacheVariables.CMAKE_SYSTEM_VERSION
+                $WindowsSdkVersion = $windowsPreset.cacheVariables.CMAKE_SYSTEM_VERSION
             }
 
             $ortBuildDir = Join-Path $PluginBuildDir 'build_ort'
@@ -164,7 +167,7 @@ function Invoke-OrtBuildPy {
             $buildPyArgs += @(
                 '--build_dir', $ortBuildDir,
                 '--cmake_generator', 'Ninja',
-                '--windows_sdk_version', $WindowsSystemVersion
+                '--windows_sdk_version', $WindowsSdkVersion
             )
 
             if ($env:CCACHE_DIR) {
@@ -222,9 +225,18 @@ function Invoke-OrtBuildPy {
         if ($IsWindows) {
             $vsInstallationPath = vswhere -version "$VsVersionRange" -property installationPath
 
-            . (Join-Path $vsInstallationPath 'Common7' 'Tools' 'Launch-VsDevShell.ps1') -Arch amd64 -NoLogo
+            . (Join-Path $vsInstallationPath 'Common7' 'Tools' 'Launch-VsDevShell.ps1') -Arch amd64
 
-            & $PythonExe $ortBuildPyLauncherWindowsPath $buildPyPath $buildPyArgs --cmake_extra_defines $buildPyCMakeExtraDefines
+            $buildPyLauncherCode = @(
+              'import platform, runpy, sys',
+              'from pathlib import Path',
+              'platform.machine = lambda: "AMD64"',
+              'sys.argv = sys.argv[1:]',
+              'sys.path.insert(0, str(Path(sys.argv[0]).resolve().parent))',
+              'runpy.run_path(sys.argv[0], run_name="__main__")'
+            )
+
+            & $PythonExe -c ($buildPyLauncherCode -join [Environment]::NewLine) $buildPyPath $buildPyArgs --cmake_extra_defines $buildPyCMakeExtraDefines
         }
         else {
             & $PythonExe $buildPyPath $buildPyArgs --cmake_extra_defines $buildPyCMakeExtraDefines

@@ -33,15 +33,17 @@ jobs:
       VCPKG_BINARY_SOURCES: ${{ steps.config.outputs.VCPKG_BINARY_SOURCES }}
       VCPKG_VERSION: ${{ steps.config.outputs.VCPKG_VERSION }}
       ORT_VERSION_JSON: ${{ steps.config.outputs.ORT_VERSION_JSON }}
+      WINDOWS_SDK_VERSION: ${{ steps.config.outputs.WINDOWS_SDK_VERSION }}
     runs-on: ubuntu-slim
     steps:
       - name: Output config
         id: config
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          echo 'ORT_VERSION_JSON=["v1.21.0","v1.23.2"]' >> "${GITHUB_OUTPUT}"
-          echo 'VCPKG_BINARY_SOURCES=clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' >> "${GITHUB_OUTPUT}"
-          echo 'VCPKG_VERSION=2026.04.27' >> "${GITHUB_OUTPUT}"
+          printf 'ORT_VERSION_JSON=%s\n' '["v1.21.0","v1.23.2"]' >> "$GITHUB_OUTPUT"
+          printf 'VCPKG_BINARY_SOURCES=%s\n' 'clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' >> "$GITHUB_OUTPUT"
+          printf 'VCPKG_VERSION=%s\n' '2026.04.27' >> "$GITHUB_OUTPUT"
+          printf 'WINDOWS_SDK_VERSION=%s\n' '10.0.22621' >> "$GITHUB_OUTPUT"
 
   vcpkg-ort-windows:
     needs: config
@@ -58,6 +60,7 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      WINDOWS_SDK_VERSION: ${{ needs.config.outputs.WINDOWS_SDK_VERSION }}
       VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
       ORT_VERSION: ${{ matrix.ort-version }}

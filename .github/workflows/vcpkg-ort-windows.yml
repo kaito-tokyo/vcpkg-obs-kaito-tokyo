@@ -19,6 +19,10 @@ on:
         description: The environment name for this workflow, or empty string for no environment
         required: true
         type: string
+      WINDOWS_SDK_VERSION:
+        description: The version of Windows SDK to build with.
+        required: true
+        type: string
       VCPKG_VERSION:
         description: Default VCPKG_BINARY_SOURCES.
         required: true
@@ -53,6 +57,7 @@ jobs:
     env:
       ORT_VERSION: '${{ inputs.ORT_VERSION }}'
       VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
+      PLUGIN_WINDOWS_SDK_VERSION: '${{ inputs.WINDOWS_SDK_VERSION }}'
 
     steps:
       - name: Enable Windows long path
