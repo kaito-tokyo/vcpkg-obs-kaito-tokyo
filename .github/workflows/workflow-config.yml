@@ -37,4 +37,4 @@ jobs:
         env:
           config: '${{ toJson(env) }}'
         run: |
-          printf 'config<<EOS\n%s\nEOS\n' "$config" >> "$GITHUB_OUTPUT"
+          printf 'config<<EOS\n%s\nEOS\n' "$config" | tee "$GITHUB_OUTPUT"
