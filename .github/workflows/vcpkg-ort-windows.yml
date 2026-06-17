@@ -141,6 +141,7 @@ jobs:
 
           $env:PATH = $path -join ';'
           $env:PLUGIN_BUILD_DIR = $env:GITHUB_WORKSPACE
+          $env:VCPKG_ROOT = $vcpkgRoot
 
           Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
           Invoke-OrtBuildPy -Command update
