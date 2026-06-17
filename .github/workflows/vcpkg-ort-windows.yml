@@ -51,7 +51,6 @@ jobs:
       id-token: write
 
     env:
-      MINIMAL_PATH: 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
       ORT_VERSION: '${{ inputs.ORT_VERSION }}'
       VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
 
@@ -75,16 +74,12 @@ jobs:
           path: vcpkg
           filter: blob:none
 
-      - name: Checkout ONNX Runtime
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          repository: microsoft/onnxruntime
-          ref: ${{ env.ORT_VERSION }}
-          persist-credentials: false
-          path: onnxruntime
-          submodules: recursive
+      - name: Run bootstrap-vcpkg.bat
+        shell: pwsh
+        run: |
+          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
-      - name: Set up Python
+      - name: Set up Python for build requirements
         id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -97,52 +92,14 @@ jobs:
           go-version-file: .github/actions/ciproxy/cmd/go.mod
           cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
-      - name: Set up vcpkg using PowerShell
-        shell: pwsh
-        run: |
-          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
-
-      - name: Set up vcpkg toolchains using PowerShell
-        shell: pwsh
-        env:
-          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
-        run: |
-          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
-
-          $env:Path = $env:MINIMAL_PATH
-
-          $CMAKE_EXE = ./vcpkg/vcpkg.exe fetch cmake | Select-Object -Last 1
-          $NINJA_EXE = ./vcpkg/vcpkg.exe fetch ninja | Select-Object -Last 1
-          $VSWHERE_EXE = ./vcpkg/vcpkg.exe fetch vswhere | Select-Object -Last 1
-
-          Add-Content -Path $env:GITHUB_ENV -Value "CMAKE_DIR=$(Split-Path -Parent $CMAKE_EXE)" -Encoding utf8
-          Add-Content -Path $env:GITHUB_ENV -Value "NINJA_DIR=$(Split-Path -Parent $NINJA_EXE)" -Encoding utf8
-          Add-Content -Path $env:GITHUB_ENV -Value "VSWHERE_EXE=$VSWHERE_EXE" -Encoding utf8
-
-          & $CMAKE_EXE --version
-          & $NINJA_EXE --version
-          & $VSWHERE_EXE
-
-      - name: Patch ONNX Runtime
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          case "$ORT_VERSION" in
-          v1.21.0)
-            patches=()
-            ;;
-          v1.23.2)
-            patches=(
-              scripts/ort_patches/0000-27960.patch
-              scripts/ort_patches/0001-27981.patch
-              scripts/ort_patches/0002-27982.patch
-            )
-            ;;
-          esac
-          if [[ "${#patches[@]}" -gt 0 ]]; then
-            for patch in "${patches[@]}"; do
-              git -C onnxruntime apply "../$patch"
-            done
-          fi
+      - name: Checkout ONNX Runtime
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: microsoft/onnxruntime
+          ref: ${{ env.ORT_VERSION }}
+          persist-credentials: false
+          path: onnxruntime
+          submodules: recursive
 
       - name: Start ciproxy
         id: ciproxy
@@ -151,37 +108,44 @@ jobs:
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
 
-      - name: Build vcpkg of ONNX Runtime on Windows
+      - name: Build ONNX Runtime (Windows)
         shell: pwsh
         env:
-          PYTHON_EXE: ${{ steps.setup-python.outputs.python-path }}
-          VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
+          PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: |
-          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
+          Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
-          $env:Path = "$env:CMAKE_DIR;$env:NINJA_DIR;$env:MINIMAL_PATH"
-          Remove-Item env:VCPKG_INSTALLATION_ROOT -ErrorAction SilentlyContinue
+          $vcpkgRoot = Join-Path $env:GITHUB_WORKSPACE 'vcpkg'
+          $vcpkgExe = Join-Path $vcpkgRoot 'vcpkg'
 
-          $vsInstallationPath = & $env:VSWHERE_EXE -version 17 -property installationPath
+          $pwshExe = & $vcpkgExe fetch powershell-core | Select-Object -Last 1
+          $cmakeExe = & $vcpkgExe fetch cmake | Select-Object -Last 1
+          $ninjaExe = & $vcpkgExe fetch ninja | Select-Object -Last 1
+          $ccacheExe = Get-Command ccache
 
-          . (Join-Path $vsInstallationPath 'Common7\Tools\Launch-VsDevShell.ps1')
-
-          $opts = @(
-            '--update',
-            '--build_dir', 'build_ort_x64',
-            '--cmake_extra_defines',
-            'CMAKE_POLICY_VERSION_MINIMUM=3.5',
-            'onnxruntime_BUILD_UNIT_TESTS=OFF',
-            '--cmake_generator', 'Ninja',
-            '--compile_no_warning_as_error',
-            '--config', 'Release',
-            '--disable_rtti',
-            '--skip_submodule_sync',
-            '--skip_tests',
-            '--use_vcpkg'
+          $path = @(
+            Split-Path $pwshExe -Parent
+            Split-Path $cmakeExe -Parent
+            Split-Path $ninjaExe -Parent
+            Split-Path $ccacheExe.Source -Parent
+            'C:\Program Files\Git\cmd',
+            'C:\Windows\System32\WindowsPowerShell\v1.0',
+            'C:\Windows\System32',
+            'C:\Windows'
           )
 
-          & $env:PYTHON_EXE ./onnxruntime/tools/ci_build/build.py @opts
+          Import-Module ./scripts/BuildOnnxRuntime.psm1
+
+          $env:CCACHE_DIR = '.ccache_ort'
+          $env:CCACHE_BASEDIR = $env:GITHUB_WORKSPACE
+          $env:CCACHE_SLOPPINESS = 'include_file_mtime,time_macros'
+          $env:PATH = $path -join ';'
+          $env:PLUGIN_BUILD_DIR = $env:GITHUB_WORKSPACE
+
+          Update-OrtSourceWithPatches
+          Invoke-OrtBuildPy -Command update
+          Invoke-OrtBuildPy -Command build
+          Install-Ort
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
