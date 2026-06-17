@@ -55,8 +55,8 @@ jobs:
       id-token: write
 
     env:
-      ORT_VERSION: '${{ inputs.ORT_VERSION }}'
-      VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
+      PLUGIN_ORT_VERSION: '${{ inputs.ORT_VERSION }}'
+      PLUGIN_VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
       PLUGIN_WINDOWS_SDK_VERSION: '${{ inputs.WINDOWS_SDK_VERSION }}'
 
     steps:
@@ -74,7 +74,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: microsoft/vcpkg
-          ref: ${{ env.VCPKG_VERSION }}
+          ref: ${{ env.PLUGIN_VCPKG_VERSION }}
           persist-credentials: false
           path: vcpkg
           filter: blob:none
@@ -101,7 +101,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: microsoft/onnxruntime
-          ref: ${{ env.ORT_VERSION }}
+          ref: ${{ env.PLUGIN_ORT_VERSION }}
           persist-credentials: false
           path: onnxruntime
           submodules: recursive
@@ -120,30 +120,21 @@ jobs:
         run: |
           Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
-          $vcpkgRoot = Join-Path $env:GITHUB_WORKSPACE 'vcpkg'
-          $vcpkgExe = Join-Path $vcpkgRoot 'vcpkg'
-
-          $pwshExe = & $vcpkgExe fetch powershell-core | Select-Object -Last 1
-          $cmakeExe = & $vcpkgExe fetch cmake | Select-Object -Last 1
-          $ninjaExe = & $vcpkgExe fetch ninja | Select-Object -Last 1
-
-          $path = @(
-            Split-Path $pwshExe -Parent
-            Split-Path $cmakeExe -Parent
-            Split-Path $ninjaExe -Parent
-            'C:\Program Files\Git\cmd',
-            'C:\Windows\System32\WindowsPowerShell\v1.0',
-            'C:\Windows\System32',
-            'C:\Windows'
-          )
-
           Import-Module ./scripts/BuildOnnxRuntime.psm1
 
-          $env:PATH = $path -join ';'
-          $env:PLUGIN_BUILD_DIR = $env:GITHUB_WORKSPACE
-          $env:VCPKG_ROOT = $vcpkgRoot
+          $env:VCPKG_ROOT = Join-Path $env:GITHUB_WORKSPACES 'vcpkg'
 
-          Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
+          $env:PATH = @(
+              Split-Path (Get-OrtToolchain -Name cmake) -Parent
+              Split-Path (Get-OrtToolchain -Name ninja) -Parent
+              Split-Path (Get-OrtToolchain -Name vswhere) -Parent
+              'C:\Program Files\Git\cmd',
+              'C:\Windows\System32\WindowsPowerShell\v1.0',
+              'C:\Windows\System32',
+              'C:\Windows'
+          ) -join ';'
+
+          Update-OrtSourceWithPatches
           Invoke-OrtBuildPy -Command update
           Invoke-OrtBuildPy -Command build
           Install-Ort
