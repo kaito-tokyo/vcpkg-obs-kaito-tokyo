@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Workflow config
+
+# file: .github/workflows/workflow-config.yml
+# author: Kaito Udagawa <umireon@kaito.tokyo>
+# date: 2026-06-17
+
+on:
+  workflow_call:
+    outputs:
+      configJson:
+        description: Workflow config
+        value: ${{ jobs.workflow-config.outputs.configJson }}
+
+permissions: {}
+
+env:
+  ORT_VERSION_JSON: '["v1.21.0","v1.23.2"]'
+  VCPKG_BINARY_SOURCES: 'clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read'
+  VCPKG_VERSION: '2026.06.01'
+  WINDOWS_SDK_VERSION: '10.0.22621'
+
+jobs:
+  workflow-config:
+    outputs:
+      configJson: ${{ steps.config.outputs.configJson }}
+    runs-on: ubuntu-slim
+    steps:
+      - name: config
+        id: config
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          configJson: '${{ toJson(env) }}'
+        run: |
+          printf 'configJson<<EOS\n%s\nEOS\n' "$configJson" | tee "$GITHUB_OUTPUT"

@@ -5,8 +5,8 @@
 # file: scripts/BuildOnnxRuntime.psm1
 # description: Helper module to build the ONNX Runtime.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.0
-# date: 2026-06-16
+# version: 1.2.0
+# date: 2026-06-17
 
 function Update-OrtSourceWithPatches {
     [CmdletBinding()]
@@ -15,7 +15,7 @@ function Update-OrtSourceWithPatches {
         [string]$PluginBuildDir = $env:PLUGIN_BUILD_DIR ?? $RootDir,
         [string]$OrtSourceDir = (Join-Path $PluginBuildDir 'onnxruntime'),
         [string]$OrtPatchesDir = (Join-Path $RootDir 'scripts' 'ort_patches'),
-        [string]$OrtVersion = $null
+        [string]$OrtVersion = $env:PLUGIN_ORT_VERSION
     )
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
@@ -36,12 +36,14 @@ function Update-OrtSourceWithPatches {
     }
 }
 
-function Initialize-OrtToolchain {
+function Get-OrtToolchain {
     [CmdletBinding()]
     param(
         [string]$RootDir = $PWD,
         [string]$PluginBuildDir = $env:PLUGIN_BUILD_DIR ?? $RootDir,
         [string]$VcpkgRoot = $env:VCPKG_ROOT ?? (Join-Path $PluginBuildDir 'vcpkg'),
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
         [string]$OrtToolchainDir = (Join-Path $PluginBuildDir '.deps' 'ort_toolchain')
     )
     process {
@@ -49,57 +51,71 @@ function Initialize-OrtToolchain {
 
         $vcpkgExe = Join-Path $VcpkgRoot 'vcpkg'
 
-        $vcpkgTools = (Get-Content -LiteralPath (Join-Path $VcpkgRoot 'scripts' 'vcpkg-tools.json') | Out-String | ConvertFrom-Json -AsHashtable).tools | Group-Object { "$($_['arch'] ?? 'unknown')_$($_['os'])_$($_['name'])" } -AsHashTable -AsString
+        $vcpkgToolsJsonPath = Join-Path $VcpkgRoot 'scripts' 'vcpkg-tools.json'
+        $vcpkgToolsJson = Get-Content -LiteralPath $vcpkgToolsJsonPath | Out-String | ConvertFrom-Json -AsHashtable
+        $vcpkgTools = $vcpkgToolsJson.tools | Group-Object { "$($_['arch'] ?? 'unknown')_$($_['os'])_$($_['name'])" } -AsHashTable -AsString
+
+        function Install-VcpkgTool {
+            param(
+                [Parameter(Mandatory = $true)]
+                [hashtable]$Tool
+            )
+            process {
+                New-Item $OrtToolchainDir -ItemType 'Directory' -Force
+
+                $outfile = Join-Path $OrtToolchainDir (Split-Path $Tool.url -Leaf)
+                $outdir = Join-Path $OrtToolchainDir $Tool.name
+
+                if (!(Test-Path $outfile)) {
+                    Invoke-WebRequest -Uri $Tool.url -OutFile $outfile
+                }
+
+                $fileHash = Get-FileHash -LiteralPath $outfile -Algorithm SHA512
+                if ($fileHash.Hash -ine $Tool.sha512) {
+                    throw "Checksum verification failed: $Name expected=$($Tool.sha512) actual=$($fileHash.Hash)"
+                }
+
+                if (!(Test-Path -LiteralPath $outdir)) {
+                    if ((Split-Path $Tool.url -Extension) -imatch '^\.(zip|tar\.gz)$') {
+                        Expand-Archive -LiteralPath $outfile -Destination $outdir -Force
+                    }
+                    else {
+                        throw 'Tool artifact in not supported format'
+                    }
+                }
+
+                Join-Path $outdir $Tool.executable
+            }
+
+        }
 
         if ($IsWindows) {
-            $selectedTools = @(
-                $vcpkgTools.amd64_windows_cmake,
-                $vcpkgTools.x64_windows_ninja
-            )
-            $pathComponents = @(
-                Split-Path (& $vcpkgExe fetch vswhere | Select-Object -Last 1) -Parent
-            )
+            if ($Name -eq 'cmake') {
+                Install-VcpkgTool -Tool $vcpkgTools.amd64_windows_cmake[0]
+            }
+            elseif ($Name -eq 'ninja') {
+                Install-VcpkgTool -Tool $vcpkgTools.x64_windows_ninja[0]
+            }
+            elseif ($Name -eq 'vswhere') {
+                & $vcpkgExe fetch vswhere | Select-Object -Last 1
+            }
+            else {
+                throw "Unsupported tool name: $Name"
+            }
+        }
+        elseif ($IsMacOS) {
+            if ($Name -eq 'cmake') {
+                & $vcpkgExe fetch cmake | Select-Object -Last 1
+            }
+            elseif ($Name -eq 'ninja') {
+                & $vcpkgExe fetch ninja | Select-Object -Last 1
+            }
+            else {
+                throw "Unsupported tool name: $Name"
+            }
         }
         else {
-            $selectedTools = @()
-            $pathComponents = @(
-                Split-Path (& $vcpkgExe fetch cmake | Select-Object -Last 1) -Parent
-                Split-Path (& $vcpkgExe fetch ninja | Select-Object -Last 1) -Parent
-            )
-        }
-
-        $OrtToolchainDir = New-Item $OrtToolchainDir -ItemType 'Directory' -Force
-
-        foreach ($tool in $selectedTools) {
-            $outfile = Join-Path $OrtToolchainDir (Split-Path $tool.url -Leaf)
-            $outdir = Join-Path $OrtToolchainDir $tool.name
-
-            if (!(Test-Path $outfile)) {
-                Invoke-WebRequest -Uri $tool.url -OutFile $outfile
-            }
-
-            $fileHash = Get-FileHash -LiteralPath $outfile -Algorithm SHA512
-            if ($fileHash.Hash -ine $tool.sha512) {
-                throw 'Checksum verification failed'
-            }
-
-            if (!(Test-Path -LiteralPath $outdir)) {
-                if ((Split-Path $tool.url -Extension) -imatch '^\.(zip|tar\.gz)$') {
-                    Expand-Archive -LiteralPath $outfile -Destination $outdir -Force
-                }
-                else {
-                    throw 'Tool artifact in not supported format'
-                }
-            }
-
-            $executable = Join-Path $outdir $tool.executable
-
-            $pathComponents += Split-Path $executable -Parent
-        }
-
-        return [PSCustomObject]@{
-            pathComponents = $pathComponents
-            vcpkgExe       = $vcpkgExe
+            throw 'Unsupported platform'
         }
     }
 }
@@ -118,13 +134,12 @@ function Invoke-OrtBuildPy {
         [string]$PythonExe = $env:PYTHON,
         [string]$VsVersionRange = '[17,]',
         [string]$OsxDeploymentTarget = $null,
-        [string]$WindowsSystemVersion = $null
+        [string]$WindowsSdkVersion = $env:PLUGIN_WINDOWS_SDK_VERSION
     )
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
         $buildPyPath = Join-Path $RootDir 'onnxruntime' 'tools' 'ci_build' 'build.py'
-        $ortBuildPyLauncherWindowsPath = Join-Path $RootDir 'scripts' 'ort_build_py_launcher_windows.py'
 
         $buildPyArgs = @(
             '--config', $Config,
@@ -148,15 +163,19 @@ function Invoke-OrtBuildPy {
             )
         }
 
+        if ($env:ORT_CCACHE_DIR) {
+            $env:CCACHE_DIR = $env:ORT_CCACHE_DIR
+        }
+
         if ($env:CCACHE_DIR) {
             $buildPyArgs += '--use_cache'
         }
 
         if ($IsWindows) {
-            if (-not $WindowsSystemVersion) {
+            if (-not $WindowsSdkVersion) {
                 $cmakePresets = Get-Content -LiteralPath (Join-Path $RootDir 'CMakePresets.json') -Raw | ConvertFrom-Json
                 $windowsPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'windows' }
-                $WindowsSystemVersion = $windowsPreset.cacheVariables.CMAKE_SYSTEM_VERSION
+                $WindowsSdkVersion = $windowsPreset.cacheVariables.CMAKE_SYSTEM_VERSION
             }
 
             $ortBuildDir = Join-Path $PluginBuildDir 'build_ort'
@@ -164,7 +183,7 @@ function Invoke-OrtBuildPy {
             $buildPyArgs += @(
                 '--build_dir', $ortBuildDir,
                 '--cmake_generator', 'Ninja',
-                '--windows_sdk_version', $WindowsSystemVersion
+                '--windows_sdk_version', $WindowsSdkVersion
             )
 
             if ($env:CCACHE_DIR) {
@@ -216,15 +235,21 @@ function Invoke-OrtBuildPy {
             throw "Unsupported command: $Command"
         }
 
-        $ortToolchain = Initialize-OrtToolchain
-        $env:PATH = ($ortToolchain.pathComponents + ($env:PATH -split [System.IO.Path]::PathSeparator)) -join [System.IO.Path]::PathSeparator
-
         if ($IsWindows) {
             $vsInstallationPath = vswhere -version "$VsVersionRange" -property installationPath
 
-            . (Join-Path $vsInstallationPath 'Common7' 'Tools' 'Launch-VsDevShell.ps1') -Arch amd64 -NoLogo
+            . (Join-Path $vsInstallationPath 'Common7' 'Tools' 'Launch-VsDevShell.ps1') -Arch amd64
 
-            & $PythonExe $ortBuildPyLauncherWindowsPath $buildPyPath $buildPyArgs --cmake_extra_defines $buildPyCMakeExtraDefines
+            $buildPyLauncherCode = @(
+              'import platform, runpy, sys',
+              'from pathlib import Path',
+              'platform.machine = lambda: "AMD64"',
+              'sys.argv = sys.argv[1:]',
+              'sys.path.insert(0, str(Path(sys.argv[0]).resolve().parent))',
+              'runpy.run_path(sys.argv[0], run_name="__main__")'
+            )
+
+            & $PythonExe -c ($buildPyLauncherCode -join [Environment]::NewLine) $buildPyPath $buildPyArgs --cmake_extra_defines $buildPyCMakeExtraDefines
         }
         else {
             & $PythonExe $buildPyPath $buildPyArgs --cmake_extra_defines $buildPyCMakeExtraDefines
@@ -245,9 +270,6 @@ function Install-Ort {
         [string]$OsxDeploymentTarget = $null
     )
     process {
-        $ortToolchain = Initialize-OrtToolchain
-        $env:PATH = ($ortToolchain.pathComponents + ($env:PATH -split [System.IO.Path]::PathSeparator)) -join [System.IO.Path]::PathSeparator
-
         if ($IsWindows) {
             $ortBuildDir = Join-Path $PluginBuildDir 'build_ort' $Config
             $ortInstalledDir = Join-Path $PluginBuildDir 'ort_installed'
@@ -297,53 +319,5 @@ function Install-Ort {
             $kleidiaiUniversal = Join-Path $ortPrefixDirs.universal 'lib' 'libkleidiai.a'
             lipo -create $kleidiaiArm64 $dummyA -output $kleidiaiUniversal
         }
-    }
-}
-
-function Get-OrtToolchainReport {
-    [CmdletBinding()]
-    param(
-        [string]$RootDir = $PWD,
-        [string]$PluginBuildDir = $PWD,
-        [string]$VcpkgRoot = $env:VCPKG_ROOT ? $env:VCPKG_ROOT : (Join-Path $PluginBuildDir 'vcpkg'),
-        [string]$ReducedOpsConfigPath = (Join-Path $RootDir 'src' 'required_operators_and_types.with_runtime_opt.config'),
-        [string]$PythonExe = $env:PYTHON,
-        [string]$VsVersionRange = '[17,]'
-    )
-    process {
-        Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
-
-        if ($IsWindows) {
-            if (-not $PythonExe) {
-                $PythonExe = Join-Path $PluginBuildDir '.venv' 'Scripts' 'python.exe'
-            }
-        }
-        elseif ($IsMacOS) {
-            if (-not $PythonExe) {
-                $PythonExe = Join-Path $PluginBuildDir '.venv' 'bin' 'python3'
-            }
-        }
-        else {
-            throw "Unsupported platform: $($PSVersionTable.OS)"
-        }
-
-        & $PythonExe --version
-        & $PythonExe -m pip freeze | Sort-Object | ConvertTo-Json
-
-        Push-Location $RootDir
-
-        $hashFiles = @(
-            Join-Path $RootDir 'buildspec.props'
-            Join-Path $RootDir 'scripts' 'BuildOnnxRuntime.psm1'
-            $ReducedOpsConfigPath
-        )
-        $hashFiles += Get-ChildItem -Path (Join-Path $RootDir 'scripts' 'ort_patches') -Filter '*.patch' -File -ErrorAction Stop | Sort-Object
-
-        foreach ($file in $hashFiles) {
-            $hash = Get-FileHash -Path $file -Algorithm SHA384
-            "$($hash.Hash)  $((Resolve-Path $file -Relative).Replace('\', '/'))"
-        }
-
-        Pop-Location
     }
 }

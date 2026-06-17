@@ -100,6 +100,7 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
+          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
         run: |
           vcpkg() {
             env -i \
@@ -117,6 +118,7 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
+          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
         run: |
           vcpkg() {
             env -i \

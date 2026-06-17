@@ -28,18 +28,7 @@ concurrency:
 
 jobs:
   config:
-    permissions: {}
-    outputs:
-      VCPKG_BINARY_SOURCES: ${{ steps.config.outputs.VCPKG_BINARY_SOURCES }}
-      VCPKG_VERSION: ${{ steps.config.outputs.VCPKG_VERSION }}
-    runs-on: ubuntu-slim
-    steps:
-      - name: Output config
-        id: config
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          echo 'VCPKG_BINARY_SOURCES=clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read' >> "${GITHUB_OUTPUT}"
-          echo 'VCPKG_VERSION=2026.04.27' >> "${GITHUB_OUTPUT}"
+    uses: ./.github/workflows/workflow-config.yml
 
   vcpkg-manifest-windows:
     needs: config
@@ -52,8 +41,8 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-macos:
@@ -79,8 +68,8 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-macos-arm64-14:
@@ -103,8 +92,8 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-ubuntu:
@@ -118,8 +107,8 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_VERSION: ${{ needs.config.outputs.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   accept-vcpkg-manifest:
