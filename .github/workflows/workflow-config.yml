@@ -28,13 +28,13 @@ env:
 jobs:
   workflow-config:
     outputs:
-      config: ${{ fromJson(steps.config.outputs.config) }}
+      configJson: ${{ steps.config.outputs.configJson }}
     runs-on: ubuntu-slim
     steps:
       - name: config
         id: config
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          config: '${{ toJson(env) }}'
+          configJson: '${{ toJson(env) }}'
         run: |
-          printf 'config<<EOS\n%s\nEOS\n' "$config" | tee "$GITHUB_OUTPUT"
+          printf 'configJson<<EOS\n%s\nEOS\n' "$configJson" | tee "$GITHUB_OUTPUT"

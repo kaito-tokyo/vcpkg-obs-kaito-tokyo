@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ort-version: ${{ fromJSON(needs.config.outputs.config.ORT_VERSION_JSON) }}
+        ort-version: ${{ fromJSON(fromJSON(needs.config.outputs.config).ORT_VERSION_JSON) }}
     name: ORT ${{ matrix.ort-version }} on Windows x64
     permissions:
       attestations: write
@@ -45,9 +45,9 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      WINDOWS_SDK_VERSION: ${{ needs.config.outputs.config.WINDOWS_SDK_VERSION }}
-      VCPKG_VERSION: ${{ needs.config.outputs.config.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.config.VCPKG_BINARY_SOURCES }}
+      WINDOWS_SDK_VERSION: ${{ fromJSON(needs.config.outputs.config).WINDOWS_SDK_VERSION }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.config).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.config).VCPKG_BINARY_SOURCES }}
       ORT_VERSION: ${{ matrix.ort-version }}
     secrets: inherit
 
@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       matrix:
         osx-arch: [arm64, x86_64]
-        ort-version: ${{ fromJSON(needs.config.outputs.config.ORT_VERSION_JSON) }}
+        ort-version: ${{ fromJSON(fromJSON(needs.config.outputs.config).ORT_VERSION_JSON) }}
         os-xcode:
           - name: Sequoia, Xcode 16.4
             runs-on: macos-15
@@ -78,8 +78,8 @@ jobs:
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
       OSX_ARCHITECTURES: ${{ matrix.osx-arch }}
       OSX_DEPLOYMENT_TARGET: '12.0'
-      VCPKG_VERSION: ${{ needs.config.outputs.config.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.config.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.config).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.config).VCPKG_BINARY_SOURCES }}
       ORT_VERSION: ${{ matrix.ort-version }}
     secrets: inherit
 
@@ -88,7 +88,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ort-version: ${{ fromJSON(needs.config.outputs.config.ORT_VERSION_JSON) }}
+        ort-version: ${{ fromJSON(fromJSON(needs.config.outputs.config).ORT_VERSION_JSON) }}
     name: ORT ${{ matrix.ort-version }} on Ubuntu x64
     permissions:
       attestations: write
@@ -98,8 +98,8 @@ jobs:
     with:
       job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_VERSION: ${{ needs.config.outputs.config.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.config.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.config).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.config).VCPKG_BINARY_SOURCES }}
       ORT_VERSION: ${{ matrix.ort-version }}
     secrets: inherit
 

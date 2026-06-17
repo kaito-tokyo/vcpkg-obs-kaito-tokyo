@@ -41,8 +41,8 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_VERSION: ${{ needs.config.outputs.config.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.config.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.config).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.config).VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-macos:
@@ -68,8 +68,8 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      VCPKG_VERSION: ${{ needs.config.outputs.config.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.config.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.config).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.config).VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-macos-arm64-14:
@@ -92,8 +92,8 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      VCPKG_VERSION: ${{ needs.config.outputs.config.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.config.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.config).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.config).VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-ubuntu:
@@ -107,8 +107,8 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_VERSION: ${{ needs.config.outputs.config.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.config.outputs.config.VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.config).VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.config).VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   accept-vcpkg-manifest:
