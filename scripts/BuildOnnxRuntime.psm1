@@ -80,7 +80,7 @@ function Initialize-OrtToolchain {
 
             $fileHash = Get-FileHash -LiteralPath $outfile -Algorithm SHA512
             if ($fileHash.Hash -ine $tool.sha512) {
-                throw 'Checksum verification failed'
+                throw "Checksum verification failed: $($tool.name) $($fileHash.Hash) $($tool.sha512)"
             }
 
             if (!(Test-Path -LiteralPath $outdir)) {
