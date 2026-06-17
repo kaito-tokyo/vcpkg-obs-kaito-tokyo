@@ -89,10 +89,10 @@ function Get-OrtToolchain {
 
         if ($IsWindows) {
             if ($Name -eq 'cmake') {
-                Install-VcpkgTool -Tool $vcpkgTools.amd64_windows_cmake
+                Install-VcpkgTool -Tool $vcpkgTools.amd64_windows_cmake[0]
             }
             elseif ($Name -eq 'ninja') {
-                Install-VcpkgTool -Tool $vcpkgTools.x64_windows_ninja
+                Install-VcpkgTool -Tool $vcpkgTools.x64_windows_ninja[0]
             }
             elseif ($Name -eq 'vswhere') {
                 & $vcpkgExe fetch vswhere | Select-Object -Last 1
