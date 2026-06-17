@@ -13,9 +13,9 @@ name: Workflow config
 on:
   workflow_call:
     outputs:
-      config:
+      configJson:
         description: Workflow config
-        value: ${{ jobs.workflow-config.outputs.config }}
+        value: ${{ jobs.workflow-config.outputs.configJson }}
 
 permissions: {}
 
