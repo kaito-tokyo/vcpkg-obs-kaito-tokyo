@@ -5,8 +5,8 @@
 # file: scripts/BuildOnnxRuntime.psm1
 # description: Helper module to build the ONNX Runtime.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.1.0
-# date: 2026-06-16
+# version: 1.2.0
+# date: 2026-06-17
 
 function Update-OrtSourceWithPatches {
     [CmdletBinding()]
@@ -297,53 +297,5 @@ function Install-Ort {
             $kleidiaiUniversal = Join-Path $ortPrefixDirs.universal 'lib' 'libkleidiai.a'
             lipo -create $kleidiaiArm64 $dummyA -output $kleidiaiUniversal
         }
-    }
-}
-
-function Get-OrtToolchainReport {
-    [CmdletBinding()]
-    param(
-        [string]$RootDir = $PWD,
-        [string]$PluginBuildDir = $PWD,
-        [string]$VcpkgRoot = $env:VCPKG_ROOT ? $env:VCPKG_ROOT : (Join-Path $PluginBuildDir 'vcpkg'),
-        [string]$ReducedOpsConfigPath = (Join-Path $RootDir 'src' 'required_operators_and_types.with_runtime_opt.config'),
-        [string]$PythonExe = $env:PYTHON,
-        [string]$VsVersionRange = '[17,]'
-    )
-    process {
-        Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
-
-        if ($IsWindows) {
-            if (-not $PythonExe) {
-                $PythonExe = Join-Path $PluginBuildDir '.venv' 'Scripts' 'python.exe'
-            }
-        }
-        elseif ($IsMacOS) {
-            if (-not $PythonExe) {
-                $PythonExe = Join-Path $PluginBuildDir '.venv' 'bin' 'python3'
-            }
-        }
-        else {
-            throw "Unsupported platform: $($PSVersionTable.OS)"
-        }
-
-        & $PythonExe --version
-        & $PythonExe -m pip freeze | Sort-Object | ConvertTo-Json
-
-        Push-Location $RootDir
-
-        $hashFiles = @(
-            Join-Path $RootDir 'buildspec.props'
-            Join-Path $RootDir 'scripts' 'BuildOnnxRuntime.psm1'
-            $ReducedOpsConfigPath
-        )
-        $hashFiles += Get-ChildItem -Path (Join-Path $RootDir 'scripts' 'ort_patches') -Filter '*.patch' -File -ErrorAction Stop | Sort-Object
-
-        foreach ($file in $hashFiles) {
-            $hash = Get-FileHash -Path $file -Algorithm SHA384
-            "$($hash.Hash)  $((Resolve-Path $file -Relative).Replace('\', '/'))"
-        }
-
-        Pop-Location
     }
 }
