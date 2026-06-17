@@ -70,7 +70,7 @@ function Get-OrtToolchain {
 
                 $fileHash = Get-FileHash -LiteralPath $outfile -Algorithm SHA512
                 if ($fileHash.Hash -ine $Tool.sha512) {
-                    throw "Checksum verification failed: $Name expected=$($tool.sha512) actual=$($fileHash.Hash)"
+                    throw "Checksum verification failed: $Name expected=$($Tool.sha512) actual=$($fileHash.Hash)"
                 }
 
                 if (!(Test-Path -LiteralPath $outdir)) {
@@ -95,7 +95,7 @@ function Get-OrtToolchain {
                 Install-VcpkgTool -Tool $vcpkgTools.x64_windows_ninja
             }
             elseif ($Name -eq 'vswhere') {
-                & $vcpkgExe fetch cmake | Select-Object -Last 1
+                & $vcpkgExe fetch vswhere | Select-Object -Last 1
             }
             else {
                 throw "Unsupported tool name: $Name"
@@ -268,9 +268,6 @@ function Install-Ort {
         [string]$OsxDeploymentTarget = $null
     )
     process {
-        $ortToolchain = Initialize-OrtToolchain
-        $env:PATH = ($ortToolchain.pathComponents + ($env:PATH -split [System.IO.Path]::PathSeparator)) -join [System.IO.Path]::PathSeparator
-
         if ($IsWindows) {
             $ortBuildDir = Join-Path $PluginBuildDir 'build_ort' $Config
             $ortInstalledDir = Join-Path $PluginBuildDir 'ort_installed'

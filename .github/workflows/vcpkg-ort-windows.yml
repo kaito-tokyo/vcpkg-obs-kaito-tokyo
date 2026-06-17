@@ -122,7 +122,7 @@ jobs:
 
           Import-Module ./scripts/BuildOnnxRuntime.psm1
 
-          $env:VCPKG_ROOT = Join-Path $env:GITHUB_WORKSPACES 'vcpkg'
+          $env:VCPKG_ROOT = Join-Path $env:GITHUB_WORKSPACE 'vcpkg'
 
           $env:PATH = @(
               Split-Path (Get-OrtToolchain -Name cmake) -Parent
