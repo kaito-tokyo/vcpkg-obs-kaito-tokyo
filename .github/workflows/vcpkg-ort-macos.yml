@@ -151,32 +151,6 @@ jobs:
           Update-OrtSourceWithPatches
           Invoke-OrtBuildPy -Command update -Arch $env:OSX_ARCHITECTURES -OsxDeploymentTarget $env:OSX_DEPLOYMENT_TARGET
 
-      - name: Install dependencies from ONNX Runtime's vcpkg (macOS)
-        id: build-onnxruntime
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          PYTHON: '${{ steps.setup-python.outputs.python-path }}'
-          VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
-        run: |
-          PWSH_EXE="$("$VCPKG_ROOT/vcpkg" fetch powershell-core | tail -n1)"
-          CMAKE_EXE="$("$VCPKG_ROOT/vcpkg" fetch cmake | tail -n1)"
-          NINJA_EXE="$("$VCPKG_ROOT/vcpkg" fetch ninja | tail -n1)"
-
-          pwsh() {
-            env -i \
-              DEVELOPER_DIR="$DEVELOPER_DIR" \
-              HOME="$HOME" \
-              PATH="${CMAKE_EXE%/*}:${NINJA_EXE%/*}:/usr/bin:/bin:/usr/sbin:/sbin" \
-              PLUGIN_BUILD_DIR="$GITHUB_WORKSPACE" \
-              PYTHON="$PYTHON" \
-              VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES" \
-              "$PWSH_EXE" "$@"
-          }
-
-          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Update-OrtSourceWithPatches -OrtVersion \"$ORT_VERSION\""
-          pwsh -NoProfile -Command "Import-Module ./scripts/BuildOnnxRuntime.psm1 && Invoke-OrtBuildPy -Command update -Arch \"$OSX_ARCHITECTURES\" -OsxDeploymentTarget \"$OSX_DEPLOYMENT_TARGET\""
-
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/ciproxy/finalize
