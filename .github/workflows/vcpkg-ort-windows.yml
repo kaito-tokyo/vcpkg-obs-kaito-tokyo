@@ -6,7 +6,7 @@
 
 # file: .github/workflows/vcpkg-ort-windows.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-05-25
+# date: 2026-06-18
 
 on:
   workflow_call:
@@ -113,7 +113,7 @@ jobs:
         with:
           ciproxy-master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}
 
-      - name: Build ONNX Runtime (Windows)
+      - name: Install dependencies from ONNX Runtime's vcpkg (Windows)
         shell: pwsh
         env:
           PYTHON: ${{ steps.setup-python.outputs.python-path }}
@@ -136,8 +136,6 @@ jobs:
 
           Update-OrtSourceWithPatches
           Invoke-OrtBuildPy -Command update
-          Invoke-OrtBuildPy -Command build
-          Install-Ort
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

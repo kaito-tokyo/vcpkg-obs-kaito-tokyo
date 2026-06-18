@@ -8,7 +8,7 @@ name: Vcpkg ORT CI
 
 # file: .github/workflows/vcpkg-ort.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-05-27
+# date: 2026-06-18
 
 on:
   push:
