@@ -22,7 +22,7 @@ permissions: {}
 env:
   ORT_VERSION_JSON: '["v1.21.0","v1.23.2"]'
   VCPKG_BINARY_SOURCES: 'clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha},read'
-  VCPKG_VERSION: '2026.06.01'
+  VCPKG_VERSION: '2026.04.27'
   WINDOWS_SDK_VERSION: '10.0.22621'
 
 jobs:
