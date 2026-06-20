@@ -66,7 +66,7 @@ function Get-OrtToolchain {
                 $outfile = Join-Path $OrtToolchainDir (Split-Path $Tool.url -Leaf)
                 $outdir = Join-Path $OrtToolchainDir $Tool.name
 
-                if (!(Test-Path $outfile)) {
+                if (-not (Test-Path $outfile)) {
                     Invoke-WebRequest -Uri $Tool.url -OutFile $outfile
                 }
 
@@ -75,7 +75,7 @@ function Get-OrtToolchain {
                     throw "Checksum verification failed: $Name expected=$($Tool.sha512) actual=$($fileHash.Hash)"
                 }
 
-                if (!(Test-Path -LiteralPath $outdir)) {
+                if (-not (Test-Path -LiteralPath $outdir)) {
                     if ((Split-Path $Tool.url -Extension) -imatch '^\.(zip|tar\.gz)$') {
                         Expand-Archive -LiteralPath $outfile -Destination $outdir -Force
                     }
@@ -124,13 +124,12 @@ function Invoke-OrtBuildPy {
     [CmdletBinding()]
     param(
         [string]$RootDir = $PWD,
-        [string]$PluginBuildDir = $env:PLUGIN_BUILD_DIR ?? $PWD,
-        [string]$VcpkgRoot = $env:VCPKG_ROOT ? $env:VCPKG_ROOT : (Join-Path $PluginBuildDir 'vcpkg'),
+        [string]$PluginBuildDir = $env:PLUGIN_BUILD_DIR ?? $RootDir,
         [Parameter(Mandatory = $true)]
         [string]$Command = $null,
         [string]$Arch = $null,
         [string]$Config = 'Release',
-        [string]$ReducedOpsConfigPath = (Join-Path $RootDir 'src' 'required_operators_and_types.with_runtime_opt.config'),
+        [string]$ReducedOpsConfigPath = $null,
         [string]$PythonExe = $env:PYTHON,
         [string]$VsVersionRange = '[17,]',
         [string]$OsxDeploymentTarget = $null,
@@ -138,6 +137,13 @@ function Invoke-OrtBuildPy {
     )
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
+
+        $buildspecPropsPath = Join-Path $RootDir 'buildspec.props'
+
+        if (-not $ReducedOpsConfigPath -and (Test-Path $buildspecPropsPath)) {
+            $buildspec = Get-Content -LiteralPath $buildspecPropsPath -Raw | ConvertFrom-StringData
+            $ReducedOpsConfigPath = $buildspec['onnxruntime_reduced_ops_config']
+        }
 
         $buildPyPath = Join-Path $RootDir 'onnxruntime' 'tools' 'ci_build' 'build.py'
 
@@ -265,7 +271,6 @@ function Install-Ort {
     param(
         [string]$RootDir = $PWD,
         [string]$PluginBuildDir = $PWD,
-        [string]$VcpkgRoot = $env:VCPKG_ROOT ? $env:VCPKG_ROOT : (Join-Path $PluginBuildDir 'vcpkg'),
         [string]$Config = 'Release',
         [string]$OsxDeploymentTarget = $null
     )
