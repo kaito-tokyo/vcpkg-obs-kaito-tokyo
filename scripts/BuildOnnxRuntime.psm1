@@ -14,7 +14,7 @@ function Update-OrtSourceWithPatches {
         [string]$PluginBuildDir = $env:PLUGIN_BUILD_DIR ?? $RootDir,
         [string]$OrtSourceDir = (Join-Path $PluginBuildDir 'onnxruntime'),
         [string]$OrtPatchesDir = (Join-Path $RootDir 'scripts' 'ort_patches'),
-        [string]$OrtVersion = $env:PLUGIN_ORT_VERSION
+        [string]$OrtVersion = $null
     )
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
@@ -128,22 +128,33 @@ function Invoke-OrtBuildPy {
         [string]$PluginBuildDir = $env:PLUGIN_BUILD_DIR ?? $RootDir,
         [Parameter(Mandatory = $true)]
         [string]$Command = $null,
-        [string]$Arch = $null,
-        [string]$Config = 'Release',
+        [string]$Config = $env:CMAKE_BUILD_TYPE ?? 'Release',
         [string]$ReducedOpsConfigPath = $null,
         [string]$PythonExe = $env:PYTHON,
         [string]$VsVersionRange = '[17,]',
-        [string]$OsxDeploymentTarget = $null,
-        [string]$WindowsSdkVersion = $env:PLUGIN_WINDOWS_SDK_VERSION
+        [string]$OsxArchitectures = $env:CMAKE_OSX_ARCHITECTURES,
+        [string]$OsxDeploymentTarget = $env:CMAKE_OSX_DEPLOYMENT_TARGET,
+        [string]$WindowsSdkVersion = $env:CMAKE_SYSTEM_VERSION
     )
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
         $buildspecPropsPath = Join-Path $RootDir 'buildspec.props'
 
-        if (-not $ReducedOpsConfigPath -and (Test-Path $buildspecPropsPath)) {
+        if (Test-Path $buildspecPropsPath) {
             $buildspec = Get-Content -LiteralPath $buildspecPropsPath -Raw | ConvertFrom-StringData
-            $ReducedOpsConfigPath = Join-Path $RootDir $buildspec['onnxruntime_reduced_ops_config']
+        }
+        else {
+            $buildspec = $null
+        }
+
+        $cmakePresetsPath = Join-Path $RootDir 'CMakePresets.json'
+
+        if (Test-Path $cmakePresetsPath) {
+            $cmakePresets = Get-Content -LiteralPath $cmakePresetsPath -Raw | ConvertFrom-Json
+        }
+        else {
+            $cmakePresets = $null
         }
 
         $buildPyPath = Join-Path $RootDir 'onnxruntime' 'tools' 'ci_build' 'build.py'
@@ -163,11 +174,20 @@ function Invoke-OrtBuildPy {
             'onnxruntime_BUILD_UNIT_TESTS=OFF'
         )
 
-        if (Test-Path $ReducedOpsConfigPath -PathType Leaf) {
-            $buildPyArgs += @(
-                '--include_ops_by_config', $ReducedOpsConfigPath,
-                '--enable_reduced_operator_type_support'
-            )
+        if (-not $ReducedOpsConfigPath -and $buildspec) {
+            $ReducedOpsConfigPath = Join-Path $RootDir $buildspec['onnxruntime_reduced_ops_config']
+        }
+
+        if ($ReducedOpsConfigPath) {
+            if (Test-Path $ReducedOpsConfigPath -PathType Leaf) {
+                $buildPyArgs += @(
+                    '--include_ops_by_config', $ReducedOpsConfigPath,
+                    '--enable_reduced_operator_type_support'
+                )
+            }
+            else {
+                throw "Reduces ops config not found: $ReducedOpsConfigPath"
+            }
         }
 
         if ($env:ORT_CCACHE_DIR) {
@@ -179,8 +199,7 @@ function Invoke-OrtBuildPy {
         }
 
         if ($IsWindows) {
-            if (-not $WindowsSdkVersion) {
-                $cmakePresets = Get-Content -LiteralPath (Join-Path $RootDir 'CMakePresets.json') -Raw | ConvertFrom-Json
+            if (-not $WindowsSdkVersion -and $cmakePresets) {
                 $windowsPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'windows' }
                 $WindowsSdkVersion = $windowsPreset.cacheVariables.CMAKE_SYSTEM_VERSION
             }
@@ -202,23 +221,27 @@ function Invoke-OrtBuildPy {
             }
         }
         elseif ($IsMacOS) {
-            if (-not $Arch) {
-                throw 'Arch not provided'
+            if (-not $OsxArchitectures) {
+                throw 'CMAKE_OSX_ARCHITECTURES not provided'
             }
 
-            if (-not $OsxDeploymentTarget) {
+            if (-not $OsxDeploymentTarget -and $cmakePresets) {
                 $cmakePresets = Get-Content -LiteralPath (Join-Path $RootDir 'CMakePresets.json') -Raw | ConvertFrom-Json
                 $macOSPreset = $cmakePresets.configurePresets | Where-Object { $_.name -eq 'macos' }
                 $OsxDeploymentTarget = $macOSPreset.cacheVariables.CMAKE_OSX_DEPLOYMENT_TARGET
             }
 
-            $ortBuildDir = Join-Path $PluginBuildDir "build_ort_$Arch"
+            if (-not $OsxDeploymentTarget) {
+                throw 'CMAKE_OSX_DEPLOYMENT_TARGET not provided'
+            }
+
+            $ortBuildDir = Join-Path $PluginBuildDir "build_ort_$OsxArchitectures"
 
             $buildPyArgs += @(
                 '--build_dir', $ortBuildDir,
                 '--cmake_generator', 'Ninja',
                 '--apple_deploy_target', $OsxDeploymentTarget,
-                '--osx_arch', $Arch,
+                '--osx_arch', $OsxArchitectures,
                 '--use_coreml'
             )
 
