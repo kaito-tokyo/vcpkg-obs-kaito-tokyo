@@ -133,7 +133,8 @@ jobs:
               'C:\Windows'
           ) -join ';'
 
-          Remove-Item env:VCPKG_INSTALLATION_ROOT
+          $env:VCPKG_ROOT = $null
+          $env:VCPKG_INSTALLATION_ROOT = $null
 
           Update-OrtSourceWithPatches
           Invoke-OrtBuildPy -Command update
