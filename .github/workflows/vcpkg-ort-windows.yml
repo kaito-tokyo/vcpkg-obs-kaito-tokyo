@@ -116,14 +116,19 @@ jobs:
       - name: Install dependencies from ONNX Runtime's vcpkg (Windows)
         shell: pwsh
         env:
+          GITHUB_TOKEN: '${{ github.token }}'
           PYTHON: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
+          CMAKE_SYSTEM_VERSION: '${{ env.WINDOWS_SDK_VERSION }}'
         run: |
           Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
           Import-Module ./scripts/BuildOnnxRuntime.psm1
 
+          $vcpkgExe = Join-Path $env:GITHUB_WORKSPACE 'vcpkg' 'vcpkg'
+
           $env:PATH = @(
+              Split-Path (& $vcpkgExe fetch powershell-core | Select-Object -Last 1) -Parent
               Split-Path (Get-OrtToolchain -Name cmake) -Parent
               Split-Path (Get-OrtToolchain -Name ninja) -Parent
               Split-Path (Get-OrtToolchain -Name vswhere) -Parent
@@ -133,11 +138,23 @@ jobs:
               'C:\Windows'
           ) -join ';'
 
+          $basicToken = [System.Convert]::ToBase64String(
+              [System.Text.Encoding]::UTF8.GetBytes("x-access-token:$env:GITHUB_TOKEN")
+          )
+
+          Write-Output "::add-mask::$basicToken"
+
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraHeader'
+          $env:GIT_CONFIG_VALUE_0 = "Authorization: basic $basicToken"
+
+          $env:X_VCPKG_ASSET_SOURCES = 'clear;x-script,pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/vcpkg_asset_sources.ps1 {url} {sha512} {dst}'
+
           $env:VCPKG_ROOT = $null
           $env:VCPKG_INSTALLATION_ROOT = $null
 
           Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
-          Invoke-OrtBuildPy -Command update -WindowsSdkVersion $env:WINDOWS_SDK_VERSION
+          Invoke-OrtBuildPy -Command update
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'

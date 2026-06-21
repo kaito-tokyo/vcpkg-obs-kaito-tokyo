@@ -68,10 +68,10 @@ jobs:
 
     env:
       DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
-      OSX_ARCHITECTURES: '${{ inputs.OSX_ARCHITECTURES }}'
-      OSX_DEPLOYMENT_TARGET: '${{ inputs.OSX_DEPLOYMENT_TARGET }}'
       VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
       ORT_VERSION: '${{ inputs.ORT_VERSION }}'
+      CMAKE_OSX_ARCHITECTURES: '${{ inputs.OSX_ARCHITECTURES }}'
+      CMAKE_OSX_DEPLOYMENT_TARGET: '${{ inputs.OSX_DEPLOYMENT_TARGET }}'
 
     steps:
       - name: Print Xcode version
@@ -130,6 +130,7 @@ jobs:
       - name: Install dependencies from ONNX Runtime's vcpkg (macOS)
         shell: pwsh
         env:
+          GITHUB_TOKEN: '${{ github.token }}'
           PYTHON: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
         run: |
@@ -137,7 +138,10 @@ jobs:
 
           Import-Module ./scripts/BuildOnnxRuntime.psm1
 
+          $vcpkgExe = Join-Path $env:GITHUB_WORKSPACE 'vcpkg' 'vcpkg'
+
           $env:PATH = @(
+              Split-Path (& $vcpkgExe fetch powershell-core | Select-Object -Last 1) -Parent
               Split-Path (Get-OrtToolchain -Name cmake) -Parent
               Split-Path (Get-OrtToolchain -Name ninja) -Parent
               '/usr/bin',
@@ -146,11 +150,23 @@ jobs:
               '/sbin'
           ) -join ':'
 
+          $basicToken = [System.Convert]::ToBase64String(
+              [System.Text.Encoding]::UTF8.GetBytes("x-access-token:$env:GITHUB_TOKEN")
+          )
+
+          Write-Output "::add-mask::$basicToken"
+
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraHeader'
+          $env:GIT_CONFIG_VALUE_0 = "Authorization: basic $basicToken"
+
+          $env:X_VCPKG_ASSET_SOURCES = 'clear;x-script,pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/vcpkg_asset_sources.ps1 {url} {sha512} {dst}'
+
           $env:VCPKG_ROOT = $null
           $env:VCPKG_INSTALLATION_ROOT = $null
 
           Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
-          Invoke-OrtBuildPy -Command update -Arch $env:OSX_ARCHITECTURES -OsxDeploymentTarget $env:OSX_DEPLOYMENT_TARGET
+          Invoke-OrtBuildPy -Command update
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
