@@ -70,8 +70,8 @@ jobs:
       DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
       OSX_ARCHITECTURES: '${{ inputs.OSX_ARCHITECTURES }}'
       OSX_DEPLOYMENT_TARGET: '${{ inputs.OSX_DEPLOYMENT_TARGET }}'
-      PLUGIN_VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
-      PLUGIN_ORT_VERSION: '${{ inputs.ORT_VERSION }}'
+      VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
+      ORT_VERSION: '${{ inputs.ORT_VERSION }}'
 
     steps:
       - name: Print Xcode version
@@ -88,7 +88,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: microsoft/vcpkg
-          ref: ${{ env.PLUGIN_VCPKG_VERSION }}
+          ref: ${{ env.VCPKG_VERSION }}
           persist-credentials: false
           path: vcpkg
           filter: blob:none
@@ -115,7 +115,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: microsoft/onnxruntime
-          ref: ${{ env.PLUGIN_ORT_VERSION }}
+          ref: ${{ env.ORT_VERSION }}
           persist-credentials: false
           path: onnxruntime
           submodules: recursive
@@ -146,9 +146,10 @@ jobs:
               '/sbin'
           ) -join ':'
 
-          Remove-Item env:VCPKG_INSTALLATION_ROOT
+          $env:VCPKG_ROOT = $null
+          $env:VCPKG_INSTALLATION_ROOT = $null
 
-          Update-OrtSourceWithPatches
+          Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
           Invoke-OrtBuildPy -Command update -Arch $env:OSX_ARCHITECTURES -OsxDeploymentTarget $env:OSX_DEPLOYMENT_TARGET
 
       - name: Stop ciproxy and upload binary packages

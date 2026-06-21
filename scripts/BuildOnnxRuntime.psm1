@@ -19,8 +19,10 @@ function Update-OrtSourceWithPatches {
     process {
         Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
-        if (-not $OrtVersion) {
-            $buildspec = Get-Content -LiteralPath (Join-Path $RootDir 'buildspec.props') -Raw | ConvertFrom-StringData
+        $buildspecPropsPath = Join-Path $RootDir 'buildspec.props'
+
+        if (-not $OrtVersion -and (Test-Path $buildspecPropsPath)) {
+            $buildspec = Get-Content -LiteralPath $buildspecPropsPath -Raw | ConvertFrom-StringData
             $OrtVersion = $buildspec.onnxruntime_git_tag
         }
 
