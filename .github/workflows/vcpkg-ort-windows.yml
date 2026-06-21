@@ -123,8 +123,6 @@ jobs:
 
           Import-Module ./scripts/BuildOnnxRuntime.psm1
 
-          $env:VCPKG_ROOT = Join-Path $env:GITHUB_WORKSPACE 'vcpkg'
-
           $env:PATH = @(
               Split-Path (Get-OrtToolchain -Name cmake) -Parent
               Split-Path (Get-OrtToolchain -Name ninja) -Parent
@@ -134,6 +132,8 @@ jobs:
               'C:\Windows\System32',
               'C:\Windows'
           ) -join ';'
+
+          Remove-Item env:VCPKG_INSTALLATION_ROOT
 
           Update-OrtSourceWithPatches
           Invoke-OrtBuildPy -Command update

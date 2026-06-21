@@ -137,8 +137,6 @@ jobs:
 
           Import-Module ./scripts/BuildOnnxRuntime.psm1
 
-          $env:VCPKG_ROOT = Join-Path $env:GITHUB_WORKSPACE 'vcpkg'
-
           $env:PATH = @(
               Split-Path (Get-OrtToolchain -Name cmake) -Parent
               Split-Path (Get-OrtToolchain -Name ninja) -Parent
@@ -147,6 +145,8 @@ jobs:
               '/usr/sbin',
               '/sbin'
           ) -join ':'
+
+          Remove-Item env:VCPKG_INSTALLATION_ROOT
 
           Update-OrtSourceWithPatches
           Invoke-OrtBuildPy -Command update -Arch $env:OSX_ARCHITECTURES -OsxDeploymentTarget $env:OSX_DEPLOYMENT_TARGET

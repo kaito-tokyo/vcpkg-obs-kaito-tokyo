@@ -5,8 +5,7 @@
 # file: scripts/BuildOnnxRuntime.psm1
 # description: Helper module to build the ONNX Runtime.
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# version: 1.2.0
-# date: 2026-06-17
+# date: 2026-06-21
 
 function Update-OrtSourceWithPatches {
     [CmdletBinding()]
@@ -142,7 +141,7 @@ function Invoke-OrtBuildPy {
 
         if (-not $ReducedOpsConfigPath -and (Test-Path $buildspecPropsPath)) {
             $buildspec = Get-Content -LiteralPath $buildspecPropsPath -Raw | ConvertFrom-StringData
-            $ReducedOpsConfigPath = $buildspec['onnxruntime_reduced_ops_config']
+            $ReducedOpsConfigPath = Join-Path $RootDir $buildspec['onnxruntime_reduced_ops_config']
         }
 
         $buildPyPath = Join-Path $RootDir 'onnxruntime' 'tools' 'ci_build' 'build.py'
