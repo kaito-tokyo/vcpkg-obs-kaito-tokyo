@@ -119,14 +119,14 @@ jobs:
           GITHUB_TOKEN: '${{ github.token }}'
           PYTHON: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          CMAKE_SYSTEM_VERSION: '${{ env.WINDOWS_SDK_VERSION }}'
         run: |
           Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
-          Import-Module ./scripts/BuildOnnxRuntime.psm1
-
           $vcpkgExe = Join-Path $env:GITHUB_WORKSPACE 'vcpkg' 'vcpkg'
 
+          Import-Module ./scripts/BuildOnnxRuntime.psm1
+
+          # Set PATH
           $env:PATH = @(
               Split-Path (& $vcpkgExe fetch powershell-core | Select-Object -Last 1) -Parent
               Split-Path (Get-OrtToolchain -Name cmake) -Parent
@@ -136,8 +136,13 @@ jobs:
               'C:\Windows\System32\WindowsPowerShell\v1.0',
               'C:\Windows\System32',
               'C:\Windows'
-          ) -join ';'
+          ) -join [System.IO.Path]::PathSeparator
 
+          # Remove vcpkg variables
+          $env:VCPKG_ROOT = $null
+          $env:VCPKG_INSTALLATION_ROOT = $null
+
+          # Configure GITHUB_TOKEN
           $basicToken = [System.Convert]::ToBase64String(
               [System.Text.Encoding]::UTF8.GetBytes("x-access-token:$env:GITHUB_TOKEN")
           )
@@ -150,11 +155,9 @@ jobs:
 
           $env:X_VCPKG_ASSET_SOURCES = 'clear;x-script,pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/vcpkg_asset_sources.ps1 {url} {sha512} {dst}'
 
-          $env:VCPKG_ROOT = $null
-          $env:VCPKG_INSTALLATION_ROOT = $null
-
+          # Configure ONNX Runtime
           Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
-          Invoke-OrtBuildPy -Command update
+          Invoke-OrtBuildPy -Command update -WindowsSdkVersion $env:WINDOWS_SDK_VERSION
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
