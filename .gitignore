@@ -12,3 +12,4 @@ vcpkg_installed*/
 
 /build_*/
 /onnxruntime/
+/vcpkg/

@@ -55,9 +55,9 @@ jobs:
       id-token: write
 
     env:
-      PLUGIN_ORT_VERSION: '${{ inputs.ORT_VERSION }}'
-      PLUGIN_VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
-      PLUGIN_WINDOWS_SDK_VERSION: '${{ inputs.WINDOWS_SDK_VERSION }}'
+      ORT_VERSION: '${{ inputs.ORT_VERSION }}'
+      VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
+      WINDOWS_SDK_VERSION: '${{ inputs.WINDOWS_SDK_VERSION }}'
 
     steps:
       - name: Enable Windows long path
@@ -74,7 +74,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: microsoft/vcpkg
-          ref: ${{ env.PLUGIN_VCPKG_VERSION }}
+          ref: ${{ env.VCPKG_VERSION }}
           persist-credentials: false
           path: vcpkg
           filter: blob:none
@@ -101,7 +101,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: microsoft/onnxruntime
-          ref: ${{ env.PLUGIN_ORT_VERSION }}
+          ref: ${{ env.ORT_VERSION }}
           persist-credentials: false
           path: onnxruntime
           submodules: recursive
@@ -136,8 +136,8 @@ jobs:
           $env:VCPKG_ROOT = $null
           $env:VCPKG_INSTALLATION_ROOT = $null
 
-          Update-OrtSourceWithPatches
-          Invoke-OrtBuildPy -Command update
+          Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
+          Invoke-OrtBuildPy -Command update -WindowsSdkVersion $env:WINDOWS_SDK_VERSION
 
       - name: Stop ciproxy and upload binary packages
         if: github.ref == 'refs/heads/main'
