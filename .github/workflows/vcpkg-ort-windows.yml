@@ -29,12 +29,12 @@ on:
         description: Default VCPKG_BINARY_SOURCES.
         required: true
         type: string
-      VCPKG_BINARY_SOURCES:
-        description: Default VCPKG_BINARY_SOURCES.
-        required: true
-        type: string
       ORT_VERSION:
         description: The version of ONNX Runtime to build.
+        required: true
+        type: string
+      VCPKG_BINARY_SOURCES:
+        description: Default VCPKG_BINARY_SOURCES.
         required: true
         type: string
 
@@ -55,11 +55,6 @@ jobs:
       attestations: write
       contents: read
       id-token: write
-
-    env:
-      ORT_VERSION: ${{ inputs.ORT_VERSION }}
-      VCPKG_VERSION: ${{ inputs.VCPKG_VERSION }}
-      WINDOWS_SDK_VERSION: ${{ inputs.WINDOWS_SDK_VERSION }}
 
     steps:
       - name: Enable Windows long path
@@ -89,7 +84,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: microsoft/vcpkg
-          ref: ${{ env.VCPKG_VERSION }}
+          ref: ${{ inputs.VCPKG_VERSION }}
           persist-credentials: false
           path: vcpkg
           filter: blob:none
@@ -103,7 +98,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: microsoft/onnxruntime
-          ref: ${{ env.ORT_VERSION }}
+          ref: ${{ inputs.ORT_VERSION }}
           persist-credentials: false
           path: onnxruntime
           submodules: recursive
@@ -121,6 +116,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           PYTHON: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: ${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
+          ORT_VERSION: ${{ inputs.ORT_VERSION }}
+          WINDOWS_SDK_VERSION: ${{ inputs.WINDOWS_SDK_VERSION }}
         run: |
           Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
@@ -130,14 +127,15 @@ jobs:
 
           # Set PATH
           $env:PATH = @(
-              Split-Path (& $vcpkgExe fetch powershell-core | Select-Object -Last 1) -Parent
+              Split-Path (Get-Command git).Source -Parent
+              'C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+          ) -join [System.IO.Path]::PathSeparator
+
+          $env:PATH = @(
               Split-Path (Get-OrtToolchain -Name cmake) -Parent
               Split-Path (Get-OrtToolchain -Name ninja) -Parent
               Split-Path (Get-OrtToolchain -Name vswhere) -Parent
-              'C:\Program Files\Git\cmd',
-              'C:\Windows\System32\WindowsPowerShell\v1.0',
-              'C:\Windows\System32',
-              'C:\Windows'
+              $env:PATH
           ) -join [System.IO.Path]::PathSeparator
 
           # Remove vcpkg variables

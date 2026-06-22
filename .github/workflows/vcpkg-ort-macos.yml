@@ -69,11 +69,7 @@ jobs:
       id-token: write
 
     env:
-      VCPKG_VERSION: ${{ inputs.VCPKG_VERSION }}
-      ORT_VERSION: ${{ inputs.ORT_VERSION }}
       DEVELOPER_DIR: ${{ inputs.DEVELOPER_DIR }}
-      OSX_ARCHITECTURES: ${{ inputs.OSX_ARCHITECTURES }}
-      OSX_DEPLOYMENT_TARGET: ${{ inputs.OSX_DEPLOYMENT_TARGET }}
 
     steps:
       - name: Print Xcode version
@@ -108,7 +104,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: microsoft/vcpkg
-          ref: ${{ env.VCPKG_VERSION }}
+          ref: ${{ inputs.VCPKG_VERSION }}
           persist-credentials: false
           path: vcpkg
           filter: blob:none
@@ -122,7 +118,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: microsoft/onnxruntime
-          ref: ${{ env.ORT_VERSION }}
+          ref: ${{ inputs.ORT_VERSION }}
           persist-credentials: false
           path: onnxruntime
           submodules: recursive
@@ -140,6 +136,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           PYTHON: ${{ steps.setup-python.outputs.python-path }}
           VCPKG_BINARY_SOURCES: ${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
+          OSX_ARCHITECTURES: ${{ inputs.OSX_ARCHITECTURES }}
+          OSX_DEPLOYMENT_TARGET: ${{ inputs.OSX_DEPLOYMENT_TARGET }}
+          ORT_VERSION: ${{ inputs.ORT_VERSION }}
         run: |
           Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
@@ -149,13 +148,15 @@ jobs:
 
           # Set PATH
           $env:PATH = @(
-              Split-Path (& $vcpkgExe fetch powershell-core | Select-Object -Last 1) -Parent
+              Split-Path (Get-Command pwsh).Source -Parent
+              Split-Path (Get-Command xcbeautify).Source -Parent
+              '/usr/bin:/bin:/usr/sbin:/sbin'
+          ) -join [System.IO.Path]::PathSeparator
+
+          $env:PATH = @(
               Split-Path (Get-OrtToolchain -Name cmake) -Parent
               Split-Path (Get-OrtToolchain -Name ninja) -Parent
-              '/usr/bin',
-              '/bin',
-              '/usr/sbin',
-              '/sbin'
+              $env:PATH
           ) -join [System.IO.Path]::PathSeparator
 
           # Remove vcpkg variables
