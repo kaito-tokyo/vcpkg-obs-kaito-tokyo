@@ -212,10 +212,6 @@ function Invoke-OrtBuildPy {
                 '--windows_sdk_version', $WindowsSdkVersion
             )
 
-            if ($env:CCACHE_DIR) {
-                $buildPyArgs += '--use_cache'
-            }
-
             if (-not $PythonExe) {
                 $PythonExe = Join-Path $PluginBuildDir '.venv' 'Scripts' 'python.exe'
             }
