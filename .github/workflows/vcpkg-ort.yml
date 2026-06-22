@@ -41,7 +41,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/vcpkg-ort-windows.yml
     with:
-      job-index: ${{ strategy.job-index }}
+      job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       WINDOWS_SDK_VERSION: ${{ needs.ci-config.outputs.WINDOWS_SDK_VERSION }}
       VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
