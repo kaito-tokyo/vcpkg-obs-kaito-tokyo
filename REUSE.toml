@@ -9,6 +9,7 @@ path = [
   "requirements-build.txt",
   "vcpkg-configuration.json",
   "vcpkg.json",
+  "CMakePresets.json",
 ]
 SPDX-FileCopyrightText = "2026 Kaito Udagawa <umireon@kaito.tokyo>"
 SPDX-License-Identifier = "CC0-1.0"

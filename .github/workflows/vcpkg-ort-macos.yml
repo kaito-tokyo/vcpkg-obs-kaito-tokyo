@@ -4,9 +4,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+name: Vcpkg ORT macOS
+
 # file: .github/workflows/vcpkg-ort-macos.yml
 # author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-06-18
+# date: 2026-06-22
 
 on:
   workflow_call:
@@ -39,12 +41,12 @@ on:
         description: The version of vcpkg to clone.
         required: true
         type: string
-      VCPKG_BINARY_SOURCES:
-        description: Default VCPKG_BINARY_SOURCES.
-        required: true
-        type: string
       ORT_VERSION:
         description: The version of ONNX Runtime to build.
+        required: true
+        type: string
+      VCPKG_BINARY_SOURCES:
+        description: Default VCPKG_BINARY_SOURCES.
         required: true
         type: string
 
@@ -56,7 +58,7 @@ on:
 permissions: {}
 
 jobs:
-  build-ort-vcpkg-macos:
+  vcpkg-ort-macos:
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: 180
     environment: ${{ inputs.environment }}
@@ -67,11 +69,11 @@ jobs:
       id-token: write
 
     env:
-      DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
-      VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
-      ORT_VERSION: '${{ inputs.ORT_VERSION }}'
-      OSX_ARCHITECTURES: '${{ inputs.OSX_ARCHITECTURES }}'
-      OSX_DEPLOYMENT_TARGET: '${{ inputs.OSX_DEPLOYMENT_TARGET }}'
+      VCPKG_VERSION: ${{ inputs.VCPKG_VERSION }}
+      ORT_VERSION: ${{ inputs.ORT_VERSION }}
+      DEVELOPER_DIR: ${{ inputs.DEVELOPER_DIR }}
+      OSX_ARCHITECTURES: ${{ inputs.OSX_ARCHITECTURES }}
+      OSX_DEPLOYMENT_TARGET: ${{ inputs.OSX_DEPLOYMENT_TARGET }}
 
     steps:
       - name: Print Xcode version
@@ -79,10 +81,28 @@ jobs:
         run: |
           xcodebuild -version
 
+      - name: Print xcbeautify version
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          xcbeautify --version
+
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+
+      - name: Set up Python for build requirements
+        id: setup-python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version-file: .python-version
+          pip-install: -r requirements-build.txt
+
+      - name: Set up Go for ciproxy
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: .github/actions/ciproxy/cmd/go.mod
+          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
       - name: Checkout vcpkg
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -97,19 +117,6 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
           ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
-
-      - name: Set up Python for build requirements
-        id: setup-python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version-file: .python-version
-          pip-install: -r requirements-build.txt
-
-      - name: Set up Go for ciproxy
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: .github/actions/ciproxy/cmd/go.mod
-          cache-dependency-path: .github/actions/ciproxy/cmd/go.sum
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -130,15 +137,15 @@ jobs:
       - name: Install dependencies from ONNX Runtime's vcpkg (macOS)
         shell: pwsh
         env:
-          GITHUB_TOKEN: '${{ github.token }}'
+          GITHUB_TOKEN: ${{ github.token }}
           PYTHON: ${{ steps.setup-python.outputs.python-path }}
-          VCPKG_BINARY_SOURCES: '${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
+          VCPKG_BINARY_SOURCES: ${{ steps.ciproxy.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
         run: |
           Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
 
-          $vcpkgExe = Join-Path $env:GITHUB_WORKSPACE 'vcpkg' 'vcpkg'
-
           Import-Module ./scripts/BuildOnnxRuntime.psm1
+
+          $vcpkgExe = Join-Path $env:GITHUB_WORKSPACE 'vcpkg' 'vcpkg'
 
           # Set PATH
           $env:PATH = @(

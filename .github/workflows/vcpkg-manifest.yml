@@ -27,11 +27,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  config:
-    uses: ./.github/workflows/workflow-config.yml
+  ci-config:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci-config.yml
 
   vcpkg-manifest-windows:
-    needs: config
+    needs: ci-config
     name: Manifest on Windows x64
     permissions:
       attestations: write
@@ -41,12 +43,12 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-macos:
-    needs: config
+    needs: ci-config
     strategy:
       fail-fast: false
       matrix:
@@ -65,12 +67,12 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-macos-arm64-14:
-    needs: config
+    needs: ci-config
     strategy:
       fail-fast: false
       matrix:
@@ -89,12 +91,12 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       runs-on: ${{ matrix.os-xcode.runs-on }}
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   vcpkg-manifest-ubuntu:
-    needs: config
+    needs: ci-config
     name: Manifest on Ubuntu x64
     permissions:
       attestations: write
@@ -104,8 +106,8 @@ jobs:
     with:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      VCPKG_VERSION: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ fromJSON(needs.config.outputs.configJson).VCPKG_BINARY_SOURCES }}
+      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
+      VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
     secrets: inherit
 
   accept-vcpkg-manifest:
