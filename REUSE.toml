@@ -6,7 +6,6 @@ path = [
   ".python-version",
   "environments/*/vcpkg-configuration.json",
   "environments/*/vcpkg.json",
-  "requirements-build.txt",
   "vcpkg-configuration.json",
   "vcpkg.json",
   "CMakePresets.json",
