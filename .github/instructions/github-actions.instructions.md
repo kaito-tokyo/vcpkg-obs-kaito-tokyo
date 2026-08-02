@@ -24,4 +24,3 @@ applyTo: "**/*.{yml,yaml}"
 ## Inputs for the action `actions/setup-python`
 
 - **python-version-file**: File containing the Python version to use. Example: .python-version
-- **pip-install**: Used to specify the packages to install with pip after setting up Python. Can be a requirements file or package names.

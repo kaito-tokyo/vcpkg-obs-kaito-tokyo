@@ -69,10 +69,14 @@ jobs:
 
       - name: Set up Python for build requirements
         id: setup-python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version-file: .python-version
-          pip-install: -r requirements-build.txt
+
+      - name: Install build requirements
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          python -m pip install -r requirements-build.txt
 
       - name: Set up Go for ciproxy
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
