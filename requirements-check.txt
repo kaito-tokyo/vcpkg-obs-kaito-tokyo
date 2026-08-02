@@ -2,4 +2,5 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-flatbuffers==25.12.19
+gersemi==0.27.7
+reuse[charset-normalizer]==6.2.0
