@@ -149,8 +149,7 @@ jobs:
           # Set PATH
           $env:PATH = @(
               Split-Path (Get-Command pwsh).Source -Parent
-              Split-Path (Get-Command xcbeautify).Source -Parent
-              '/usr/bin:/bin:/usr/sbin:/sbin'
+              '/opt/homebrew/opt/xcbeautify/bin:/usr/bin:/bin:/usr/sbin:/sbin'
           ) -join [System.IO.Path]::PathSeparator
 
           $env:PATH = @(
@@ -174,7 +173,8 @@ jobs:
           $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraHeader'
           $env:GIT_CONFIG_VALUE_0 = "Authorization: basic $basicToken"
 
-          $env:X_VCPKG_ASSET_SOURCES = 'clear;x-script,pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/vcpkg_asset_sources.ps1 {url} {sha512} {dst}'
+          $assetSourcesScript = Join-Path $env:GITHUB_WORKSPACE 'scripts' 'vcpkg_asset_sources.ps1'
+          $env:X_VCPKG_ASSET_SOURCES = "clear;x-script,pwsh -NoProfile -ExecutionPolicy Bypass -File `"$assetSourcesScript`" {url} {sha512} {dst}"
 
           # Configure ONNX Runtime
           Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
