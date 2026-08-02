@@ -15,6 +15,8 @@ on:
     outputs:
       VCPKG_VERSION:
         value: ${{ fromJson(jobs.ci-config.outputs.BUILDSPEC_PROPS).vcpkg_default_git_tag }}
+      VCPKG_ORT_VERSION:
+        value: ${{ fromJson(jobs.ci-config.outputs.BUILDSPEC_PROPS).vcpkg_ort_git_tag }}
       ORT_VERSION:
         value: ${{ fromJson(jobs.ci-config.outputs.BUILDSPEC_PROPS).onnxruntime_git_tag }}
       WINDOWS_SDK_VERSION:

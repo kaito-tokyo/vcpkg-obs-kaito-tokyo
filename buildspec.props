@@ -2,8 +2,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-vcpkg_default_git_tag=2026.04.27
-vcpkg_default_git_commit=56bb2411609227288b70117ead2c47585ba07713
+vcpkg_default_git_tag=2026.07.29
+vcpkg_default_git_commit=9e593bb18ea69cc5095e012465dcd675a822ed0d
 
-onnxruntime_git_tag=v1.23.2
-onnxruntime_git_commit=a83fc4d58cb48eb68890dd689f94f28288cf2278
+vcpkg_ort_git_tag=2025.08.27
+vcpkg_ort_git_commit=120deac3062162151622ca4860575a33844ba10b
+
+onnxruntime_git_tag=v1.28.0
+onnxruntime_git_commit=da9b5e364c465de65c49d91e696cd6485270757f

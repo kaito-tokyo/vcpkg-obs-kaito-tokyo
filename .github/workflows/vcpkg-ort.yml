@@ -44,7 +44,7 @@ jobs:
       job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       WINDOWS_SDK_VERSION: ${{ needs.ci-config.outputs.WINDOWS_SDK_VERSION }}
-      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
+      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
       ORT_VERSION: ${{ needs.ci-config.outputs.ORT_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
     secrets: inherit
@@ -68,7 +68,7 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app
       OSX_ARCHITECTURES: ${{ matrix.osx-arch }}
       OSX_DEPLOYMENT_TARGET: ${{ needs.ci-config.outputs.OSX_DEPLOYMENT_TARGET }}
-      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
+      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
       ORT_VERSION: ${{ needs.ci-config.outputs.ORT_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
     secrets: inherit
