@@ -46,7 +46,6 @@ jobs:
       VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
       ORT_VERSION: ${{ needs.ci-config.outputs.ORT_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
-    secrets: inherit
 
   vcpkg-ort-macos:
     needs: ci-config
@@ -69,7 +68,6 @@ jobs:
       VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
       ORT_VERSION: ${{ needs.ci-config.outputs.ORT_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
-    secrets: inherit
 
   accept-vcpkg-ort:
     needs:

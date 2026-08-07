@@ -34,11 +34,6 @@ on:
         required: true
         type: string
 
-    secrets:
-      CIPROXY_MASTER_TOKEN:
-        description: Master token of the binary cache storage.
-        required: false
-
 permissions: {}
 
 jobs:
@@ -157,4 +152,3 @@ jobs:
         uses: ./.github/actions/vcpkg-binarycache/upload
         with:
           artifact-directory: ${{ steps.binarycache.outputs.ARTIFACT_DIRECTORY }}
-          master-token: ${{ secrets.CIPROXY_MASTER_TOKEN }}

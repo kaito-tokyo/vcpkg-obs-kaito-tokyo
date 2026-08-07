@@ -56,9 +56,7 @@ runs:
 
         mkdir -p "$directory"
 
-        # The second read source serves entries published under the previous
-        # {name}/{version}/{sha} layout, and can be dropped once they age out.
         {
           echo "ARTIFACT_DIRECTORY=$directory"
-          echo "VCPKG_BINARY_SOURCES=clear;http,$BINARYCACHE_URL/{sha},read;http,$BINARYCACHE_URL/{name}/{version}/{sha},read;files,$directory,write"
+          echo "VCPKG_BINARY_SOURCES=clear;http,$BINARYCACHE_URL/{sha},read;files,$directory,write"
         } >> "$GITHUB_OUTPUT"

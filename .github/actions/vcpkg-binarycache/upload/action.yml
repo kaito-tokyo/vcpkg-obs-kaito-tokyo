@@ -10,39 +10,21 @@ inputs:
   artifact-directory:
     description: Directory the vcpkg files provider wrote binary packages into.
     required: true
-  master-token:
-    description: Master token of the binary cache storage.
-    required: true
-  readwrite-url:
-    description: Base URL of the read-write binary cache API.
-    required: false
-    default: https://readwrite.vcpkg-obs.kaito.tokyo
 
 runs:
   using: composite
   steps:
-    - name: Validate inputs
-      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-      env:
-        ARTIFACT_DIRECTORY: ${{ inputs.artifact-directory }}
-        MASTER_TOKEN: ${{ inputs.master-token }}
-      run: |
-        if [[ -z "$MASTER_TOKEN" ]]; then
-          echo "master-token is required." >&2
-          exit 1
-        fi
-
-        if [[ ! -d "$ARTIFACT_DIRECTORY" ]]; then
-          echo "artifact-directory '$ARTIFACT_DIRECTORY' does not exist." >&2
-          exit 1
-        fi
-
     - name: Check if vcpkg binary packages exist
       id: check-artifacts
       shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
       env:
         ARTIFACT_DIRECTORY: ${{ inputs.artifact-directory }}
       run: |
+        if [[ ! -d "$ARTIFACT_DIRECTORY" ]]; then
+          echo "artifact-directory '$ARTIFACT_DIRECTORY' does not exist." >&2
+          exit 1
+        fi
+
         # The files provider lays packages out as <abi first two chars>/<abi>.zip.
         archives=("$ARTIFACT_DIRECTORY"/*/*.zip)
 
@@ -66,47 +48,8 @@ runs:
 
     - name: Upload vcpkg binary packages and their build provenance to CDN
       if: steps.check-artifacts.outputs.EXISTS == 'true'
-      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+      shell: bash --noprofile --norc -euo pipefail {0}
       env:
         ARTIFACT_DIRECTORY: ${{ inputs.artifact-directory }}
         BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
-        MASTER_TOKEN: ${{ inputs.master-token }}
-        READWRITE_URL: ${{ inputs.readwrite-url }}
-      run: |
-        ACCESS_TOKEN=$(curl -fsS -X POST -d "master_token=$MASTER_TOKEN" "$READWRITE_URL/token")
-        printf "::add-mask::%s\n" "$ACCESS_TOKEN"
-
-        jq -c . "$BUNDLE_PATH" > "$RUNNER_TEMP/attestation.jsonl"
-
-        FULL_HASH=$(sha256sum "$RUNNER_TEMP/attestation.jsonl" | awk '{print $1}')
-        SHORT_HASH=${FULL_HASH:0:8}
-        FILENAME="${GITHUB_REPOSITORY/\//@}@$GITHUB_RUN_ID@$GITHUB_RUN_ATTEMPT@$GITHUB_JOB@$SHORT_HASH.jsonl"
-
-        echo "Uploading $FILENAME..."
-
-        curl -fL \
-          -X PUT \
-          -H "Authorization: Bearer $ACCESS_TOKEN" \
-          -H "Content-Type: application/x-ndjson" \
-          -H "Cache-Control: public, max-age=86400" \
-          -T "$RUNNER_TEMP/attestation.jsonl" \
-          "$READWRITE_URL/_sigstore/$FILENAME"
-
-        # The files provider names every archive after its ABI hash, which is
-        # exactly the {sha} the binary cache is keyed by. `separator` keeps the
-        # `next` between requests only; a trailing one makes curl bail out with
-        # "no URL specified".
-        separator=
-        for archive in "$ARTIFACT_DIRECTORY"/*/*.zip; do
-          abi=$(basename "$archive" .zip)
-          echo "- $abi" >&2
-
-          presigned_url=$(
-            curl -fsS -X POST -H "Authorization: Bearer $ACCESS_TOKEN" \
-              "$READWRITE_URL/binarycache/$abi" | jq -er .presignedUrl
-          )
-
-          printf '%surl = "%s"\nupload-file = "%s"\nheader = "Content-Type: application/zip"\nheader = "Cache-Control: public, max-age=86400"\n' \
-            "$separator" "$presigned_url" "$archive"
-          separator=$'next\n'
-        done | curl -Z -fL -K -
+      run: bash "$GITHUB_ACTION_PATH/upload.bash"
