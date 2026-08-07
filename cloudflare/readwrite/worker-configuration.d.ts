@@ -6,7 +6,6 @@ declare namespace Cloudflare {
 		SECRET_KEY_JSON: string;
 		R2_ACCESS_KEY_ID: string;
 		R2_SECRET_ACCESS_KEY: string;
-		R2_BUCKET: R2Bucket;
 	}
 }
 interface Env extends Cloudflare.Env {}
