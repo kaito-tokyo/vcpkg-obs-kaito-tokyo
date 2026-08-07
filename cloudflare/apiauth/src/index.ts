@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { SignJWT } from "jose/jwt/sign";
+import { jwtVerify } from "jose/jwt/verify";
+import { createRemoteJWKSet } from "jose/jwks/remote";
 import { v7 as uuidv7 } from "uuid";
 
 interface PrivateJwk extends JsonWebKey {
@@ -15,54 +17,171 @@ const SCOPE_CLAIM = `${ISSUER}/scope`;
 const AUDIENCE = "https://readwrite.vcpkg-obs.kaito.tokyo";
 const MASTER_TOKEN_LIFE = "1y";
 
+const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
+const GITHUB_OIDC_JWKS = createRemoteJWKSet(
+	new URL(`${GITHUB_OIDC_ISSUER}/.well-known/jwks`),
+);
+// The workflows request their id token for this audience, so a token minted
+// for any other service cannot be replayed here.
+const GITHUB_OIDC_AUDIENCE = "https://apiauth.vcpkg-obs.kaito.tokyo";
+const GITHUB_OIDC_MASTER_TOKEN_LIFE = "15m";
+// Numeric ids survive a rename, so they cannot be squatted by whoever picks up
+// a freed repository name.
+const GITHUB_OIDC_REPOSITORY_ID = "1114822803";
+// The reusable workflows only set `environment: production` on main, so this
+// single subject pins the repository, the branch and the environment at once,
+// which puts the environment's protection rules in front of every cache write.
+const GITHUB_OIDC_SUBJECTS = new Set([
+	"repo:kaito-tokyo/vcpkg-obs-kaito-tokyo:environment:production",
+]);
+
+interface MasterTokenOptions {
+	clientId: string;
+	expirationTime: string;
+	notBefore?: string;
+	sub: string;
+}
+
+export async function signMasterToken(
+	env: Env,
+	{ clientId, expirationTime, notBefore, sub }: MasterTokenOptions,
+): Promise<string> {
+	const privateJwk: PrivateJwk = JSON.parse(env.PRIVATE_KEY_JSON);
+	const { alg, kid } = privateJwk;
+	if (!alg || alg !== "EdDSA") {
+		throw new Error("Invalid alg in private key");
+	}
+	if (!kid || typeof kid !== "string") {
+		throw new Error("Invalid kid in private key");
+	}
+
+	const privateKey = await crypto.subtle.importKey(
+		"jwk",
+		privateJwk,
+		{ name: "Ed25519" },
+		false,
+		["sign"],
+	);
+
+	const jwt = new SignJWT({
+		[TYPE_CLAIM]: "master",
+		[SCOPE_CLAIM]: "accesstoken",
+		client_id: clientId,
+		ver: "1.0",
+	})
+		.setProtectedHeader({ alg, kid, typ: "JWT" })
+		.setIssuer(ISSUER)
+		.setSubject(sub)
+		.setIssuedAt()
+		.setExpirationTime(expirationTime)
+		.setJti(`${kid}_${uuidv7()}`)
+		.setAudience(AUDIENCE);
+
+	if (notBefore) {
+		jwt.setNotBefore(notBefore);
+	}
+
+	return jwt.sign(privateKey);
+}
+
 export async function handleServiceToken(
 	request: Request,
 	env: Env,
 ): Promise<Response> {
 	switch (request.method) {
 		case "POST": {
-			const privateJwk: PrivateJwk = JSON.parse(env.PRIVATE_KEY_JSON);
-			const { alg, kid } = privateJwk;
-			if (!alg || alg !== "EdDSA") {
-				throw new Error("Invalid alg in private key");
-			}
-			if (!kid || typeof kid !== "string") {
-				throw new Error("Invalid kid in private key");
-			}
-
 			const formData = await request.formData();
 			const sub = formData.get("sub");
 			if (typeof sub !== "string" || !sub) {
 				return new Response("Bad Request", { status: 400 });
 			}
 
-			const privateKey = await crypto.subtle.importKey(
-				"jwk",
-				privateJwk,
-				{ name: "Ed25519" },
-				false,
-				["sign"],
-			);
-
-			const jwt = await new SignJWT({
-				[TYPE_CLAIM]: "master",
-				[SCOPE_CLAIM]: "accesstoken",
-				client_id: "apiauth",
-				ver: "1.0",
-			})
-				.setProtectedHeader({ alg, kid, typ: "JWT" })
-				.setIssuer(ISSUER)
-				.setSubject(sub)
-				.setIssuedAt()
-				.setNotBefore("5s")
-				.setExpirationTime(MASTER_TOKEN_LIFE)
-				.setJti(`${kid}_${uuidv7()}`)
-				.setAudience(AUDIENCE)
-				.sign(privateKey);
+			const jwt = await signMasterToken(env, {
+				clientId: "apiauth",
+				expirationTime: MASTER_TOKEN_LIFE,
+				notBefore: "5s",
+				sub,
+			});
 
 			return new Response(`Service master token:\n${jwt}\n`, {
 				status: 200,
 				headers: { "Content-Type": "text/plain" },
+			});
+		}
+		default: {
+			return new Response("Method Not Allowed", {
+				status: 405,
+				headers: { Allow: "POST" },
+			});
+		}
+	}
+}
+
+export async function verifyGitHubIdToken(
+	idToken: string,
+): Promise<string | undefined> {
+	try {
+		const { payload } = await jwtVerify(idToken, GITHUB_OIDC_JWKS, {
+			algorithms: ["RS256"],
+			audience: GITHUB_OIDC_AUDIENCE,
+			clockTolerance: 5,
+			issuer: GITHUB_OIDC_ISSUER,
+			requiredClaims: ["sub", "repository_id"],
+			typ: "JWT",
+		});
+
+		if (payload.repository_id !== GITHUB_OIDC_REPOSITORY_ID) {
+			console.error("repository_id claim mismatch");
+			return;
+		}
+
+		if (
+			typeof payload.sub !== "string" ||
+			!GITHUB_OIDC_SUBJECTS.has(payload.sub)
+		) {
+			console.error("sub claim mismatch");
+			return;
+		}
+
+		return payload.sub;
+	} catch (e) {
+		console.error("GitHub id token verification failed:", e);
+		return;
+	}
+}
+
+export async function handleGitHubOidcToken(
+	request: Request,
+	env: Env,
+): Promise<Response> {
+	switch (request.method) {
+		case "POST": {
+			const authorization = request.headers.get("authorization");
+			if (!authorization || !authorization.startsWith("Bearer ")) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const sub = await verifyGitHubIdToken(
+				authorization.slice("Bearer ".length),
+			);
+			if (!sub) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			// The subject is carried over verbatim so that the readwrite logs
+			// name the GitHub identity the write was authorized for.
+			const jwt = await signMasterToken(env, {
+				clientId: "apiauth-github-oidc",
+				expirationTime: GITHUB_OIDC_MASTER_TOKEN_LIFE,
+				sub,
+			});
+
+			return new Response(`${jwt}\n`, {
+				status: 200,
+				headers: {
+					"Content-Type": "application/jwt",
+					"Cache-Control": "no-store",
+				},
 			});
 		}
 		default: {
@@ -82,6 +201,12 @@ export default {
 	): Promise<Response> {
 		const url = new URL(request.url);
 		switch (url.pathname) {
+			// Cloudflare Access only guards /secured/, which is what lets this
+			// path be reached by a runner. GitHub id token verification is the
+			// only thing protecting it.
+			case "/oidc/master-token": {
+				return handleGitHubOidcToken(request, env);
+			}
 			case "/secured/service-master-token": {
 				return handleServiceToken(request, env);
 			}

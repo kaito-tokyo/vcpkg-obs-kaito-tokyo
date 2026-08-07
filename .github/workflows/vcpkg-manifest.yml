@@ -44,7 +44,6 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
-    secrets: inherit
 
   vcpkg-manifest-macos:
     needs: ci-config
@@ -67,7 +66,6 @@ jobs:
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
       VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
-    secrets: inherit
 
   vcpkg-manifest-macos-arm64-14:
     needs: ci-config
@@ -90,7 +88,6 @@ jobs:
       DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
       VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
-    secrets: inherit
 
   vcpkg-manifest-ubuntu:
     needs: ci-config
@@ -104,7 +101,6 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
-    secrets: inherit
 
   accept-vcpkg-manifest:
     needs: [vcpkg-manifest-windows, vcpkg-manifest-macos, vcpkg-manifest-macos-arm64-14, vcpkg-manifest-ubuntu]
