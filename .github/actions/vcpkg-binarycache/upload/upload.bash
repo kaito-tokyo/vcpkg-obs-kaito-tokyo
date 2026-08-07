@@ -16,10 +16,16 @@ shopt -s nullglob
 
 : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?id-token: write is required}"
 : "${ACTIONS_ID_TOKEN_REQUEST_URL:?id-token: write is required}"
-: "${APIAUTH_URL:?}"
 : "${ARTIFACT_DIRECTORY:?}"
 : "${BUNDLE_PATH:?}"
-: "${READWRITE_URL:?}"
+
+# These are constants rather than inputs because each one has to agree with a
+# value compiled into a worker: APIAUTH_URL doubles as the audience apiauth
+# verifies the id token against, and the master token apiauth issues is stamped
+# with the readwrite audience. Pointing either at another deployment without
+# redeploying both workers only produces 401s.
+readonly APIAUTH_URL=https://apiauth.vcpkg-obs.kaito.tokyo
+readonly READWRITE_URL=https://readwrite.vcpkg-obs.kaito.tokyo
 
 id_token=$(
   curl -fsS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \

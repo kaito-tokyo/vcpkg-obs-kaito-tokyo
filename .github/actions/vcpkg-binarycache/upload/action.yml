@@ -10,14 +10,6 @@ inputs:
   artifact-directory:
     description: Directory the vcpkg files provider wrote binary packages into.
     required: true
-  apiauth-url:
-    description: Base URL of the service that trades a GitHub Actions id token for a master token.
-    required: false
-    default: https://apiauth.vcpkg-obs.kaito.tokyo
-  readwrite-url:
-    description: Base URL of the read-write binary cache API.
-    required: false
-    default: https://readwrite.vcpkg-obs.kaito.tokyo
 
 runs:
   using: composite
@@ -58,8 +50,6 @@ runs:
       if: steps.check-artifacts.outputs.EXISTS == 'true'
       shell: bash --noprofile --norc -euo pipefail {0}
       env:
-        APIAUTH_URL: ${{ inputs.apiauth-url }}
         ARTIFACT_DIRECTORY: ${{ inputs.artifact-directory }}
         BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
-        READWRITE_URL: ${{ inputs.readwrite-url }}
       run: bash "$GITHUB_ACTION_PATH/upload.bash"
