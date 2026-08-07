@@ -38,7 +38,14 @@ export async function handleToken(
 ): Promise<Response> {
 	switch (request.method) {
 		case "POST": {
-			const formData = await request.formData();
+			// A request without a parsable body makes formData() throw, which
+			// would surface as a 500 rather than the 400 below.
+			let formData: FormData;
+			try {
+				formData = await request.formData();
+			} catch {
+				return new Response("Bad Request", { status: 400 });
+			}
 
 			const masterToken = formData.get("master_token");
 			if (typeof masterToken !== "string" || !masterToken) {
