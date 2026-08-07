@@ -32,7 +32,14 @@ The binary caches available in this repository are optimized for modern OBS (Ope
 To use the binary cache from this repository in **GitHub Actions**, set the `VCPKG_BINARY_SOURCES` environment variable:
 
 ```bash
-export VCPKG_BINARY_SOURCES="clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}"
+export VCPKG_BINARY_SOURCES="clear;http,https://vcpkg-obs.kaito.tokyo/{sha}"
+```
+
+Packages published before the cache was rekeyed still live under the older
+`{name}/{version}/{sha}` layout. Add it as a second read source to reach them:
+
+```bash
+export VCPKG_BINARY_SOURCES="clear;http,https://vcpkg-obs.kaito.tokyo/{sha};http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}"
 ```
 
 This will configure vcpkg to download pre-built binaries from our cache, significantly speeding up your build process.
