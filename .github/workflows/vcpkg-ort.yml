@@ -41,7 +41,6 @@ jobs:
       id-token: write
     uses: ./.github/workflows/vcpkg-ort-windows.yml
     with:
-      job-index: 0
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       WINDOWS_SDK_VERSION: ${{ needs.ci-config.outputs.WINDOWS_SDK_VERSION }}
       VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
@@ -62,7 +61,6 @@ jobs:
       id-token: write
     uses: ./.github/workflows/vcpkg-ort-macos.yml
     with:
-      job-index: ${{ strategy.job-index }}
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       runs-on: macos-15
       DEVELOPER_DIR: /Applications/Xcode_16.4.app

@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Set up vcpkg binary cache
+author: Kaito Udagawa <umireon@kaito.tokyo>
+description: Configure vcpkg to read from the CDN and to stage newly built packages with the files provider
+
+inputs:
+  artifact-directory:
+    description: Directory the vcpkg files provider writes binary packages into.
+    required: false
+    default: ${{ github.workspace }}/vcpkg_artifacts
+  binarycache-url:
+    description: Base URL of the read-only binary cache CDN.
+    required: false
+    default: https://vcpkg-obs.kaito.tokyo
+
+outputs:
+  ARTIFACT_DIRECTORY:
+    description: Absolute path of the artifact directory, normalized to forward slashes.
+    value: ${{ steps.prepare.outputs.ARTIFACT_DIRECTORY }}
+  VCPKG_BINARY_SOURCES:
+    description: The VCPKG_BINARY_SOURCES value to use for vcpkg commands.
+    value: ${{ steps.prepare.outputs.VCPKG_BINARY_SOURCES }}
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare the artifact directory
+      id: prepare
+      shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+      env:
+        ARTIFACT_DIRECTORY: ${{ inputs.artifact-directory }}
+        BINARYCACHE_URL: ${{ inputs.binarycache-url }}
+      run: |
+        # vcpkg accepts forward slashes on every platform, and the upload action
+        # globs this directory from bash, which cannot handle Windows backslashes.
+        directory="${ARTIFACT_DIRECTORY//\\//}"
+
+        case "$directory" in
+          /* | ?:/*) ;;
+          *)
+            echo "The artifact directory must be absolute, got '$directory'." >&2
+            exit 1
+            ;;
+        esac
+
+        # A comma would be parsed as the end of the files provider argument.
+        case "$directory" in
+          *,*)
+            echo "The artifact directory must not contain a comma, got '$directory'." >&2
+            exit 1
+            ;;
+        esac
+
+        mkdir -p "$directory"
+
+        # The second read source serves entries published under the previous
+        # {name}/{version}/{sha} layout, and can be dropped once they age out.
+        {
+          echo "ARTIFACT_DIRECTORY=$directory"
+          echo "VCPKG_BINARY_SOURCES=clear;http,$BINARYCACHE_URL/{sha},read;http,$BINARYCACHE_URL/{name}/{version}/{sha},read;files,$directory,write"
+        } >> "$GITHUB_OUTPUT"
