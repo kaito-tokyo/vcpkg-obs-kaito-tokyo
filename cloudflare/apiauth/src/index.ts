@@ -15,8 +15,6 @@ const ISSUER = "https://vcpkg-obs.kaito.tokyo";
 const TYPE_CLAIM = `${ISSUER}/type`;
 const SCOPE_CLAIM = `${ISSUER}/scope`;
 const AUDIENCE = "https://readwrite.vcpkg-obs.kaito.tokyo";
-const MASTER_TOKEN_LIFE = "1y";
-
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
 const GITHUB_OIDC_JWKS = createRemoteJWKSet(
 	new URL(`${GITHUB_OIDC_ISSUER}/.well-known/jwks`),
@@ -35,16 +33,9 @@ const GITHUB_OIDC_SUBJECTS = new Set([
 	"repo:kaito-tokyo/vcpkg-obs-kaito-tokyo:environment:production",
 ]);
 
-interface MasterTokenOptions {
-	clientId: string;
-	expirationTime: string;
-	notBefore?: string;
-	sub: string;
-}
-
 export async function signMasterToken(
 	env: Env,
-	{ clientId, expirationTime, notBefore, sub }: MasterTokenOptions,
+	sub: string,
 ): Promise<string> {
 	const privateJwk: PrivateJwk = JSON.parse(env.PRIVATE_KEY_JSON);
 	const { alg, kid } = privateJwk;
@@ -66,55 +57,19 @@ export async function signMasterToken(
 	const jwt = new SignJWT({
 		[TYPE_CLAIM]: "master",
 		[SCOPE_CLAIM]: "accesstoken",
-		client_id: clientId,
+		client_id: "apiauth-github-oidc",
 		ver: "1.0",
 	})
 		.setProtectedHeader({ alg, kid, typ: "JWT" })
 		.setIssuer(ISSUER)
 		.setSubject(sub)
 		.setIssuedAt()
-		.setExpirationTime(expirationTime)
+		.setExpirationTime(GITHUB_OIDC_MASTER_TOKEN_LIFE)
 		.setJti(`${kid}_${uuidv7()}`)
 		.setAudience(AUDIENCE);
 
-	if (notBefore) {
-		jwt.setNotBefore(notBefore);
-	}
 
 	return jwt.sign(privateKey);
-}
-
-export async function handleServiceToken(
-	request: Request,
-	env: Env,
-): Promise<Response> {
-	switch (request.method) {
-		case "POST": {
-			const formData = await request.formData();
-			const sub = formData.get("sub");
-			if (typeof sub !== "string" || !sub) {
-				return new Response("Bad Request", { status: 400 });
-			}
-
-			const jwt = await signMasterToken(env, {
-				clientId: "apiauth",
-				expirationTime: MASTER_TOKEN_LIFE,
-				notBefore: "5s",
-				sub,
-			});
-
-			return new Response(`Service master token:\n${jwt}\n`, {
-				status: 200,
-				headers: { "Content-Type": "text/plain" },
-			});
-		}
-		default: {
-			return new Response("Method Not Allowed", {
-				status: 405,
-				headers: { Allow: "POST" },
-			});
-		}
-	}
 }
 
 export async function verifyGitHubIdToken(
@@ -170,11 +125,7 @@ export async function handleGitHubOidcToken(
 
 			// The subject is carried over verbatim so that the readwrite logs
 			// name the GitHub identity the write was authorized for.
-			const jwt = await signMasterToken(env, {
-				clientId: "apiauth-github-oidc",
-				expirationTime: GITHUB_OIDC_MASTER_TOKEN_LIFE,
-				sub,
-			});
+			const jwt = await signMasterToken(env, sub);
 
 			return new Response(`${jwt}\n`, {
 				status: 200,
@@ -201,14 +152,8 @@ export default {
 	): Promise<Response> {
 		const url = new URL(request.url);
 		switch (url.pathname) {
-			// Cloudflare Access only guards /secured/, which is what lets this
-			// path be reached by a runner. GitHub id token verification is the
-			// only thing protecting it.
 			case "/oidc/master-token": {
 				return handleGitHubOidcToken(request, env);
-			}
-			case "/secured/service-master-token": {
-				return handleServiceToken(request, env);
 			}
 			default: {
 				return new Response("Not Found", { status: 404 });
