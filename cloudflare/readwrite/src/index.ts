@@ -19,7 +19,14 @@ const ISSUER = "https://vcpkg-obs.kaito.tokyo";
 const TYPE_CLAIM = `${ISSUER}/type`;
 const SCOPE_CLAIM = `${ISSUER}/scope`;
 const AUDIENCE = "https://readwrite.vcpkg-obs.kaito.tokyo";
-const ACCESS_TOKEN_LIFE = "4h";
+// Ceiling only. RFC 8693 has an issued token not outlive the subject token
+// presented for it, so the expiry is derived from the master token rather than
+// fixed here; otherwise this tier could widen the exposure it exists to narrow.
+// The ceiling matches the floor the major workload identity providers offer for
+// a derived credential.
+const ACCESS_TOKEN_MAX_LIFE_SECONDS = 15 * 60;
+// Ceiling only, for the same reason: see where it is applied.
+const PRESIGNED_URL_MAX_LIFE_SECONDS = 15 * 60;
 
 const R2_ENDPOINT =
 	"https://1169b990c0885e4cfa603c38eef1a9b3.r2.cloudflarestorage.com";
@@ -51,9 +58,12 @@ export async function handleToken(
 
 			const masterTokenPayload = await verifyMasterToken(masterToken);
 			if (masterTokenPayload && masterTokenPayload.sub) {
+				const ceiling =
+					Math.floor(Date.now() / 1000) + ACCESS_TOKEN_MAX_LIFE_SECONDS;
 				const accessToken = await generateAccessToken(
 					JSON.parse(env.SECRET_KEY_JSON),
 					masterTokenPayload.sub,
+					Math.min(masterTokenPayload.exp ?? ceiling, ceiling),
 				);
 				return new Response(`${accessToken}\n`, {
 					headers: { "Content-Type": "application/jwt" },
@@ -111,6 +121,7 @@ export async function verifyMasterToken(
 export async function generateAccessToken(
 	secretJwk: SecretJwk,
 	sub: string,
+	expiresAt: number,
 ): Promise<string> {
 	const { alg, kid, kty } = secretJwk;
 	if (kty !== "oct" || alg !== "HS256") {
@@ -135,7 +146,7 @@ export async function generateAccessToken(
 		.setIssuer(ISSUER)
 		.setSubject(sub)
 		.setIssuedAt()
-		.setExpirationTime(ACCESS_TOKEN_LIFE)
+		.setExpirationTime(expiresAt)
 		.setAudience(AUDIENCE)
 		.setJti(`${kid}_${uuidv7()}`)
 		.sign(secretKey);
@@ -226,6 +237,19 @@ export async function handleBinaryCache(
 				},
 			});
 
+			// The URL is a write capability for one object, so it expires with
+			// the access token that asked for it rather than opening a fresh
+			// window of its own. Otherwise a request made just before the token
+			// lapses would stay usable for another full ceiling, and a master
+			// token would authorize writes for twice as long as either lifetime
+			// suggests.
+			const now = Math.floor(Date.now() / 1000);
+			const ceiling = now + PRESIGNED_URL_MAX_LIFE_SECONDS;
+			const expiresIn = Math.max(
+				Math.min(jwtPayload.exp ?? ceiling, ceiling) - now,
+				1,
+			);
+
 			const presignedUrl = await getSignedUrl(
 				s3client,
 				new PutObjectCommand({
@@ -234,7 +258,7 @@ export async function handleBinaryCache(
 					CacheControl: "public, max-age=86400",
 					ContentType: "application/zip",
 				}),
-				{ expiresIn: 3600 },
+				{ expiresIn },
 			);
 
 			return new Response(JSON.stringify({ presignedUrl }), {

@@ -11,6 +11,11 @@ SPDX-License-Identifier: Apache-2.0
 		<title>APIAuth</title>
 	</head>
 	<body>
-		<a href="/secured/">Generate new service master token</a>
+		<p>
+			Trades a GitHub Actions id token for a master token at
+			<code>POST /oidc/master-token</code>. The public keys the issued
+			tokens are verified against are published at
+			<a href="/keys">/keys</a>.
+		</p>
 	</body>
 </html>
