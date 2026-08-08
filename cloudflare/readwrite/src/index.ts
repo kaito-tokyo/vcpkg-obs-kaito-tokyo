@@ -25,6 +25,8 @@ const AUDIENCE = "https://readwrite.vcpkg-obs.kaito.tokyo";
 // The ceiling matches the floor the major workload identity providers offer for
 // a derived credential.
 const ACCESS_TOKEN_MAX_LIFE_SECONDS = 15 * 60;
+// Ceiling only, for the same reason: see where it is applied.
+const PRESIGNED_URL_MAX_LIFE_SECONDS = 15 * 60;
 
 const R2_ENDPOINT =
 	"https://1169b990c0885e4cfa603c38eef1a9b3.r2.cloudflarestorage.com";
@@ -235,6 +237,19 @@ export async function handleBinaryCache(
 				},
 			});
 
+			// The URL is a write capability for one object, so it expires with
+			// the access token that asked for it rather than opening a fresh
+			// window of its own. Otherwise a request made just before the token
+			// lapses would stay usable for another full ceiling, and a master
+			// token would authorize writes for twice as long as either lifetime
+			// suggests.
+			const now = Math.floor(Date.now() / 1000);
+			const ceiling = now + PRESIGNED_URL_MAX_LIFE_SECONDS;
+			const expiresIn = Math.max(
+				Math.min(jwtPayload.exp ?? ceiling, ceiling) - now,
+				1,
+			);
+
 			const presignedUrl = await getSignedUrl(
 				s3client,
 				new PutObjectCommand({
@@ -243,10 +258,7 @@ export async function handleBinaryCache(
 					CacheControl: "public, max-age=86400",
 					ContentType: "application/zip",
 				}),
-				// A capability for one object, so it is kept to the shortest
-				// span that still covers requesting the whole batch and then
-				// transferring it.
-				{ expiresIn: 15 * 60 },
+				{ expiresIn },
 			);
 
 			return new Response(JSON.stringify({ presignedUrl }), {
