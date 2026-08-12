@@ -4,151 +4,104 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: Vcpkg ORT Windows
-
-# file: .github/workflows/vcpkg-ort-windows.yml
-# author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-06-18
+name: Vcpkg ORT (Windows)
 
 on:
   workflow_call:
     inputs:
       environment:
-        description: The environment name for this workflow, or empty string for no environment
+        description: GitHub Actions environment name.
+        required: false
+        type: string
+        default: ''
+      runs-on:
+        description: GitHub Actions runner label.
         required: true
         type: string
-      WINDOWS_SDK_VERSION:
-        description: The version of Windows SDK to build with.
+      vcpkg-version:
+        description: The version of microsoft/vcpkg to clone.
         required: true
         type: string
-      VCPKG_VERSION:
-        description: Default VCPKG_BINARY_SOURCES.
+      ort-version:
+        description: The version of microsoft/onnxruntime to clone.
         required: true
         type: string
-      ORT_VERSION:
-        description: The version of ONNX Runtime to build.
+      upload-to-binarycache:
+        description: Flag to upload to binarycache.
         required: true
-        type: string
-      VCPKG_BINARY_SOURCES:
-        description: Default VCPKG_BINARY_SOURCES.
-        required: true
-        type: string
-
-permissions: {}
+        type: boolean
 
 jobs:
   vcpkg-ort-windows-x64:
-    runs-on: windows-2022
-    timeout-minutes: 180
     environment: ${{ inputs.environment }}
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 180
 
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
+    env:
+      VCPKG_ORT_TARGET_TRIPLET: x64-windows-static-md-obs-ort
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
 
     steps:
       - name: Enable Windows long path
-        shell: pwsh
+        shell: pwsh -command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
+        run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+
+      - name: Print runner info (Windows)
+        id: runner-macos
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+          printf 'ImageVersion=%s\n' "${ImageVersion:?}" | tee -a "${GITHUB_OUTPUT:?}"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Set up Python for build requirements
-        id: setup-python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version-file: .python-version
-
-      - name: Install build requirements
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          python -m pip install -r requirements-build.txt
-
       - name: Checkout vcpkg
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/vcpkg
-          ref: ${{ inputs.VCPKG_VERSION }}
-          persist-credentials: false
+          ref: ${{ inputs.vcpkg-version }}
           path: vcpkg
           filter: blob:none
-
-      - name: Run bootstrap-vcpkg.bat
-        shell: pwsh
-        run: |
-          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
+          persist-credentials: false
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/onnxruntime
-          ref: ${{ inputs.ORT_VERSION }}
-          persist-credentials: false
+          ref: ${{ inputs.ort-version }}
           path: onnxruntime
+          filter: blob:none
           submodules: recursive
+          persist-credentials: false
+
+      - name: Run bootstrap-vcpkg.bat
+        shell: pwsh -command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
+        run: |
+          $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+          & (Join-Path $env:VCPKG_ROOT 'bootstrap-vcpkg.bat') -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
-        if: github.ref == 'refs/heads/main'
+        if: inputs.upload-to-binarycache
         uses: ./.github/actions/vcpkg-binarycache/setup
+        with:
+          binarycache-url: https://vcpkg-obs.kaito.tokyo
 
-      - name: Install dependencies from ONNX Runtime's vcpkg (Windows)
-        shell: pwsh
+      - name: Install vcpkg_ort dependencies (Windows)
+        shell: pwsh -command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-          PYTHON: ${{ steps.setup-python.outputs.python-path }}
-          VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
-          ORT_VERSION: ${{ inputs.ORT_VERSION }}
-          WINDOWS_SDK_VERSION: ${{ inputs.WINDOWS_SDK_VERSION }}
+          VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
         run: |
-          Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
-
-          $vcpkgExe = Join-Path $env:GITHUB_WORKSPACE 'vcpkg' 'vcpkg'
-
-          Import-Module ./scripts/BuildOnnxRuntime.psm1
-
-          # Set PATH
-          $env:PATH = @(
-              Split-Path (Get-Command git).Source -Parent
-              'C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-          ) -join [System.IO.Path]::PathSeparator
-
-          $env:PATH = @(
-              Split-Path (Get-OrtToolchain -Name cmake) -Parent
-              Split-Path (Get-OrtToolchain -Name ninja) -Parent
-              Split-Path (Get-OrtToolchain -Name vswhere) -Parent
-              $env:PATH
-          ) -join [System.IO.Path]::PathSeparator
-
-          # Remove vcpkg variables
-          $env:VCPKG_ROOT = $null
-          $env:VCPKG_INSTALLATION_ROOT = $null
-
-          # Configure GITHUB_TOKEN
-          $basicToken = [System.Convert]::ToBase64String(
-              [System.Text.Encoding]::UTF8.GetBytes("x-access-token:$env:GITHUB_TOKEN")
-          )
-
-          Write-Output "::add-mask::$basicToken"
-
-          $env:GIT_CONFIG_COUNT = '1'
-          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraHeader'
-          $env:GIT_CONFIG_VALUE_0 = "Authorization: basic $basicToken"
-
-          $assetSourcesScript = Join-Path $env:GITHUB_WORKSPACE 'scripts' 'vcpkg_asset_sources.ps1'
-          $env:X_VCPKG_ASSET_SOURCES = "clear;x-script,pwsh -NoProfile -ExecutionPolicy Bypass -File `"$assetSourcesScript`" {url} {sha512} {dst}"
-
-          # Configure ONNX Runtime
-          Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
-          Invoke-OrtBuildPy -Command update -WindowsSdkVersion $env:WINDOWS_SDK_VERSION
+          $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+          & (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') install `
+              --triplet $env:VCPKG_ORT_TARGET_TRIPLET `
+              --overlay-triplets (Join-Path $env:GITHUB_WORKSPACE 'vcpkg-triplets') `
+              --x-manifest-root (Join-Path $env:GITHUB_WORKSPACE 'onnxruntime' 'cmake')
 
       - name: Upload binary packages
-        if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && inputs.upload-to-binarycache }}
         uses: ./.github/actions/vcpkg-binarycache/upload
         with:
           artifact-directory: ${{ steps.binarycache.outputs.ARTIFACT_DIRECTORY }}

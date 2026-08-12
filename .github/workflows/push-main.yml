@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Push CI (main)
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: 23 9 * * *
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-config:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci-config.yml
+
+  vcpkg-ort-windows:
+    needs: ci-config
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/vcpkg-ort-windows.yml
+    with:
+      environment: production
+      runs-on: windows-2022
+      vcpkg-version: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
+      ort-version: ${{ needs.ci-config.outputs.ORT_VERSION }}
+      upload-to-binarycache: true
+
+  vcpkg-ort-macos:
+    needs: ci-config
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/vcpkg-ort-macos.yml
+    with:
+      environment: production
+      runs-on: macos-15
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      vcpkg-version: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
+      ort-version: ${{ needs.ci-config.outputs.ORT_VERSION }}
+      upload-to-binarycache: true
+
+  vcpkg-ort-macos-x86_64:
+    needs: ci-config
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/vcpkg-ort-macos.yml
+    with:
+      environment: production
+      runs-on: macos-15
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      vcpkg-version: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
+      ort-version: ${{ needs.ci-config.outputs.ORT_VERSION }}
+      upload-to-binarycache: true
+      x86_64: true

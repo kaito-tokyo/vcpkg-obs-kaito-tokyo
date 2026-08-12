@@ -30,16 +30,15 @@ on:
         description: The version of microsoft/onnxruntime to clone.
         required: true
         type: string
+      upload-to-binarycache:
+        description: Flag to upload to binarycache.
+        required: true
+        type: boolean
       x86_64:
         description: Flag to build for x86_64.
         required: false
         type: boolean
         default: false
-
-permissions:
-  attestations: write
-  contents: read
-  id-token: write
 
 env:
   HOMEBREW_NO_ANALYTICS: '1'
@@ -59,7 +58,7 @@ jobs:
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
     steps:
-      - name: Print runner info (macos)
+      - name: Print runner info (macOS)
         id: runner-macos
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
@@ -118,7 +117,7 @@ jobs:
 
       - name: Set up vcpkg binary cache
         id: binarycache
-        if: github.ref == 'refs/heads/main'
+        if: inputs.upload-to-binarycache
         uses: ./.github/actions/vcpkg-binarycache/setup
         with:
           binarycache-url: https://vcpkg-obs.kaito.tokyo
@@ -142,7 +141,7 @@ jobs:
             --x-manifest-root="${GITHUB_WORKSPACE:?}/onnxruntime/cmake"
 
       - name: Upload binary packages
-        if: "!cancelled() && github.ref == 'refs/heads/main'"
+        if: ${{ !cancelled() && inputs.upload-to-binarycache }}
         uses: ./.github/actions/vcpkg-binarycache/upload
         with:
           artifact-directory: ${{ steps.binarycache.outputs.ARTIFACT_DIRECTORY }}
