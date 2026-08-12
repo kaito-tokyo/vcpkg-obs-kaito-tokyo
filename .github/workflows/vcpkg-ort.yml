@@ -48,12 +48,6 @@ jobs:
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
 
   vcpkg-ort-macos:
-    needs: ci-config
-    name: Vcpkg ORT macOS
-    strategy:
-      fail-fast: false
-      matrix:
-        osx-arch: [arm64, x86_64]
     permissions:
       attestations: write
       contents: read
@@ -63,24 +57,40 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
       runs-on: macos-15
       DEVELOPER_DIR: /Applications/Xcode_16.4.app
-      OSX_ARCHITECTURES: ${{ matrix.osx-arch }}
-      OSX_DEPLOYMENT_TARGET: ${{ needs.ci-config.outputs.OSX_DEPLOYMENT_TARGET }}
-      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
-      ORT_VERSION: ${{ needs.ci-config.outputs.ORT_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
+      vcpkg-version: '2025.08.27'
+      ort-version: 'v1.28.0'
+
+  vcpkg-ort-macos-x86_64:
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/vcpkg-ort-macos.yml
+    with:
+      environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+      runs-on: macos-15
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      vcpkg-version: '2025.08.27'
+      ort-version: 'v1.28.0'
+      x86_64: true
 
   accept-vcpkg-ort:
     needs:
       - vcpkg-ort-windows
       - vcpkg-ort-macos
+      - vcpkg-ort-macos-x86_64
     name: Accept vcpkg-ort
     runs-on: ubuntu-slim
     permissions: {}
     env:
       VCPKG_ORT_WINDOWS_RESULT: ${{ needs.vcpkg-ort-windows.result }}
       VCPKG_ORT_MACOS_RESULT: ${{ needs.vcpkg-ort-macos.result }}
+      VCPKG_ORT_MACOS_X86_64_RESULT: ${{ needs.vcpkg-ort-macos-x86_64.result }}
     steps:
       - name: Accept vcpkg-ort
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          [[ "$VCPKG_ORT_WINDOWS_RESULT" == 'success' ]] && [[ "$VCPKG_ORT_MACOS_RESULT" == 'success' ]]
+          [[ "${VCPKG_ORT_WINDOWS_RESULT:?}" == 'success' ]] && \
+          [[ "${VCPKG_ORT_MACOS_RESULT:?}" == 'success' ]] && \
+          [[ "${VCPKG_ORT_MACOS_X86_64_RESULT:?}" == 'success' ]] && \
+          printf 'OK\n'
