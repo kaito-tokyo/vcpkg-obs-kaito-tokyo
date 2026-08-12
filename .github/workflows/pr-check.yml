@@ -1,0 +1,68 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: PR Check
+
+on:
+  merge_group:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-config:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci-config.yml
+
+  vcpkg-ort-windows:
+    needs: ci-config
+    uses: ./.github/workflows/vcpkg-ort-windows.yml
+    with:
+      environment: ''
+      runs-on: windows-2022
+      vcpkg-version: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
+      ort-version: ${{ needs.ci-config.outputs.ORT_VERSION }}
+      upload-to-binarycache: false
+
+  vcpkg-ort-macos:
+    needs: ci-config
+    uses: ./.github/workflows/vcpkg-ort-macos.yml
+    with:
+      environment: ''
+      runs-on: macos-15
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      vcpkg-version: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
+      ort-version: ${{ needs.ci-config.outputs.ORT_VERSION }}
+      upload-to-binarycache: false
+
+  vcpkg-ort-macos-x86_64:
+    needs: ci-config
+    uses: ./.github/workflows/vcpkg-ort-macos.yml
+    with:
+      environment: ''
+      runs-on: macos-15
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      vcpkg-version: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
+      ort-version: ${{ needs.ci-config.outputs.ORT_VERSION }}
+      upload-to-binarycache: false
+      x86_64: true
+
+  accept-vcpkg-ort:
+    needs:
+      - vcpkg-ort-windows
+      - vcpkg-ort-macos
+      - vcpkg-ort-macos-x86_64
+    name: Accept vcpkg-ort
+    runs-on: ubuntu-slim
+    permissions: {}
+    steps:
+      - run: echo OK

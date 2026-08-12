@@ -67,28 +67,6 @@ jobs:
       VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
 
-  vcpkg-manifest-macos-arm64-14:
-    needs: ci-config
-    strategy:
-      fail-fast: false
-      matrix:
-        os-xcode:
-          - name: Tahoe, Xcode 26.5
-            runs-on: macos-26
-            DEVELOPER_DIR: /Applications/Xcode_26.5.app
-    name: Manifest on macOS ${{ matrix.os-xcode.name }}
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/vcpkg-manifest-macos-arm64-14.yml
-    with:
-      environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
-      runs-on: ${{ matrix.os-xcode.runs-on }}
-      DEVELOPER_DIR: ${{ matrix.os-xcode.DEVELOPER_DIR }}
-      VCPKG_VERSION: ${{ needs.ci-config.outputs.VCPKG_VERSION }}
-      VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
-
   vcpkg-manifest-ubuntu:
     needs: ci-config
     name: Manifest on Ubuntu x64
@@ -103,7 +81,7 @@ jobs:
       VCPKG_BINARY_SOURCES: ${{ needs.ci-config.outputs.VCPKG_BINARY_SOURCES }}
 
   accept-vcpkg-manifest:
-    needs: [vcpkg-manifest-windows, vcpkg-manifest-macos, vcpkg-manifest-macos-arm64-14, vcpkg-manifest-ubuntu]
+    needs: [vcpkg-manifest-windows, vcpkg-manifest-macos, vcpkg-manifest-ubuntu]
     name: Accept vcpkg-manifest
     runs-on: ubuntu-slim
     permissions: {}
