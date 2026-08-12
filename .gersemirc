@@ -2,7 +2,7 @@
 
 # SPDX-FileCopyrightText: 2026 Kaito Udagawa <umireon@kaito.tokyo>
 #
-# SPDX-License-Identifier: CC0-1.0
+# SPDX-License-Identifier: Apache-2.0
 
 definitions: []
 line_length: 120
