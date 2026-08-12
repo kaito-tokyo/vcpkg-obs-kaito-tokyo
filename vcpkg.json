@@ -28,6 +28,10 @@
     },
     "fmt",
     {
+      "name": "libarchive",
+      "default-features": false
+    },
+    {
       "name": "libuv",
       "platform": "windows | android"
     },
