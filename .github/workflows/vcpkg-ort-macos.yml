@@ -4,171 +4,145 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: Vcpkg ORT macOS
-
-# file: .github/workflows/vcpkg-ort-macos.yml
-# author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-06-22
+name: Vcpkg ORT (macOS)
 
 on:
   workflow_call:
     inputs:
       environment:
-        description: The environment name for this workflow, or empty string for no environment
-        required: true
+        description: GitHub Actions environment name.
+        required: false
         type: string
+        default: ''
       runs-on:
-        description: The runner label to run this workflow on.
+        description: GitHub Actions runner label.
         required: true
         type: string
       DEVELOPER_DIR:
-        description: The value of DEVELOPER_DIR environment variable.
+        description: Xcode developer directory.
         required: true
         type: string
-      OSX_ARCHITECTURES:
-        description: The architecture to build for.
+      vcpkg-version:
+        description: The version of microsoft/vcpkg to clone.
         required: true
         type: string
-      OSX_DEPLOYMENT_TARGET:
-        description: The deployment target of macOS.
+      ort-version:
+        description: The version of microsoft/onnxruntime to clone.
         required: true
         type: string
-      VCPKG_VERSION:
-        description: The version of vcpkg to clone.
-        required: true
-        type: string
-      ORT_VERSION:
-        description: The version of ONNX Runtime to build.
-        required: true
-        type: string
-      VCPKG_BINARY_SOURCES:
-        description: Default VCPKG_BINARY_SOURCES.
-        required: true
-        type: string
+      x86_64:
+        description: Flag to build for x86_64.
+        required: false
+        type: boolean
+        default: false
 
-permissions: {}
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+
+env:
+  HOMEBREW_NO_ANALYTICS: '1'
+  HOMEBREW_NO_AUTO_UPDATE: '1'
+  HOMEBREW_NO_ENV_HINTS: '1'
+  HOMEBREW_NO_INSTALL_CLEANUP: '1'
 
 jobs:
   vcpkg-ort-macos:
+    environment: ${{ inputs.environment }}
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: 180
-    environment: ${{ inputs.environment }}
-
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
 
     env:
       DEVELOPER_DIR: ${{ inputs.DEVELOPER_DIR }}
+      VCPKG_ORT_TARGET_TRIPLET: ${{ inputs.x86_64 && 'x64-osx-obs-ort' || 'arm64-osx-obs-ort' }}
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
     steps:
-      - name: Print Xcode version
+      - name: Print runner info (macos)
+        id: runner-macos
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          xcodebuild -version
+          printf 'ImageVersion=%s\n' "${ImageVersion:?}" | tee -a "${GITHUB_OUTPUT:?}"
+          printf 'macos_product_version=%s\n' "$(sw_vers -productVersion)" | tee -a "${GITHUB_OUTPUT:?}"
 
-      - name: Print xcbeautify version
+      - name: Print Xcode info
+        id: xcode
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          xcbeautify --version
+          printf 'version=%s\n' "$(xcodebuild -version | awk 'NR == 1 { print $2 }')" | tee -a "${GITHUB_OUTPUT:?}"
+          printf 'build_version=%s\n' "$(xcodebuild -version | awk 'NR == 2 { print $3 }')" | tee -a "${GITHUB_OUTPUT:?}"
+
+      - name: Install pkgconf (macOS)
+        id: pkgconf
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        run: |
+          brew install pkgconf
+          printf 'bindir=%s\n' "$(brew --prefix pkgconf)/bin" >>"${GITHUB_OUTPUT:?}"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Set up Python for build requirements
-        id: setup-python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version-file: .python-version
-
-      - name: Install build requirements
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          python -m pip install -r requirements-build.txt
-
       - name: Checkout vcpkg
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/vcpkg
-          ref: ${{ inputs.VCPKG_VERSION }}
-          persist-credentials: false
+          ref: ${{ inputs.vcpkg-version }}
           path: vcpkg
           filter: blob:none
-
-      - name: Run bootstrap-vcpkg.sh
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          persist-credentials: false
 
       - name: Checkout ONNX Runtime
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/onnxruntime
-          ref: ${{ inputs.ORT_VERSION }}
-          persist-credentials: false
+          ref: ${{ inputs.ort-version }}
           path: onnxruntime
+          filter: blob:none
           submodules: recursive
+          persist-credentials: false
+
+      - name: Run bootstrap-vcpkg.sh
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          PKGCONF_BINDIR: ${{ steps.pkgconf.outputs.bindir }}
+        run: |
+          env -i \
+            DEVELOPER_DIR="${DEVELOPER_DIR:?}" \
+            HOME="${HOME:?}" \
+            PATH="${PKGCONF_BINDIR:?}:/usr/bin:/bin" \
+            VCPKG_ROOT="${VCPKG_ROOT:?}" \
+            "${VCPKG_ROOT:?}/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
         if: github.ref == 'refs/heads/main'
         uses: ./.github/actions/vcpkg-binarycache/setup
+        with:
+          binarycache-url: https://vcpkg-obs.kaito.tokyo
 
-      - name: Install dependencies from ONNX Runtime's vcpkg (macOS)
-        shell: pwsh
+      - name: Install vcpkg_ort dependencies (macOS)
+        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-          PYTHON: ${{ steps.setup-python.outputs.python-path }}
-          VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}
-          OSX_ARCHITECTURES: ${{ inputs.OSX_ARCHITECTURES }}
-          OSX_DEPLOYMENT_TARGET: ${{ inputs.OSX_DEPLOYMENT_TARGET }}
-          ORT_VERSION: ${{ inputs.ORT_VERSION }}
+          PKGCONF_BINDIR: ${{ steps.pkgconf.outputs.bindir }}
+          VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
         run: |
-          Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; $ProgressPreference = 'SilentlyContinue'
-
-          Import-Module ./scripts/BuildOnnxRuntime.psm1
-
-          $vcpkgExe = Join-Path $env:GITHUB_WORKSPACE 'vcpkg' 'vcpkg'
-
-          # Set PATH
-          $env:PATH = @(
-              Split-Path (Get-Command pwsh).Source -Parent
-              '/opt/homebrew/opt/xcbeautify/bin:/usr/bin:/bin:/usr/sbin:/sbin'
-          ) -join [System.IO.Path]::PathSeparator
-
-          $env:PATH = @(
-              Split-Path (Get-OrtToolchain -Name cmake) -Parent
-              Split-Path (Get-OrtToolchain -Name ninja) -Parent
-              $env:PATH
-          ) -join [System.IO.Path]::PathSeparator
-
-          # Remove vcpkg variables
-          $env:VCPKG_ROOT = $null
-          $env:VCPKG_INSTALLATION_ROOT = $null
-
-          # Configure GITHUB_TOKEN
-          $basicToken = [System.Convert]::ToBase64String(
-              [System.Text.Encoding]::UTF8.GetBytes("x-access-token:$env:GITHUB_TOKEN")
-          )
-
-          Write-Output "::add-mask::$basicToken"
-
-          $env:GIT_CONFIG_COUNT = '1'
-          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraHeader'
-          $env:GIT_CONFIG_VALUE_0 = "Authorization: basic $basicToken"
-
-          $assetSourcesScript = Join-Path $env:GITHUB_WORKSPACE 'scripts' 'vcpkg_asset_sources.ps1'
-          $env:X_VCPKG_ASSET_SOURCES = "clear;x-script,pwsh -NoProfile -ExecutionPolicy Bypass -File `"$assetSourcesScript`" {url} {sha512} {dst}"
-
-          # Configure ONNX Runtime
-          Update-OrtSourceWithPatches -OrtVersion $env:ORT_VERSION
-          Invoke-OrtBuildPy -Command update -OsxArchitectures $env:OSX_ARCHITECTURES -OsxDeploymentTarget $env:OSX_DEPLOYMENT_TARGET
+          env -i \
+            DEVELOPER_DIR="${DEVELOPER_DIR:?}" \
+            HOME="${HOME:?}" \
+            PATH="${PKGCONF_BINDIR:?}:/usr/bin:/bin" \
+            VCPKG_BINARY_SOURCES=${VCPKG_BINARY_SOURCES:?} \
+            VCPKG_ROOT="${VCPKG_ROOT:?}" \
+            "${VCPKG_ROOT:?}/vcpkg" install \
+            --triplet="${VCPKG_ORT_TARGET_TRIPLET:?}" \
+            --overlay-triplets="${GITHUB_WORKSPACE:?}/vcpkg-triplets" \
+            --x-feature=coreml-ep \
+            --x-manifest-root="${GITHUB_WORKSPACE:?}/onnxruntime/cmake"
 
       - name: Upload binary packages
-        if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+        if: "!cancelled() && github.ref == 'refs/heads/main'"
         uses: ./.github/actions/vcpkg-binarycache/upload
         with:
           artifact-directory: ${{ steps.binarycache.outputs.ARTIFACT_DIRECTORY }}
