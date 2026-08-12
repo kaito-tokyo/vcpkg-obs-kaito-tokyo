@@ -4,48 +4,43 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# file: .github/workflows/vcpkg-manifest-windows.yml
-# author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-05-25
+name: Vcpkg Manifest (Windows)
 
 on:
   workflow_call:
     inputs:
+      upload-to-binarycache:
+        description: Flag to upload to binarycache.
+        required: true
+        type: boolean
       environment:
-        description: The environment name for this workflow, or empty string for no environment
+        description: GitHub Actions environment name.
+        required: false
+        type: string
+        default: ''
+      runs-on:
+        description: GitHub Actions runner label.
         required: true
         type: string
-      VCPKG_VERSION:
-        description: The version of vcpkg to clone.
+      vcpkg-version:
+        description: The version of microsoft/vcpkg to clone.
         required: true
         type: string
-      VCPKG_BINARY_SOURCES:
-        description: Default VCPKG_BINARY_SOURCES.
-        required: true
-        type: string
-
-permissions: {}
 
 jobs:
-  build-manifest-windows:
-    runs-on: windows-2022
-    timeout-minutes: 180
+  vcpkg-manifest-windows-x64:
     environment: ${{ inputs.environment }}
-
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 180
 
     env:
-      MINIMAL_PATH: 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-      VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
+      VCPKG_TARGET_TRIPLET: x64-windows-static-md-obs
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
 
     steps:
       - name: Enable Windows long path
-        shell: pwsh
-        run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+        shell: pwsh -command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
+        run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,42 +51,34 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/vcpkg
-          ref: ${{ env.VCPKG_VERSION }}
-          persist-credentials: false
+          ref: ${{ inputs.vcpkg-version }}
           path: vcpkg
           filter: blob:none
+          persist-credentials: false
 
-      - name: Set up vcpkg using PowerShell
-        shell: pwsh
+      - name: Run bootstrap-vcpkg.bat
+        shell: pwsh -command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         run: |
-          ./vcpkg/bootstrap-vcpkg.bat -disableMetrics
-
-      - name: Print vcpkg toolchains
-        shell: pwsh
-        env:
-          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
-        run: |
-          $ErrorActionPreference = 'Stop'; Set-StrictMode -Version Latest; $PSNativeCommandUseErrorActionPreference = $true
-
-          $env:Path = $env:MINIMAL_PATH
-          ./vcpkg/vcpkg.exe fetch cmake
-          ./vcpkg/vcpkg.exe fetch ninja
+          $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+          & (Join-Path $env:VCPKG_ROOT 'bootstrap-vcpkg.bat') -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
-        if: github.ref == 'refs/heads/main'
+        if: inputs.upload-to-binarycache
         uses: ./.github/actions/vcpkg-binarycache/setup
+        with:
+          binarycache-url: https://vcpkg-obs.kaito.tokyo
 
-      - name: Install dependencies from vcpkg (x64-windows-static-md-obs)
-        shell: pwsh
+      - name: Install vcpkg dependencies (Windows)
+        shell: pwsh -command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         env:
-          VCPKG_BINARY_SOURCES: '${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
+          VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
         run: |
-          $env:Path = $env:MINIMAL_PATH
-          ./vcpkg/vcpkg.exe install --triplet=x64-windows-static-md-obs  --x-install-root=vcpkg_installed_x64-windows-static-md-obs
+          $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+          & (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') install --triplet $env:VCPKG_TARGET_TRIPLET
 
       - name: Upload binary packages
-        if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && inputs.upload-to-binarycache }}
         uses: ./.github/actions/vcpkg-binarycache/upload
         with:
           artifact-directory: ${{ steps.binarycache.outputs.ARTIFACT_DIRECTORY }}

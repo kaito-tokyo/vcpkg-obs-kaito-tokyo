@@ -6,31 +6,18 @@
 
 name: Check CI
 
-# file: .github/workflows/check.yml
-# author: Kaito Udagawa <umireon@kaito.tokyo>
-
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
-    tags: ['*']
+  pull_request:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   check-yamllint:
-    name: Check yamllint
-
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout
@@ -46,16 +33,11 @@ jobs:
       - name: Check with yamllint
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          git ls-files -z '*.yml' '*.yaml' ':!.github/workflows/*.lock.yml' | xargs -0 -r yamllint
+          git ls-files -z '*.yml' | xargs -0 -r yamllint
 
   check-shellcheck:
-    name: Check shellcheck
-
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout
@@ -74,13 +56,8 @@ jobs:
           git ls-files -z '*.sh' '*.bash' | xargs -0 -r shellcheck
 
   check-shfmt:
-    name: Check shfmt
-
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout
@@ -99,39 +76,7 @@ jobs:
         run: |
           git ls-files -z '*.sh' '*.bash' | xargs -0 -r shfmt -i 2 -d
 
-  check-gersemi:
-    name: Check gersemi
-
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Python for check requirements
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
-
-      - name: Install check requirements
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          python -m pip install -r requirements-check.txt
-
-      - name: Check with gersemi
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          git ls-files -z '*.cmake' 'CMakeLists.txt' ':!ports/' | xargs -0 -r gersemi -c
-
   check-reuse:
-    name: Check reuse
-
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
@@ -144,15 +89,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python for check requirements
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
-
       - name: Install check requirements
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          python -m pip install -r requirements-check.txt
+          python3 -m pip install --user reuse==6.2.0
+          printf '%s\n' "${HOME:?}/.local/bin" >>"${GITHUB_PATH:?}"
 
       - name: Lint with REUSE
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}

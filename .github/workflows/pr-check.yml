@@ -7,62 +7,64 @@
 name: PR Check
 
 on:
-  merge_group:
   pull_request:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr-check-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ci-config:
-    permissions:
-      contents: read
-    uses: ./.github/workflows/ci-config.yml
+  vcpkg-manifest-windows:
+    uses: ./.github/workflows/vcpkg-manifest-windows.yml
+    with:
+      upload-to-binarycache: false
+      runs-on: windows-2022
+      vcpkg-version: '2025.08.27'
 
   vcpkg-ort-windows:
-    needs: ci-config
     uses: ./.github/workflows/vcpkg-ort-windows.yml
     with:
-      environment: ''
-      runs-on: windows-2022
-      vcpkg-version: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
-      ort-version: ${{ needs.ci-config.outputs.ORT_VERSION }}
       upload-to-binarycache: false
+      runs-on: windows-2022
+      vcpkg-version: '2025.08.27'
+      ort-version: v1.28.0
+
+  vcpkg-manifest-macos:
+    uses: ./.github/workflows/vcpkg-manifest-macos.yml
+    with:
+      upload-to-binarycache: false
+      runs-on: macos-15
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      vcpkg-version: '2025.08.27'
 
   vcpkg-ort-macos:
-    needs: ci-config
     uses: ./.github/workflows/vcpkg-ort-macos.yml
     with:
-      environment: ''
+      upload-to-binarycache: false
       runs-on: macos-15
       DEVELOPER_DIR: /Applications/Xcode_16.4.app
-      vcpkg-version: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
-      ort-version: ${{ needs.ci-config.outputs.ORT_VERSION }}
-      upload-to-binarycache: false
+      vcpkg-version: '2025.08.27'
+      ort-version: v1.28.0
 
-  vcpkg-ort-macos-x86_64:
-    needs: ci-config
-    uses: ./.github/workflows/vcpkg-ort-macos.yml
+  vcpkg-manifest-macos-x86_64:
+    uses: ./.github/workflows/vcpkg-manifest-macos.yml
     with:
-      environment: ''
+      upload-to-binarycache: false
       runs-on: macos-15
       DEVELOPER_DIR: /Applications/Xcode_16.4.app
-      vcpkg-version: ${{ needs.ci-config.outputs.VCPKG_ORT_VERSION }}
-      ort-version: ${{ needs.ci-config.outputs.ORT_VERSION }}
-      upload-to-binarycache: false
+      vcpkg-version: '2025.08.27'
       x86_64: true
 
-  accept-vcpkg-ort:
-    needs:
-      - vcpkg-ort-windows
-      - vcpkg-ort-macos
-      - vcpkg-ort-macos-x86_64
-    name: Accept vcpkg-ort
-    runs-on: ubuntu-slim
-    permissions: {}
-    steps:
-      - run: echo OK
+
+  vcpkg-ort-macos-x86_64:
+    uses: ./.github/workflows/vcpkg-ort-macos.yml
+    with:
+      upload-to-binarycache: false
+      runs-on: macos-15
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      vcpkg-version: '2025.08.27'
+      ort-version: v1.28.0
+      x86_64: true

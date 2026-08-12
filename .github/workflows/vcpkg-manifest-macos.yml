@@ -4,56 +4,63 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# file: .github/workflows/vcpkg-manifest-macos.yml
-# author: Kaito Udagawa <umireon@kaito.tokyo>
-# date: 2026-05-25
+name: Vcpkg Manifest (macOS)
 
 on:
   workflow_call:
     inputs:
-      environment:
-        description: The environment name for this workflow, or empty string for no environment.
+      upload-to-binarycache:
+        description: Flag to upload to binarycache.
         required: true
+        type: boolean
+      environment:
+        description: GitHub Actions environment name.
+        required: false
         type: string
+        default: ''
       runs-on:
-        description: The runner label to run this workflow on.
+        description: GitHub Actions runner label.
         required: true
         type: string
       DEVELOPER_DIR:
-        description: The value of DEVELOPER_DIR environment variable.
+        description: Xcode developer directory.
+        required: false
+        type: string
+        default: /Applications/Xcode.app/Contents/Developer
+      vcpkg-version:
+        description: The version of microsoft/vcpkg to clone.
         required: true
         type: string
-      VCPKG_VERSION:
-        description: The version of vcpkg to clone.
-        required: true
-        type: string
-      VCPKG_BINARY_SOURCES:
-        description: Default VCPKG_BINARY_SOURCES.
-        required: true
-        type: string
+      x86_64:
+        description: Flag to build for x86_64.
+        required: false
+        type: boolean
+        default: false
 
-permissions: {}
+env:
+  HOMEBREW_NO_ANALYTICS: '1'
+  HOMEBREW_NO_AUTO_UPDATE: '1'
+  HOMEBREW_NO_ENV_HINTS: '1'
+  HOMEBREW_NO_INSTALL_CLEANUP: '1'
 
 jobs:
-  build-manifest-macos:
+  vcpkg-manifest-macos:
+    environment: ${{ inputs.environment }}
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: 180
-    environment: ${{ inputs.environment }}
-
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
 
     env:
-      DEVELOPER_DIR: '${{ inputs.DEVELOPER_DIR }}'
-      VCPKG_VERSION: '${{ inputs.VCPKG_VERSION }}'
+      DEVELOPER_DIR: ${{ inputs.DEVELOPER_DIR }}
+      VCPKG_TARGET_TRIPLET: ${{ inputs.x86_64 && 'x64-osx-obs' || 'arm64-osx-obs' }}
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
     steps:
-      - name: Print Xcode version
+      - name: Install pkgconf (macOS)
+        id: pkgconf
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
-          xcodebuild -version
+          brew install pkgconf
+          printf 'bindir=%s\n' "$(brew --prefix pkgconf)/bin" >>"${GITHUB_OUTPUT:?}"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -64,59 +71,47 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/vcpkg
-          ref: ${{ env.VCPKG_VERSION }}
-          persist-credentials: false
+          ref: ${{ inputs.vcpkg-version }}
           path: vcpkg
           filter: blob:none
+          persist-credentials: false
 
       - name: Run bootstrap-vcpkg.sh
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
+        env:
+          PKGCONF_BINDIR: ${{ steps.pkgconf.outputs.bindir }}
         run: |
-          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          env -i \
+            DEVELOPER_DIR="${DEVELOPER_DIR:?}" \
+            HOME="${HOME:?}" \
+            PATH="${PKGCONF_BINDIR:?}:/usr/bin:/bin" \
+            VCPKG_ROOT="${VCPKG_ROOT:?}" \
+            "${VCPKG_ROOT:?}/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
-        if: github.ref == 'refs/heads/main'
+        if: inputs.upload-to-binarycache
         uses: ./.github/actions/vcpkg-binarycache/setup
+        with:
+          binarycache-url: https://vcpkg-obs.kaito.tokyo
 
-      - name: Install dependencies from macOS vcpkg (arm64-osx-obs)
+      - name: Install vcpkg dependencies (macOS)
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          VCPKG_BINARY_SOURCES: '${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
+          PKGCONF_BINDIR: ${{ steps.pkgconf.outputs.bindir }}
+          VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
         run: |
-          vcpkg() {
-            env -i \
-              DEVELOPER_DIR="$DEVELOPER_DIR" \
-              HOME="$HOME" \
-              PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-              VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES" \
-              VCPKG_ROOT="$VCPKG_ROOT" \
-              "$VCPKG_ROOT/vcpkg" "$@"
-          }
-
-          vcpkg install --triplet=arm64-osx-obs --x-install-root=vcpkg_arm64_installed
-
-      - name: Install dependencies from macOS vcpkg (x64-osx-obs)
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          VCPKG_BINARY_SOURCES: '${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || inputs.VCPKG_BINARY_SOURCES }}'
-          VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
-        run: |
-          vcpkg() {
-            env -i \
-              DEVELOPER_DIR="$DEVELOPER_DIR" \
-              HOME="$HOME" \
-              PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-              VCPKG_BINARY_SOURCES="$VCPKG_BINARY_SOURCES" \
-              VCPKG_ROOT="$VCPKG_ROOT" \
-              "$VCPKG_ROOT/vcpkg" "$@"
-          }
-
-          vcpkg install --triplet=x64-osx-obs --x-install-root=vcpkg_x64_installed
+          env -i \
+            DEVELOPER_DIR="${DEVELOPER_DIR:?}" \
+            HOME="${HOME:?}" \
+            PATH="${PKGCONF_BINDIR:?}:/usr/bin:/bin" \
+            VCPKG_BINARY_SOURCES=${VCPKG_BINARY_SOURCES:?} \
+            VCPKG_ROOT="${VCPKG_ROOT:?}" \
+            "${VCPKG_ROOT:?}/vcpkg" install \
+            --triplet="${VCPKG_TARGET_TRIPLET:?}"
 
       - name: Upload binary packages
-        if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && inputs.upload-to-binarycache }}
         uses: ./.github/actions/vcpkg-binarycache/upload
         with:
           artifact-directory: ${{ steps.binarycache.outputs.ARTIFACT_DIRECTORY }}
