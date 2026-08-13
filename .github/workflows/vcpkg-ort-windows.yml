@@ -9,6 +9,10 @@ name: Vcpkg ORT (Windows)
 on:
   workflow_call:
     inputs:
+      upload-to-binarycache:
+        description: Upload to binarycache.
+        required: true
+        type: boolean
       environment:
         description: GitHub Actions environment name.
         required: false
@@ -26,10 +30,6 @@ on:
         description: The version of microsoft/onnxruntime to clone.
         required: true
         type: string
-      upload-to-binarycache:
-        description: Flag to upload to binarycache.
-        required: true
-        type: boolean
 
 jobs:
   vcpkg-ort-windows-x64:
@@ -39,48 +39,55 @@ jobs:
 
     env:
       VCPKG_ORT_TARGET_TRIPLET: x64-windows-static-md-obs-ort
-      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      VENDORED_VCPKG_ROOT: ${{ github.workspace }}\vendor\vcpkg
 
     steps:
       - name: Enable Windows long path
-        shell: pwsh -command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
+        shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
-
-      - name: Print runner info (Windows)
-        id: runner-macos
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          printf 'ImageVersion=%s\n' "${ImageVersion:?}" | tee -a "${GITHUB_OUTPUT:?}"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Checkout vcpkg
+      - name: Checkout microsoft/vcpkg
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/vcpkg
           ref: ${{ inputs.vcpkg-version }}
-          path: vcpkg
+          path: vendor/vcpkg
           filter: blob:none
           persist-credentials: false
 
-      - name: Checkout ONNX Runtime
+      - name: Checkout microsoft/onnxruntime
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/onnxruntime
           ref: ${{ inputs.ort-version }}
-          path: onnxruntime
+          path: vendor/onnxruntime
           filter: blob:none
-          submodules: recursive
           persist-credentials: false
 
+      - name: Set up MSVC
+        id: setup-msvc
+        shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
+        run: |
+          $VS_INSTALLATION_PATH = vswhere -version '[17,18)' -property installationPath
+          "VS_INSTALLATION_PATH=$VS_INSTALLATION_PATH"
+          Add-Content -Value "VS_INSTALLATION_PATH=$VS_INSTALLATION_PATH" -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8
+
       - name: Run bootstrap-vcpkg.bat
-        shell: pwsh -command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
+        shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
+        env:
+          VS_INSTALLATION_PATH: ${{ steps.setup-msvc.outputs.VS_INSTALLATION_PATH }}
         run: |
           $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-          & (Join-Path $env:VCPKG_ROOT 'bootstrap-vcpkg.bat') -disableMetrics
+          . (Join-Path $env:VS_INSTALLATION_PATH 'Common7\Tools\Launch-VsDevShell.ps1') -Arch amd64
+          Remove-Item env:VCPKG_INSTALLATION_ROOT
+
+          $env:VCPKG_ROOT = $env:VENDORED_VCPKG_ROOT
+          & (Join-Path $env:VENDORED_VCPKG_ROOT 'bootstrap-vcpkg.bat') -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
@@ -90,15 +97,20 @@ jobs:
           binarycache-url: https://vcpkg-obs.kaito.tokyo
 
       - name: Install vcpkg_ort dependencies (Windows)
-        shell: pwsh -command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
+        shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         env:
+          VS_INSTALLATION_PATH: ${{ steps.setup-msvc.outputs.VS_INSTALLATION_PATH }}
           VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
         run: |
           $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-          & (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') install `
-              --triplet $env:VCPKG_ORT_TARGET_TRIPLET `
-              --overlay-triplets (Join-Path $env:GITHUB_WORKSPACE 'vcpkg-triplets') `
-              --x-manifest-root (Join-Path $env:GITHUB_WORKSPACE 'onnxruntime' 'cmake')
+          . (Join-Path $env:VS_INSTALLATION_PATH 'Common7\Tools\Launch-VsDevShell.ps1') -Arch amd64
+
+          $env:VCPKG_ROOT = $env:VENDORED_VCPKG_ROOT
+          & (Join-Path $env:VENDORED_VCPKG_ROOT 'vcpkg.exe') install `
+            "--triplet=$env:VCPKG_ORT_TARGET_TRIPLET" `
+            "--overlay-triplets=$(Join-Path $env:GITHUB_WORKSPACE 'vcpkg-triplets')" `
+            "--x-install-root=$(Join-Path $env:GITHUB_WORKSPACE 'vcpkg_ort_installed')" `
+            "--x-manifest-root=$(Join-Path $env:GITHUB_WORKSPACE 'vendor' 'onnxruntime' 'cmake')"
 
       - name: Upload binary packages
         if: ${{ !cancelled() && inputs.upload-to-binarycache }}

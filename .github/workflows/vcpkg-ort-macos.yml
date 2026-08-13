@@ -9,6 +9,15 @@ name: Vcpkg ORT (macOS)
 on:
   workflow_call:
     inputs:
+      upload-to-binarycache:
+        description: Upload to binarycache.
+        required: true
+        type: boolean
+      x86_64:
+        description: Build for x86_64.
+        required: false
+        type: boolean
+        default: false
       environment:
         description: GitHub Actions environment name.
         required: false
@@ -30,15 +39,6 @@ on:
         description: The version of microsoft/onnxruntime to clone.
         required: true
         type: string
-      upload-to-binarycache:
-        description: Flag to upload to binarycache.
-        required: true
-        type: boolean
-      x86_64:
-        description: Flag to build for x86_64.
-        required: false
-        type: boolean
-        default: false
 
 env:
   HOMEBREW_NO_ANALYTICS: '1'
@@ -55,65 +55,49 @@ jobs:
     env:
       DEVELOPER_DIR: ${{ inputs.DEVELOPER_DIR }}
       VCPKG_ORT_TARGET_TRIPLET: ${{ inputs.x86_64 && 'x64-osx-obs-ort' || 'arm64-osx-obs-ort' }}
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VENDORED_VCPKG_ROOT: ${{ github.workspace }}/vendor/vcpkg
 
     steps:
-      - name: Print runner info (macOS)
-        id: runner-macos
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          printf 'ImageVersion=%s\n' "${ImageVersion:?}" | tee -a "${GITHUB_OUTPUT:?}"
-          printf 'macos_product_version=%s\n' "$(sw_vers -productVersion)" | tee -a "${GITHUB_OUTPUT:?}"
-
-      - name: Print Xcode info
-        id: xcode
-        shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          printf 'version=%s\n' "$(xcodebuild -version | awk 'NR == 1 { print $2 }')" | tee -a "${GITHUB_OUTPUT:?}"
-          printf 'build_version=%s\n' "$(xcodebuild -version | awk 'NR == 2 { print $3 }')" | tee -a "${GITHUB_OUTPUT:?}"
-
       - name: Install pkgconf (macOS)
         id: pkgconf
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         run: |
           brew install pkgconf
-          printf 'bindir=%s\n' "$(brew --prefix pkgconf)/bin" >>"${GITHUB_OUTPUT:?}"
+          printf 'PKGCONF_BINDIR=%s\n' "$(brew --prefix pkgconf)/bin" | tee -a "${GITHUB_OUTPUT:?}"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Checkout vcpkg
+      - name: Checkout microsoft/vcpkg
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/vcpkg
           ref: ${{ inputs.vcpkg-version }}
-          path: vcpkg
+          path: vendor/vcpkg
           filter: blob:none
           persist-credentials: false
 
-      - name: Checkout ONNX Runtime
+      - name: Checkout microsoft/onnxruntime
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: microsoft/onnxruntime
           ref: ${{ inputs.ort-version }}
-          path: onnxruntime
+          path: vendor/onnxruntime
           filter: blob:none
-          submodules: recursive
           persist-credentials: false
 
       - name: Run bootstrap-vcpkg.sh
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        env:
-          PKGCONF_BINDIR: ${{ steps.pkgconf.outputs.bindir }}
         run: |
-          env -i \
-            DEVELOPER_DIR="${DEVELOPER_DIR:?}" \
-            HOME="${HOME:?}" \
-            PATH="${PKGCONF_BINDIR:?}:/usr/bin:/bin" \
-            VCPKG_ROOT="${VCPKG_ROOT:?}" \
-            "${VCPKG_ROOT:?}/bootstrap-vcpkg.sh" -disableMetrics
+          ENVS=(
+            DEVELOPER_DIR="${DEVELOPER_DIR:?}"
+            HOME="${HOME:?}"
+            PATH=/usr/bin:/bin
+            VCPKG_ROOT="${VENDORED_VCPKG_ROOT:?}"
+          )
+          env -i "${ENVS[@]}" "${VENDORED_VCPKG_ROOT:?}/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
@@ -125,20 +109,23 @@ jobs:
       - name: Install vcpkg_ort dependencies (macOS)
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
-          PKGCONF_BINDIR: ${{ steps.pkgconf.outputs.bindir }}
+          PKGCONF_BINDIR: ${{ steps.pkgconf.outputs.PKGCONF_BINDIR }}
           VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
         run: |
-          env -i \
-            DEVELOPER_DIR="${DEVELOPER_DIR:?}" \
-            HOME="${HOME:?}" \
-            PATH="${PKGCONF_BINDIR:?}:/usr/bin:/bin" \
-            VCPKG_BINARY_SOURCES=${VCPKG_BINARY_SOURCES:?} \
-            VCPKG_ROOT="${VCPKG_ROOT:?}" \
-            "${VCPKG_ROOT:?}/vcpkg" install \
+          ENVS=(
+            DEVELOPER_DIR="${DEVELOPER_DIR:?}"
+            HOME="${HOME:?}"
+            PATH="${PKGCONF_BINDIR:?}:/usr/bin:/bin"
+            VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES:?}"
+            VCPKG_ROOT="${VENDORED_VCPKG_ROOT:?}"
+          )
+          env -i "${ENVS[@]}" \
+            "${VENDORED_VCPKG_ROOT:?}/vcpkg" install \
             --triplet="${VCPKG_ORT_TARGET_TRIPLET:?}" \
             --overlay-triplets="${GITHUB_WORKSPACE:?}/vcpkg-triplets" \
             --x-feature=coreml-ep \
-            --x-manifest-root="${GITHUB_WORKSPACE:?}/onnxruntime/cmake"
+            --x-install-root="${GITHUB_WORKSPACE:?}/vcpkg_ort_installed" \
+            --x-manifest-root="${GITHUB_WORKSPACE:?}/vendor/onnxruntime/cmake"
 
       - name: Upload binary packages
         if: ${{ !cancelled() && inputs.upload-to-binarycache }}
