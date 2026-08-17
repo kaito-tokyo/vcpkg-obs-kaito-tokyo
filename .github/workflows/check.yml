@@ -27,13 +27,11 @@ jobs:
 
       - name: Print yamllint version
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          yamllint --version
+        run: yamllint --version
 
       - name: Check with yamllint
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          git ls-files -z '*.yml' | xargs -0 -r yamllint
+        run: git ls-files -z '*.yml' | xargs -0 -r yamllint
 
   check-shellcheck:
     runs-on: ubuntu-24.04
@@ -47,13 +45,11 @@ jobs:
 
       - name: Print shellcheck version
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          shellcheck --version
+        run: shellcheck --version
 
       - name: Check with shellcheck
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          git ls-files -z '*.sh' '*.bash' | xargs -0 -r shellcheck
+        run: git ls-files -z '*.sh' '*.bash' | xargs -0 -r shellcheck
 
   check-shfmt:
     runs-on: ubuntu-24.04
@@ -67,14 +63,11 @@ jobs:
 
       - name: Install shfmt with apt
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shfmt
+        run: sudo apt-get update && sudo apt-get install -y shfmt
 
       - name: Check with shfmt
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          git ls-files -z '*.sh' '*.bash' | xargs -0 -r shfmt -i 2 -d
+        run: git ls-files -z '*.sh' '*.bash' | xargs -0 -r shfmt -i 2 -d
 
   check-reuse:
     runs-on: ubuntu-24.04
@@ -97,5 +90,4 @@ jobs:
 
       - name: Lint with REUSE
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
-        run: |
-          reuse lint
+        run: reuse --no-multiprocessing lint

@@ -24,7 +24,7 @@ jobs:
     with:
       upload-to-binarycache: true
       environment: production
-      runs-on: windows-2022
+      runs-on: windows-2025-vs2026
       vcpkg-version: '2025.08.27'
 
   vcpkg-ort-windows:
@@ -32,7 +32,7 @@ jobs:
     with:
       upload-to-binarycache: true
       environment: production
-      runs-on: windows-2022
+      runs-on: windows-2025-vs2026
       vcpkg-version: '2025.08.27'
       ort-version: v1.28.0
 
@@ -41,8 +41,8 @@ jobs:
     with:
       upload-to-binarycache: true
       environment: production
-      runs-on: macos-15
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      runs-on: macos-26
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app
       vcpkg-version: '2025.08.27'
 
   vcpkg-ort-macos:
@@ -50,8 +50,8 @@ jobs:
     with:
       upload-to-binarycache: true
       environment: production
-      runs-on: macos-15
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      runs-on: macos-26
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app
       vcpkg-version: '2025.08.27'
       ort-version: v1.28.0
 
@@ -60,8 +60,8 @@ jobs:
     with:
       upload-to-binarycache: true
       environment: production
-      runs-on: macos-15
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      runs-on: macos-26
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app
       vcpkg-version: '2025.08.27'
       x86_64: true
 
@@ -71,8 +71,8 @@ jobs:
     with:
       upload-to-binarycache: true
       environment: production
-      runs-on: macos-15
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app
+      runs-on: macos-26
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app
       vcpkg-version: '2025.08.27'
       ort-version: v1.28.0
       x86_64: true
