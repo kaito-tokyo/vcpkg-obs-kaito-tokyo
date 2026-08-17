@@ -35,7 +35,7 @@ jobs:
 
     env:
       VCPKG_TARGET_TRIPLET: x64-windows-static-md-obs
-      VENDORED_VCPKG_ROOT: ${{ github.workspace }}\vendor\vcpkg
+      VCPKG_ROOT: ${{ github.workspace }}\vendor\vcpkg
 
     steps:
       - name: Enable Windows long path
@@ -56,25 +56,11 @@ jobs:
           filter: blob:none
           persist-credentials: false
 
-      - name: Set up MSVC
-        id: setup-msvc
-        shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
-        run: |
-          $VS_INSTALLATION_PATH = vswhere -version '[17,18)' -property installationPath
-          "VS_INSTALLATION_PATH=$VS_INSTALLATION_PATH"
-          Add-Content -Value "VS_INSTALLATION_PATH=$VS_INSTALLATION_PATH" -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8
-
       - name: Run bootstrap-vcpkg.bat
         shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
-        env:
-          VS_INSTALLATION_PATH: ${{ steps.setup-msvc.outputs.VS_INSTALLATION_PATH }}
         run: |
           $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-          . (Join-Path $env:VS_INSTALLATION_PATH 'Common7\Tools\Launch-VsDevShell.ps1') -Arch amd64
-          Remove-Item env:VCPKG_INSTALLATION_ROOT
-
-          $env:VCPKG_ROOT = $env:VENDORED_VCPKG_ROOT
-          & (Join-Path $env:VENDORED_VCPKG_ROOT 'bootstrap-vcpkg.bat') -disableMetrics
+          & (Join-Path $env:VCPKG_ROOT 'bootstrap-vcpkg.bat') -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
@@ -86,14 +72,11 @@ jobs:
       - name: Install vcpkg dependencies (Windows)
         shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         env:
-          VS_INSTALLATION_PATH: ${{ steps.setup-msvc.outputs.VS_INSTALLATION_PATH }}
           VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
+          VCPKG_FORCE_DOWNLOADED_BINARIES: '1'
         run: |
           $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-          . (Join-Path $env:VS_INSTALLATION_PATH 'Common7\Tools\Launch-VsDevShell.ps1') -Arch amd64
-
-          $env:VCPKG_ROOT = $env:VENDORED_VCPKG_ROOT
-          & (Join-Path $env:VENDORED_VCPKG_ROOT 'vcpkg.exe') install "--triplet=$env:VCPKG_TARGET_TRIPLET"
+          & (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') install --triplet $env:VCPKG_TARGET_TRIPLET
 
       - name: Upload binary packages
         if: ${{ !cancelled() && inputs.upload-to-binarycache }}

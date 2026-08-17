@@ -54,8 +54,9 @@ jobs:
 
     env:
       DEVELOPER_DIR: ${{ inputs.DEVELOPER_DIR }}
+      VCPKG_FORCE_DOWNLOADED_BINARIES: '1'
       VCPKG_ORT_TARGET_TRIPLET: ${{ inputs.x86_64 && 'x64-osx-obs-ort' || 'arm64-osx-obs-ort' }}
-      VENDORED_VCPKG_ROOT: ${{ github.workspace }}/vendor/vcpkg
+      VCPKG_ROOT: ${{ github.workspace }}/vendor/vcpkg
 
     steps:
       - name: Install pkgconf (macOS)
@@ -95,9 +96,8 @@ jobs:
             DEVELOPER_DIR="${DEVELOPER_DIR:?}"
             HOME="${HOME:?}"
             PATH=/usr/bin:/bin
-            VCPKG_ROOT="${VENDORED_VCPKG_ROOT:?}"
           )
-          env -i "${ENVS[@]}" "${VENDORED_VCPKG_ROOT:?}/bootstrap-vcpkg.sh" -disableMetrics
+          env -i "${ENVS[@]}" "${VCPKG_ROOT:?}/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
@@ -117,15 +117,16 @@ jobs:
             HOME="${HOME:?}"
             PATH="${PKGCONF_BINDIR:?}:/usr/bin:/bin"
             VCPKG_BINARY_SOURCES="${VCPKG_BINARY_SOURCES:?}"
-            VCPKG_ROOT="${VENDORED_VCPKG_ROOT:?}"
+            VCPKG_FORCE_DOWNLOADED_BINARIES=1
+            VCPKG_ROOT="${VCPKG_ROOT:?}"
           )
           env -i "${ENVS[@]}" \
-            "${VENDORED_VCPKG_ROOT:?}/vcpkg" install \
-            --triplet="${VCPKG_ORT_TARGET_TRIPLET:?}" \
-            --overlay-triplets="${GITHUB_WORKSPACE:?}/vcpkg-triplets" \
-            --x-feature=coreml-ep \
-            --x-install-root="${GITHUB_WORKSPACE:?}/vcpkg_ort_installed" \
-            --x-manifest-root="${GITHUB_WORKSPACE:?}/vendor/onnxruntime/cmake"
+            "${VCPKG_ROOT:?}/vcpkg" install \
+            --overlay-triplets "${GITHUB_WORKSPACE:?}/vcpkg-triplets" \
+            --triplet "${VCPKG_ORT_TARGET_TRIPLET:?}" \
+            --x-feature coreml-ep \
+            --x-install-root "${GITHUB_WORKSPACE:?}/vcpkg_ort_installed" \
+            --x-manifest-root "${GITHUB_WORKSPACE:?}/vendor/onnxruntime/cmake"
 
       - name: Upload binary packages
         if: ${{ !cancelled() && inputs.upload-to-binarycache }}
