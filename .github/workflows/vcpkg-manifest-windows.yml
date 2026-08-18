@@ -59,8 +59,12 @@ jobs:
       - name: Run bootstrap-vcpkg.bat
         shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         run: |
-          $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-          & (Join-Path $env:VCPKG_ROOT 'bootstrap-vcpkg.bat') -disableMetrics
+          $BOOTSTRAP_VCPKG_BAT = Join-Path $env:VCPKG_ROOT 'bootstrap-vcpkg.bat'
+          $LAUNCH_DEVSHELL = Join-Path (vswhere -version '[18,19)' -property installationPath) 'Common7' 'Tools' 'Launch-VsDevShell.ps1'
+          $env:Path = 'C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+          & $LAUNCH_DEVSHELL -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+
+          & $BOOTSTRAP_VCPKG_BAT -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
@@ -73,10 +77,16 @@ jobs:
         shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         env:
           VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
-          VCPKG_FORCE_DOWNLOADED_BINARIES: '1'
         run: |
-          $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-          & (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') install --triplet $env:VCPKG_TARGET_TRIPLET
+          $VCPKG_COMMAND = Join-Path $env:VCPKG_ROOT 'vcpkg.exe'
+          $LAUNCH_DEVSHELL = Join-Path (vswhere -version '[18,19)' -property installationPath) 'Common7' 'Tools' 'Launch-VsDevShell.ps1'
+
+          $env:Path = 'C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+          & $LAUNCH_DEVSHELL -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+
+          $env:VCPKG_DISABLE_METRICS = '1'
+          $env:VCPKG_FORCE_DOWNLOADED_BINARIES = '1'
+          & $VCPKG_COMMAND install --triplet $env:VCPKG_TARGET_TRIPLET
 
       - name: Upload binary packages
         if: ${{ !cancelled() && inputs.upload-to-binarycache }}
