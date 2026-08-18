@@ -39,7 +39,7 @@ jobs:
 
     env:
       VCPKG_ORT_TARGET_TRIPLET: x64-windows-static-md-obs-ort
-      VCPKG_ROOT: ${{ github.workspace }}\vendor\vcpkg
+      VCPKG_ROOT: ${{ github.workspace }}/vendor/vcpkg
 
     steps:
       - name: Enable Windows long path
@@ -73,7 +73,7 @@ jobs:
         shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         run: |
           $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-          & (Join-Path $env:VCPKG_ROOT 'bootstrap-vcpkg.bat')
+          & (Join-Path $env:VCPKG_ROOT 'bootstrap-vcpkg.bat') -disableMetrics
 
       - name: Set up vcpkg binary cache
         id: binarycache
@@ -86,12 +86,18 @@ jobs:
         shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
         env:
           VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
-          VCPKG_FORCE_DOWNLOADED_BINARIES: '1'
         run: |
-          $env:Path = 'C:\Program Files\Git\cmd;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
-          & (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') install `
-            --overlay-triplets (Join-Path $env:GITHUB_WORKSPACE 'vcpkg-triplets') `
+          $LAUNCH_DEVSHELL = Join-Path (vswhere -version '[18,19)' -property installationPath) 'Common7' 'Tools' 'Launch-VsDevShell.ps1'
+          $VCPKG_COMMAND = Join-Path $env:VCPKG_ROOT 'vcpkg.exe'
+
+          $env:Path = 'C:\Windows\System32\WindowsPowerShell\v1.0;C:\Windows\System32;C:\Windows'
+          & $LAUNCH_DEVSHELL -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+
+          $env:VCPKG_DISABLE_METRICS = '1'
+          $env:VCPKG_FORCE_DOWNLOADED_BINARIES = '1'
+          & $VCPKG_COMMAND install `
             --triplet $env:VCPKG_ORT_TARGET_TRIPLET `
+            --overlay-triplets (Join-Path $env:GITHUB_WORKSPACE 'vcpkg-triplets') `
             --x-install-root (Join-Path $env:GITHUB_WORKSPACE 'vcpkg_ort_installed') `
             --x-manifest-root (Join-Path $env:GITHUB_WORKSPACE 'vendor' 'onnxruntime' 'cmake')
 
