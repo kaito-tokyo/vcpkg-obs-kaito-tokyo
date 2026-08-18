@@ -54,6 +54,7 @@ jobs:
 
     env:
       DEVELOPER_DIR: ${{ inputs.DEVELOPER_DIR }}
+      VCPKG_BINARY_SOURCES: clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read
       VCPKG_FORCE_DOWNLOADED_BINARIES: '1'
       VCPKG_ORT_TARGET_TRIPLET: ${{ inputs.x86_64 && 'x64-osx-obs-ort' || 'arm64-osx-obs-ort' }}
       VCPKG_ROOT: ${{ github.workspace }}/vendor/vcpkg
@@ -110,7 +111,6 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail -O nullglob {0}
         env:
           PKGCONF_BINDIR: ${{ steps.pkgconf.outputs.PKGCONF_BINDIR }}
-          VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
         run: |
           ENVS=(
             DEVELOPER_DIR="${DEVELOPER_DIR:?}"

@@ -20,10 +20,6 @@ outputs:
   ARTIFACT_DIRECTORY:
     description: Absolute path of the artifact directory, normalized to forward slashes.
     value: ${{ steps.prepare.outputs.ARTIFACT_DIRECTORY }}
-  VCPKG_BINARY_SOURCES:
-    description: The VCPKG_BINARY_SOURCES value to use for vcpkg commands.
-    value: ${{ steps.prepare.outputs.VCPKG_BINARY_SOURCES }}
-
 runs:
   using: composite
   steps:
@@ -56,7 +52,5 @@ runs:
 
         mkdir -p "$directory"
 
-        {
-          echo "ARTIFACT_DIRECTORY=$directory"
-          echo "VCPKG_BINARY_SOURCES=clear;http,$BINARYCACHE_URL/{sha},read;files,$directory,write"
-        } >> "$GITHUB_OUTPUT"
+        echo "ARTIFACT_DIRECTORY=$directory" >> "$GITHUB_OUTPUT"
+        echo "VCPKG_BINARY_SOURCES=clear;http,$BINARYCACHE_URL/{sha},read;files,$directory,write" >> "$GITHUB_ENV"
