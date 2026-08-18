@@ -38,6 +38,7 @@ jobs:
     timeout-minutes: 180
 
     env:
+      VCPKG_BINARY_SOURCES: clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read
       VCPKG_ORT_TARGET_TRIPLET: x64-windows-static-md-obs-ort
       VCPKG_ROOT: ${{ github.workspace }}/vendor/vcpkg
 
@@ -88,8 +89,6 @@ jobs:
 
       - name: Install vcpkg_ort dependencies (Windows)
         shell: pwsh -Command "Set-StrictMode -Version Latest; $ErrorActionPreference = 'Stop'; $PSNativeCommandUseErrorActionPreference = $true; . '{0}'"
-        env:
-          VCPKG_BINARY_SOURCES: ${{ steps.binarycache.outputs.VCPKG_BINARY_SOURCES || 'clear;http,https://vcpkg-obs.kaito.tokyo/{sha},read' }}
         run: |
           $LAUNCH_DEVSHELL = Join-Path (vswhere -version '[18,19)' -property installationPath) 'Common7' 'Tools' 'Launch-VsDevShell.ps1'
           $VCPKG_COMMAND = Join-Path $env:VCPKG_ROOT 'vcpkg.exe'
