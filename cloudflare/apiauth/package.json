@@ -4,7 +4,7 @@
 	"type": "module",
 	"dependencies": {
 		"jose": "^6.2.9",
-		"uuid": "^14.0.1"
+		"uuid": "^14.0.2"
 	},
 	"devDependencies": {
 		"wrangler": "^4.123.0"
